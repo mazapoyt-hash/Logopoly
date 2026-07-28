@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Overridable so tests (and deployments) can point at their own storage.
-const DATA_DIR = process.env.LOGOPOLY_DATA_DIR || path.join(__dirname, '..', 'data');
+const DATA_DIR = process.env.QDESK_DATA_DIR || path.join(__dirname, '..', 'data');
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const db = new Database(path.join(DATA_DIR, 'chat.db'));

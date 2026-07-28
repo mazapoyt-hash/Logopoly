@@ -30,11 +30,11 @@ let failures = 0;
 for (const [i, suite] of suites.entries()) {
   const port = 3100 + i;
   const base = `http://localhost:${port}`;
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'logopoly-test-'));
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qdesk-test-'));
 
   const server = spawn(process.execPath, [path.join(ROOT, 'server', 'index.js')], {
     cwd: ROOT,
-    env: { ...process.env, PORT: String(port), LOGOPOLY_DATA_DIR: dataDir },
+    env: { ...process.env, PORT: String(port), QDESK_DATA_DIR: dataDir },
     stdio: 'ignore',
   });
 

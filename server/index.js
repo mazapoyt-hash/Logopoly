@@ -493,7 +493,7 @@ function publicVisitor(v, conversationId) {
 }
 
 server.listen(PORT, () => {
-  console.log(`\n  Logopoly Chat server running`);
+  console.log(`\n  Q desk server running`);
   console.log(`  ─ Demo sites (visitor):  http://localhost:${PORT}/demo/`);
   console.log(`  ─ Operator dashboard:    http://localhost:${PORT}/operator/`);
   console.log(`  ─ Widget script:         http://localhost:${PORT}/widget/widget.js\n`);

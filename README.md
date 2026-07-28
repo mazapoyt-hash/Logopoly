@@ -1,4 +1,4 @@
-# Logopoly Chat
+# Q desk
 
 Онлайн-чат поддержки для сайтов — открытый клон ядра [Talk-Me](https://talk-me.ru).
 Встраиваемый виджет для посетителей + панель оператора с общением в реальном
@@ -49,7 +49,7 @@
 
 - **Backend:** Node.js, Express, Socket.IO
 - **Хранилище:** SQLite (better-sqlite3), файл в `data/chat.db`
-  (путь переопределяется через `LOGOPOLY_DATA_DIR`)
+  (путь переопределяется через `QDESK_DATA_DIR`)
 - **Frontend:** ванильный HTML/CSS/JS, без сборки
 
 ## Запуск

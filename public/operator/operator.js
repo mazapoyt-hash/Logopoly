@@ -1,9 +1,9 @@
-/* Logopoly Chat — operator dashboard client. */
+/* Q desk — operator dashboard client. */
 (function () {
   'use strict';
 
-  const LS_KEY = 'logopoly_operator';
-  const LS_COLLAPSED = 'logopoly_collapsed_sites';
+  const LS_KEY = 'qdesk_operator';
+  const LS_COLLAPSED = 'qdesk_collapsed_sites';
   const $ = (sel) => document.querySelector(sel);
 
   const state = {
