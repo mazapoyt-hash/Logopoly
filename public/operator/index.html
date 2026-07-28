@@ -7,24 +7,7 @@
   <link rel="stylesheet" href="/operator/operator.css" />
 </head>
 <body>
-  <!-- Login gate -->
-  <div id="login" class="login">
-    <form class="login-card" id="loginForm">
-      <div class="brand"><span class="brand-mark">◆</span> Q&nbsp;desk</div>
-      <h1>Панель оператора</h1>
-      <p class="muted">Войдите, чтобы принимать обращения посетителей.</p>
-      <label>Имя оператора
-        <input id="loginName" type="text" placeholder="Например, Анна" required />
-      </label>
-      <label>Email (для повторного входа)
-        <input id="loginEmail" type="email" placeholder="anna@company.ru" />
-      </label>
-      <button type="submit">Войти</button>
-      <p class="login-note">Демо-вход без пароля. Данные операторов хранятся локально в базе сервера.</p>
-    </form>
-  </div>
-
-  <!-- App -->
+  <!-- App (the server redirects anonymous visitors to /login/) -->
   <div id="app" class="app hidden">
     <!-- Sidebar: inbox -->
     <aside class="sidebar">
@@ -143,6 +126,21 @@
       <div class="tab-pane hidden" id="tabTeam">
         <p class="hint-text">Отметьте, какие сайты обрабатывает каждый сотрудник. Изменения применяются сразу, без перезахода.</p>
         <div class="team-list" id="teamList"></div>
+
+        <details class="add-employee" id="addEmployee">
+          <summary>+ Добавить сотрудника</summary>
+          <div class="add-employee-body">
+            <input id="empName" placeholder="Имя" />
+            <input id="empEmail" type="email" placeholder="Email для входа" />
+            <input id="empPassword" type="text" placeholder="Пароль (минимум 8 символов)" />
+            <div class="error hidden" id="empError"></div>
+            <button id="empAdd" class="btn-primary">Создать аккаунт</button>
+            <p class="hint-text" style="margin:8px 0 0">
+              Передайте сотруднику email и пароль — войти он сможет на странице
+              <b>/login/</b>. Сайты назначаются галочками после создания.
+            </p>
+          </div>
+        </details>
       </div>
     </div>
   </div>

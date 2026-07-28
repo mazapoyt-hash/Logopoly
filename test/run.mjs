@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
-const suites = ['base.e2e.mjs', 'multisite.e2e.mjs'];
+const suites = ['auth.e2e.mjs', 'base.e2e.mjs', 'multisite.e2e.mjs'];
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 

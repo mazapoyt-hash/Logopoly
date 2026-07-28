@@ -3,52 +3,50 @@
  * handles which, and operators are hard-isolated to their own brands.
  */
 import { io } from 'socket.io-client';
+import { req, setupLead, login, socketAuth, wait, makeChecker } from './helpers.mjs';
 
 const BASE = process.env.BASE || 'http://localhost:3000';
 const results = [];
-const check = (name, cond) => { results.push([name, cond]); console.log((cond ? '  ✅' : '  ❌') + ' ' + name); };
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-const json = (r) => r.json();
-const asOp = (opId, extra = {}) => ({ 'Content-Type': 'application/json', 'x-operator-id': opId, ...extra });
+const check = makeChecker(results);
 
-/* 1. Team lead + operator */
-const { operator: admin } = await fetch(BASE + '/api/login', {
-  method: 'POST', headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ name: 'Анна', email: 'lead@test.ru' }),
-}).then(json);
-check('first login becomes team lead', admin.role === 'admin');
+/* 1. Team lead + employee */
+const lead = await setupLead(BASE, { name: 'Анна', email: 'lead@test.ru', password: 'lead-password' });
+check('first-run setup creates the team lead', lead.operator.role === 'admin');
 
-const bLogin = await fetch(BASE + '/api/login', {
-  method: 'POST', headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ name: 'Борис', email: 'boris@test.ru' }),
-}).then(json);
-const boris = bLogin.operator;
-check('second operator is not a lead', boris.role === 'operator');
-check('operator starts with no sites', bLogin.sites.length === 0);
+const createdRes = await req(BASE, '/api/operators', {
+  method: 'POST', cookie: lead.cookie,
+  body: { name: 'Борис', email: 'boris@test.ru', password: 'boris-password' },
+});
+const created = await createdRes.json();
+check('lead creates an employee account', created.operator?.role === 'operator');
+check('employee starts with no sites', (created.operator.siteIds || []).length === 0);
+
+const boris = await login(BASE, 'boris@test.ru', 'boris-password');
+check('employee can sign in', boris.status === 200 && !!boris.cookie);
 
 /* 2. Settings API is lead-only */
-const forbidden = await fetch(BASE + '/api/operators', { headers: { 'x-operator-id': boris.id } });
+const forbidden = await req(BASE, '/api/operators', { cookie: boris.cookie });
 check('settings API blocked for non-lead', forbidden.status === 403);
 
 /* 3. Lead creates the brands */
 const brands = {};
 for (const name of ['Casino Royal', 'LuckyStar', 'GoldenBet', 'NeonSpin']) {
-  const { site } = await fetch(BASE + '/api/sites', {
-    method: 'POST', headers: asOp(admin.id), body: JSON.stringify({ name }),
-  }).then(json);
+  const { site } = await req(BASE, '/api/sites', {
+    method: 'POST', cookie: lead.cookie, body: { name },
+  }).then((r) => r.json());
   brands[name] = site;
 }
 check('lead created 4 sites', Object.keys(brands).length === 4);
 check('each site gets its own widget key', new Set(Object.values(brands).map((s) => s.key)).size === 4);
 
-/* 4. Lead assigns 2 of them to the operator */
-const setSites = (siteIds) => fetch(BASE + `/api/operators/${boris.id}/sites`, {
-  method: 'PUT', headers: asOp(admin.id), body: JSON.stringify({ siteIds }),
+/* 4. Lead assigns 2 of them to the employee */
+const setSites = (siteIds) => req(BASE, `/api/operators/${created.operator.id}/sites`, {
+  method: 'PUT', cookie: lead.cookie, body: { siteIds },
 });
 await setSites([brands['Casino Royal'].id, brands['LuckyStar'].id]);
 
-/* 5. Operator connects */
-const bSock = io(BASE, { auth: { role: 'operator', operatorId: boris.id } });
+/* 5. Employee connects */
+const bSock = io(BASE, socketAuth(boris.cookie));
 let bSites = [], bInbox = [], bHistory = null, bTyping = null;
 bSock.on('sites:list', (s) => { bSites = s; });
 bSock.on('inbox:list', (r) => { bInbox = r; });

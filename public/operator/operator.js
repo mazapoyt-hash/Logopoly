@@ -2,7 +2,6 @@
 (function () {
   'use strict';
 
-  const LS_KEY = 'qdesk_operator';
   const LS_COLLAPSED = 'qdesk_collapsed_sites';
   const $ = (sel) => document.querySelector(sel);
 
@@ -19,59 +18,30 @@
 
   try { state.collapsed = new Set(JSON.parse(localStorage.getItem(LS_COLLAPSED) || '[]')); } catch {}
 
-  /* ------------------------------- Login ------------------------------- */
-  const loginEl = $('#login');
+  /* -------------------------------- Boot ------------------------------- */
   const appEl = $('#app');
 
-  $('#loginForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = $('#loginName').value.trim();
-    const email = $('#loginEmail').value.trim();
-    if (!name) return;
-    const res = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email }),
-    });
-    const data = await res.json();
-    if (data.operator) {
+  $('#logoutBtn').addEventListener('click', async () => {
+    if (state.socket) state.socket.disconnect();
+    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch {}
+    location.href = '/login/';
+  });
+
+  // Identity always comes from the session cookie — no client-held credentials.
+  boot();
+
+  async function boot() {
+    try {
+      const res = await fetch('/api/me');
+      if (!res.ok) { location.href = '/login/'; return; }
+      const data = await res.json();
       state.operator = data.operator;
       state.sites = data.sites || [];
-      try { localStorage.setItem(LS_KEY, JSON.stringify(data.operator)); } catch {}
-      boot();
+    } catch {
+      location.href = '/login/';
+      return;
     }
-  });
 
-  $('#logoutBtn').addEventListener('click', () => {
-    try { localStorage.removeItem(LS_KEY); } catch {}
-    if (state.socket) state.socket.disconnect();
-    location.reload();
-  });
-
-  try {
-    const saved = localStorage.getItem(LS_KEY);
-    if (saved) state.operator = JSON.parse(saved);
-  } catch {}
-  if (state.operator) boot();
-
-  /* -------------------------------- Boot ------------------------------- */
-  async function boot() {
-    // Re-read identity from the server: the lead may have changed our role.
-    try {
-      const res = await fetch('/api/me', { headers: { 'x-operator-id': state.operator.id } });
-      if (res.ok) {
-        const data = await res.json();
-        state.operator = data.operator;
-        state.sites = data.sites || [];
-        localStorage.setItem(LS_KEY, JSON.stringify(data.operator));
-      } else if (res.status === 401) {
-        localStorage.removeItem(LS_KEY);
-        location.reload();
-        return;
-      }
-    } catch {}
-
-    loginEl.classList.add('hidden');
     appEl.classList.remove('hidden');
     $('#meName').childNodes[0].nodeValue = state.operator.name + ' ';
     $('#meAvatar').textContent = (state.operator.name[0] || 'O').toUpperCase();
@@ -99,12 +69,12 @@
 
   /* ------------------------------ Socket ------------------------------- */
   function connect() {
-    state.socket = io({ auth: { role: 'operator', operatorId: state.operator.id } });
+    // The server authenticates the socket from the session cookie.
+    state.socket = io({ auth: { role: 'operator' } });
 
     state.socket.on('error:auth', (d) => {
-      try { localStorage.removeItem(LS_KEY); } catch {}
       if (d && d.message) alert(d.message);
-      location.reload();
+      location.href = '/login/';
     });
 
     state.socket.on('sites:list', (sites) => {
@@ -401,7 +371,7 @@
 
   /* ----------------------------- Templates ----------------------------- */
   async function loadTemplates() {
-    const res = await fetch('/api/templates?operatorId=' + encodeURIComponent(state.operator.id));
+    const res = await fetch('/api/templates');
     const data = await res.json();
     state.templates = data.templates || [];
   }
@@ -417,7 +387,7 @@
       if (!title || !body) return;
       const res = await fetch('/api/templates', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ operatorId: state.operator.id, title, body }),
+        body: JSON.stringify({ title, body }),
       });
       const data = await res.json();
       if (data.template) {
@@ -461,7 +431,7 @@
   function api(url, opts = {}) {
     return fetch(url, {
       ...opts,
-      headers: { 'Content-Type': 'application/json', 'x-operator-id': state.operator.id, ...(opts.headers || {}) },
+      headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
     });
   }
 
@@ -482,6 +452,31 @@
         $('#tabSites').classList.toggle('hidden', which !== 'sites');
         $('#tabTeam').classList.toggle('hidden', which !== 'team');
       });
+    });
+
+    $('#empAdd').addEventListener('click', async () => {
+      const err = $('#empError');
+      err.classList.add('hidden');
+      const payload = {
+        name: $('#empName').value.trim(),
+        email: $('#empEmail').value.trim(),
+        password: $('#empPassword').value,
+      };
+      if (!payload.name || !payload.email) {
+        err.textContent = 'Заполните имя и email'; err.classList.remove('hidden'); return;
+      }
+      if ((payload.password || '').length < 8) {
+        err.textContent = 'Пароль должен быть не короче 8 символов'; err.classList.remove('hidden'); return;
+      }
+      const res = await api('/api/operators', { method: 'POST', body: JSON.stringify(payload) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        err.textContent = data.error || 'Не удалось создать аккаунт'; err.classList.remove('hidden'); return;
+      }
+      $('#empName').value = ''; $('#empEmail').value = ''; $('#empPassword').value = '';
+      $('#addEmployee').removeAttribute('open');
+      await renderTeamTab();
+      flash('Аккаунт создан');
     });
 
     $('#siteAdd').addEventListener('click', async () => {
@@ -554,15 +549,45 @@
       const row = document.createElement('div');
       row.className = 'team-row';
       const isAdmin = op.role === 'admin';
+      const isMe = op.id === state.operator.id;
+      if (!op.active) row.classList.add('inactive');
       row.innerHTML = `
         <div class="team-row-head">
           <div class="team-avatar">${escapeHtml((op.name[0] || '?').toUpperCase())}</div>
-          <div class="team-name">${escapeHtml(op.name)}
-            <small>${escapeHtml(op.email || 'без email')} · ${isAdmin ? 'руководитель' : 'оператор'}</small>
+          <div class="team-name">${escapeHtml(op.name)}${isMe ? ' <span class="you-tag">это вы</span>' : ''}
+            <small>${escapeHtml(op.email || 'без email')} · ${isAdmin ? 'руководитель' : 'оператор'}${op.active ? '' : ' · отключён'}</small>
           </div>
-          <button class="mini-btn" data-act="role">${isAdmin ? 'Сделать оператором' : 'Сделать руководителем'}</button>
+          <div class="team-row-actions">
+            <button class="mini-btn" data-act="password">Пароль</button>
+            ${isMe ? '' : `<button class="mini-btn ${op.active ? 'danger' : ''}" data-act="active">${op.active ? 'Отключить' : 'Включить'}</button>`}
+            <button class="mini-btn" data-act="role">${isAdmin ? 'Сделать оператором' : 'Сделать руководителем'}</button>
+          </div>
         </div>
         <div class="team-sites"></div>`;
+
+      row.querySelector('[data-act=password]').addEventListener('click', async () => {
+        const pw = prompt(`Новый пароль для «${op.name}» (минимум 8 символов):`);
+        if (pw === null) return;
+        if (pw.length < 8) { flash('Пароль слишком короткий'); return; }
+        const res = await api(`/api/operators/${op.id}/password`, {
+          method: 'POST', body: JSON.stringify({ password: pw }),
+        });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); flash(e.error || 'Не удалось'); return; }
+        flash(isMe ? 'Пароль изменён — войдите заново' : 'Пароль изменён, сотрудник разлогинен');
+        if (isMe) setTimeout(() => { location.href = '/login/'; }, 1200);
+      });
+
+      const activeBtn = row.querySelector('[data-act=active]');
+      if (activeBtn) {
+        activeBtn.addEventListener('click', async () => {
+          if (op.active && !confirm(`Отключить доступ для «${op.name}»?`)) return;
+          const res = await api(`/api/operators/${op.id}/active`, {
+            method: 'POST', body: JSON.stringify({ active: !op.active }),
+          });
+          if (!res.ok) { const e = await res.json().catch(() => ({})); flash(e.error || 'Не удалось'); return; }
+          await renderTeamTab();
+        });
+      }
 
       const sitesBox = row.querySelector('.team-sites');
       if (isAdmin) {

@@ -3,21 +3,20 @@
  * visitor enrichment, rating, closing. Runs against a fresh server/DB.
  */
 import { io } from 'socket.io-client';
+import { setupLead, socketAuth, wait, makeChecker } from './helpers.mjs';
 
 const BASE = process.env.BASE || 'http://localhost:3000';
 const results = [];
-const check = (name, cond) => { results.push([name, cond]); console.log((cond ? '  ✅' : '  ❌') + ' ' + name); };
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const check = makeChecker(results);
 
-// First login on a fresh database bootstraps the team lead (sees every site).
-const { operator } = await fetch(BASE + '/api/login', {
-  method: 'POST', headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ name: 'Анна', email: 'anna@test.ru' }),
-}).then((r) => r.json());
-check('operator login', !!operator?.id);
+// First-run setup on a fresh database creates the team lead (sees every site).
+const { operator, cookie } = await setupLead(BASE, {
+  name: 'Анна', email: 'anna@test.ru', password: 'lead-password',
+});
+check('operator account created', !!operator?.id);
 check('first operator becomes team lead', operator.role === 'admin');
 
-const opSock = io(BASE, { auth: { role: 'operator', operatorId: operator.id } });
+const opSock = io(BASE, socketAuth(cookie));
 let inbox = [], opGotMessage = null, opGotTyping = null, opHistory = null;
 opSock.on('inbox:list', (rows) => { inbox = rows; });
 opSock.on('message:new', (m) => { opGotMessage = m; });

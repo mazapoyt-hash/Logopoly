@@ -25,13 +25,24 @@ CREATE TABLE IF NOT EXISTS sites (
 );
 
 CREATE TABLE IF NOT EXISTS operators (
-  id          TEXT PRIMARY KEY,
-  name        TEXT NOT NULL,
-  email       TEXT UNIQUE,
-  avatar      TEXT,
-  role        TEXT NOT NULL DEFAULT 'operator',  -- admin | operator
-  status      TEXT NOT NULL DEFAULT 'offline',   -- online | away | offline
-  created_at  INTEGER NOT NULL
+  id            TEXT PRIMARY KEY,
+  name          TEXT NOT NULL,
+  email         TEXT UNIQUE,
+  password_hash TEXT,
+  avatar        TEXT,
+  role          TEXT NOT NULL DEFAULT 'operator',  -- admin | operator
+  status        TEXT NOT NULL DEFAULT 'offline',   -- online | away | offline
+  active        INTEGER NOT NULL DEFAULT 1,
+  created_at    INTEGER NOT NULL
+);
+
+-- Browser sessions for the operator area (httpOnly cookie -> this row).
+CREATE TABLE IF NOT EXISTS sessions (
+  token       TEXT PRIMARY KEY,
+  operator_id TEXT NOT NULL REFERENCES operators(id) ON DELETE CASCADE,
+  created_at  INTEGER NOT NULL,
+  expires_at  INTEGER NOT NULL,
+  user_agent  TEXT
 );
 
 -- Which sites each operator is allowed to work with (set by the team lead).
@@ -109,6 +120,8 @@ function ensureColumn(table, column, ddl) {
   if (!cols.some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
 }
 ensureColumn('operators', 'role', `role TEXT NOT NULL DEFAULT 'operator'`);
+ensureColumn('operators', 'password_hash', `password_hash TEXT`);
+ensureColumn('operators', 'active', `active INTEGER NOT NULL DEFAULT 1`);
 ensureColumn('visitors', 'site_id', `site_id TEXT REFERENCES sites(id)`);
 ensureColumn('conversations', 'site_id', `site_id TEXT REFERENCES sites(id)`);
 ensureColumn('templates', 'site_id', `site_id TEXT REFERENCES sites(id)`);
@@ -171,29 +184,41 @@ function pickColor() {
 
 /* ----------------------------- Operators ------------------------------ */
 export const Operators = {
-  create({ name, email, avatar, role }) {
+  create({ name, email, passwordHash, avatar, role = 'operator' }) {
     const id = nanoid(12);
-    // The very first operator bootstraps as the team lead (admin).
-    const isFirst = db.prepare(`SELECT COUNT(*) AS n FROM operators`).get().n === 0;
-    const finalRole = role || (isFirst ? 'admin' : 'operator');
     db.prepare(
-      `INSERT INTO operators (id, name, email, avatar, role, status, created_at)
-       VALUES (?, ?, ?, ?, ?, 'offline', ?)`
-    ).run(id, name, email || null, avatar || null, finalRole, now());
+      `INSERT INTO operators (id, name, email, password_hash, avatar, role, status, active, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'offline', 1, ?)`
+    ).run(id, name, email || null, passwordHash || null, avatar || null, role, now());
     return this.get(id);
   },
   get(id) {
     return db.prepare(`SELECT * FROM operators WHERE id = ?`).get(id);
   },
   getByEmail(email) {
-    return db.prepare(`SELECT * FROM operators WHERE email = ?`).get(email);
+    if (!email) return undefined;
+    return db.prepare(`SELECT * FROM operators WHERE email = ? COLLATE NOCASE`).get(String(email).trim());
   },
-  loginOrCreate({ name, email }) {
-    if (email) {
-      const found = this.getByEmail(email);
-      if (found) return found;
-    }
-    return this.create({ name, email });
+  setPassword(id, passwordHash) {
+    db.prepare(`UPDATE operators SET password_hash = ? WHERE id = ?`).run(passwordHash, id);
+    return this.get(id);
+  },
+  setActive(id, active) {
+    db.prepare(`UPDATE operators SET active = ? WHERE id = ?`).run(active ? 1 : 0, id);
+    return this.get(id);
+  },
+  update(id, { name, email }) {
+    const sets = [];
+    const vals = { id };
+    if (name !== undefined) { sets.push('name = @name'); vals.name = name; }
+    if (email !== undefined) { sets.push('email = @email'); vals.email = email; }
+    if (!sets.length) return this.get(id);
+    db.prepare(`UPDATE operators SET ${sets.join(', ')} WHERE id = @id`).run(vals);
+    return this.get(id);
+  },
+  /** True while nobody can sign in yet — drives the first-run setup screen. */
+  needsSetup() {
+    return db.prepare(`SELECT COUNT(*) AS n FROM operators WHERE password_hash IS NOT NULL`).get().n === 0;
   },
   setStatus(id, status) {
     db.prepare(`UPDATE operators SET status = ? WHERE id = ?`).run(status, id);
@@ -204,6 +229,7 @@ export const Operators = {
     return this.get(id);
   },
   remove(id) {
+    db.prepare(`DELETE FROM sessions WHERE operator_id = ?`).run(id);
     db.prepare(`DELETE FROM operator_sites WHERE operator_id = ?`).run(id);
     db.prepare(`DELETE FROM operators WHERE id = ?`).run(id);
   },
@@ -213,6 +239,39 @@ export const Operators = {
   isAdmin(id) {
     const op = this.get(id);
     return !!op && op.role === 'admin';
+  },
+};
+
+/* ------------------------------ Sessions ------------------------------ */
+export const Sessions = {
+  create({ token, operatorId, ttlMs, userAgent }) {
+    db.prepare(
+      `INSERT INTO sessions (token, operator_id, created_at, expires_at, user_agent)
+       VALUES (?, ?, ?, ?, ?)`
+    ).run(token, operatorId, now(), now() + ttlMs, userAgent || null);
+    return token;
+  },
+  /** Returns the signed-in operator, or null for missing/expired/disabled. */
+  operatorFor(token) {
+    if (!token) return null;
+    const row = db.prepare(`SELECT * FROM sessions WHERE token = ?`).get(token);
+    if (!row) return null;
+    if (row.expires_at < now()) {
+      this.destroy(token);
+      return null;
+    }
+    const op = Operators.get(row.operator_id);
+    if (!op || !op.active) return null;
+    return op;
+  },
+  destroy(token) {
+    db.prepare(`DELETE FROM sessions WHERE token = ?`).run(token);
+  },
+  destroyAllFor(operatorId) {
+    db.prepare(`DELETE FROM sessions WHERE operator_id = ?`).run(operatorId);
+  },
+  purgeExpired() {
+    db.prepare(`DELETE FROM sessions WHERE expires_at < ?`).run(now());
   },
 };
 
@@ -432,6 +491,9 @@ export const Templates = {
     db.prepare(
       `INSERT INTO templates (id, operator_id, site_id, title, body, created_at) VALUES (?, ?, ?, ?, ?, ?)`
     ).run(id, operatorId || null, siteId || null, title, body, now());
+    return db.prepare(`SELECT * FROM templates WHERE id = ?`).get(id);
+  },
+  get(id) {
     return db.prepare(`SELECT * FROM templates WHERE id = ?`).get(id);
   },
   /** Shared templates + the operator's own; optionally narrowed to one site. */
