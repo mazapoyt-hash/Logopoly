@@ -32,7 +32,7 @@
         <div class="me">
           <div class="avatar" id="meAvatar">A</div>
           <div class="me-info">
-            <div class="me-name" id="meName">Оператор</div>
+            <div class="me-name" id="meName">Оператор <span class="role-badge hidden" id="roleBadge">руководитель</span></div>
             <select id="statusSelect" class="status-select">
               <option value="online">🟢 В сети</option>
               <option value="away">🟡 Отошёл</option>
@@ -40,7 +40,10 @@
             </select>
           </div>
         </div>
-        <button id="logoutBtn" class="icon-btn" title="Выйти">⎋</button>
+        <div class="head-actions">
+          <button id="settingsBtn" class="icon-btn hidden" title="Настройки отдела">⚙</button>
+          <button id="logoutBtn" class="icon-btn" title="Выйти">⎋</button>
+        </div>
       </div>
       <div class="inbox-tabs">
         <span class="inbox-title">Диалоги</span>
@@ -109,6 +112,37 @@
         <input id="tplTitle" placeholder="Название" />
         <textarea id="tplBody" rows="2" placeholder="Текст ответа"></textarea>
         <button id="tplAdd" class="btn-primary">Добавить шаблон</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Team lead settings: sites + who handles what -->
+  <div class="modal-overlay hidden" id="settingsModal">
+    <div class="modal modal-wide">
+      <div class="modal-head">
+        <h3>Настройки отдела</h3>
+        <button class="icon-btn" id="settingsClose">×</button>
+      </div>
+      <div class="tabs">
+        <button class="tab active" data-tab="sites">Сайты</button>
+        <button class="tab" data-tab="team">Сотрудники</button>
+      </div>
+
+      <div class="tab-pane" id="tabSites">
+        <div class="sites-list" id="sitesList"></div>
+        <div class="site-form">
+          <input id="siteName" placeholder="Название сайта, например «Casino Royal»" />
+          <div class="site-form-row">
+            <input id="siteDomain" placeholder="домен (необязательно)" />
+            <input id="siteColor" type="color" value="#6d5efc" title="Цвет метки" />
+            <button id="siteAdd" class="btn-primary">Добавить сайт</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane hidden" id="tabTeam">
+        <p class="hint-text">Отметьте, какие сайты обрабатывает каждый сотрудник. Изменения применяются сразу, без перезахода.</p>
+        <div class="team-list" id="teamList"></div>
       </div>
     </div>
   </div>

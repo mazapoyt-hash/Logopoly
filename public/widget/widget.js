@@ -19,14 +19,19 @@
       const s = document.getElementsByTagName('script');
       return s[s.length - 1];
     })();
-  const ORIGIN = new URL(currentScript.src).origin;
+  const SRC_URL = new URL(currentScript.src);
+  const ORIGIN = SRC_URL.origin;
+  // The site key ties this embed to one project (e.g. one casino brand).
+  const SITE_KEY = currentScript.getAttribute('data-site') || SRC_URL.searchParams.get('site') || null;
   const cfg = {
     title: currentScript.getAttribute('data-title') || 'Онлайн-чат',
     subtitle: currentScript.getAttribute('data-subtitle') || 'Мы обычно отвечаем за пару минут',
     accent: currentScript.getAttribute('data-accent') || '#6d5efc',
   };
 
-  const STORAGE_KEY = 'logopoly_visitor_id';
+  // Visitor identity is per-site, so the same browser is a separate visitor on
+  // each brand's website.
+  const STORAGE_KEY = 'logopoly_visitor_id' + (SITE_KEY ? '_' + SITE_KEY : '');
   let visitorId = null;
   try { visitorId = localStorage.getItem(STORAGE_KEY); } catch {}
 
@@ -169,8 +174,10 @@
       socket = window.io(ORIGIN, { auth: { role: 'visitor', visitorId } });
 
       socket.on('connect', () => {
-        socket.emit('visitor:init', { visitorId, page: pageInfo() });
+        socket.emit('visitor:init', { visitorId, siteKey: SITE_KEY, page: pageInfo() });
       });
+
+      socket.on('visitor:blocked', () => { root.style.display = 'none'; });
 
       socket.on('visitor:session', (data) => {
         visitorId = data.visitorId;

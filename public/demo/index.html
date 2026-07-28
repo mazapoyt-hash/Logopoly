@@ -3,61 +3,64 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nordwind Shop — демо-сайт с чатом Logopoly</title>
+  <title>Logopoly Chat — демо-сайты</title>
   <style>
-    :root { --accent: #6d5efc; }
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1a1c2b; background: #fff; }
-    header { display: flex; align-items: center; justify-content: space-between; padding: 20px 6vw; border-bottom: 1px solid #eee; }
-    .logo { font-weight: 800; font-size: 22px; letter-spacing: -.5px; }
-    .logo span { color: var(--accent); }
-    nav a { margin-left: 24px; text-decoration: none; color: #4a4d5e; font-size: 15px; }
-    .hero { padding: 80px 6vw; background: linear-gradient(135deg, #f6f5ff, #eef0ff); }
-    .hero h1 { font-size: 44px; margin: 0 0 16px; max-width: 640px; line-height: 1.1; }
-    .hero p { font-size: 18px; color: #55596b; max-width: 520px; }
-    .hero button { margin-top: 24px; background: var(--accent); color: #fff; border: none; padding: 14px 28px; border-radius: 10px; font-size: 16px; cursor: pointer; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; padding: 60px 6vw; }
-    .card { border: 1px solid #eee; border-radius: 14px; padding: 24px; }
-    .card h3 { margin: 0 0 8px; }
-    .card p { color: #666; font-size: 14px; }
-    footer { padding: 40px 6vw; background: #12132a; color: #b9bbd0; font-size: 14px; }
-    .hint { background: #fffbe6; border: 1px solid #ffe58f; border-radius: 10px; padding: 14px 18px; margin: 24px 6vw; font-size: 14px; color: #6b5900; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f1020; color: #e9eaf5; min-height: 100vh; }
+    .wrap { max-width: 940px; margin: 0 auto; padding: 60px 24px; }
+    h1 { font-size: 32px; margin: 0 0 8px; }
+    .sub { color: #9a9dbb; margin: 0 0 32px; font-size: 15px; line-height: 1.5; }
+    .sub a { color: #8a7bff; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+    .card {
+      display: block; text-decoration: none; color: inherit; background: #191b33;
+      border: 1px solid #262844; border-radius: 14px; padding: 18px; transition: transform .15s ease, border-color .15s ease;
+    }
+    .card:hover { transform: translateY(-2px); border-color: #4b4e7d; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+    .card-name { font-weight: 700; font-size: 16px; }
+    .card-key { font-size: 11px; color: #74779a; font-family: ui-monospace, Menlo, monospace; margin-top: 6px; word-break: break-all; }
+    .empty { background: #191b33; border: 1px dashed #3a3d66; border-radius: 14px; padding: 28px; color: #9a9dbb; }
+    .ops { margin-top: 34px; padding-top: 22px; border-top: 1px solid #262844; }
+    .ops a { display: inline-block; background: #6d5efc; color: #fff; text-decoration: none; padding: 12px 22px; border-radius: 10px; font-weight: 600; }
   </style>
 </head>
 <body>
-  <header>
-    <div class="logo">Nord<span>wind</span></div>
-    <nav>
-      <a href="#">Каталог</a>
-      <a href="#">Доставка</a>
-      <a href="#">О нас</a>
-      <a href="#">Контакты</a>
-    </nav>
-  </header>
+  <div class="wrap">
+    <h1>Демо-сайты</h1>
+    <p class="sub">
+      Каждая карточка — отдельный проект со своим ключом виджета. Откройте
+      несколько в разных вкладках и напишите из них — в панели оператора
+      обращения разложатся по разделителям с названиями сайтов.<br />
+      Управлять списком можно в панели оператора под руководителем: <b>⚙ Настройки → Сайты</b>.
+    </p>
 
-  <section class="hero">
-    <h1>Тёплые куртки для настоящей зимы</h1>
-    <p>Демо-витрина интернет-магазина. Она нужна, чтобы показать, как виджет поддержки Logopoly Chat встраивается на реальный сайт.</p>
-    <button onclick="alert('Это демо-кнопка 🙂')">Смотреть каталог</button>
-  </section>
+    <div class="grid" id="grid"></div>
 
-  <div class="hint">
-    👉 В правом нижнем углу — <b>виджет чата</b>. Напишите сообщение, а затем откройте
-    <a href="/operator/" target="_blank">панель оператора</a>, чтобы ответить в реальном времени.
+    <div class="ops">
+      <a href="/operator/" target="_blank">Открыть панель оператора →</a>
+    </div>
   </div>
 
-  <section class="grid">
-    <div class="card"><h3>🚚 Быстрая доставка</h3><p>Отправляем заказы в день оформления по всей стране.</p></div>
-    <div class="card"><h3>♻️ Возврат 30 дней</h3><p>Не подошло — вернём деньги без лишних вопросов.</p></div>
-    <div class="card"><h3>💳 Удобная оплата</h3><p>Карта, СБП, рассрочка — как вам удобно.</p></div>
-  </section>
+  <script>
+    fetch('/api/public/sites')
+      .then((r) => r.json())
+      .then(({ sites }) => {
+        const grid = document.getElementById('grid');
+        if (!sites || !sites.length) {
+          grid.outerHTML = '<div class="empty">Сайтов пока нет. Войдите в панель оператора как руководитель и добавьте их в ⚙ Настройках.</div>';
+          return;
+        }
+        grid.innerHTML = sites.map((s) => `
+          <a class="card" href="/demo/site.html?site=${encodeURIComponent(s.key)}">
+            <div><span class="dot" style="background:${s.color || '#6d5efc'}"></span><span class="card-name">${esc(s.name)}</span></div>
+            <div class="card-key">${esc(s.key)}</div>
+          </a>`).join('');
+      });
 
-  <footer>© 2026 Nordwind Shop (демо). Поддержка на базе Logopoly Chat.</footer>
-
-  <!-- Logopoly Chat widget -->
-  <script src="/widget/widget.js"
-          data-title="Поддержка Nordwind"
-          data-subtitle="Онлайн-консультант · отвечаем быстро"
-          data-accent="#6d5efc"></script>
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+  </script>
 </body>
 </html>
