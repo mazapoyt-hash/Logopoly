@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Q desk — панель оператора</title>
+  <link rel="stylesheet" href="/operator/operator.css" />
+</head>
+<body>
+  <!-- Login gate -->
+  <div id="login" class="login">
+    <form class="login-card" id="loginForm">
+      <div class="brand"><span class="brand-mark">◆</span> Q&nbsp;desk</div>
+      <h1>Панель оператора</h1>
+      <p class="muted">Войдите, чтобы принимать обращения посетителей.</p>
+      <label>Имя оператора
+        <input id="loginName" type="text" placeholder="Например, Анна" required />
+      </label>
+      <label>Email (для повторного входа)
+        <input id="loginEmail" type="email" placeholder="anna@company.ru" />
+      </label>
+      <button type="submit">Войти</button>
+      <p class="login-note">Демо-вход без пароля. Данные операторов хранятся локально в базе сервера.</p>
+    </form>
+  </div>
+
+  <!-- App -->
+  <div id="app" class="app hidden">
+    <!-- Sidebar: inbox -->
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <div class="me">
+          <div class="avatar" id="meAvatar">A</div>
+          <div class="me-info">
+            <div class="me-name" id="meName">Оператор <span class="role-badge hidden" id="roleBadge">руководитель</span></div>
+            <select id="statusSelect" class="status-select">
+              <option value="online">🟢 В сети</option>
+              <option value="away">🟡 Отошёл</option>
+              <option value="offline">⚪ Не в сети</option>
+            </select>
+          </div>
+        </div>
+        <div class="head-actions">
+          <button id="settingsBtn" class="icon-btn hidden" title="Настройки отдела">⚙</button>
+          <button id="logoutBtn" class="icon-btn" title="Выйти">⎋</button>
+        </div>
+      </div>
+      <div class="inbox-tabs">
+        <span class="inbox-title">Диалоги</span>
+        <span class="inbox-count" id="inboxCount">0</span>
+      </div>
+      <div class="inbox" id="inbox"></div>
+    </aside>
+
+    <!-- Center: conversation -->
+    <main class="chat">
+      <div class="chat-empty" id="chatEmpty">
+        <div class="empty-illustration">💬</div>
+        <p>Выберите диалог слева, чтобы начать общение</p>
+      </div>
+
+      <div class="chat-active hidden" id="chatActive">
+        <header class="chat-head">
+          <div>
+            <div class="chat-title" id="chatTitle">Посетитель</div>
+            <div class="chat-sub" id="chatSub">—</div>
+          </div>
+          <div class="chat-head-actions">
+            <button id="closeConvBtn" class="btn-ghost">Завершить диалог</button>
+          </div>
+        </header>
+
+        <div class="thread" id="thread"></div>
+
+        <!-- Live preview of what the visitor is typing (signature feature) -->
+        <div class="live-preview hidden" id="livePreview">
+          <span class="live-dot"></span>
+          <span class="live-label">Посетитель печатает:</span>
+          <span class="live-text" id="liveText"></span>
+        </div>
+
+        <div class="op-typing hidden" id="opTypingHint"></div>
+
+        <footer class="composer">
+          <div class="composer-tools">
+            <button id="templatesBtn" class="chip">⚡ Шаблоны</button>
+          </div>
+          <div class="composer-row">
+            <textarea id="composerInput" rows="1" placeholder="Введите ответ…"></textarea>
+            <button id="sendBtn" class="send-btn" title="Отправить">➤</button>
+          </div>
+        </footer>
+      </div>
+    </main>
+
+    <!-- Right: visitor card -->
+    <aside class="details hidden" id="details">
+      <div class="details-head">Карточка посетителя</div>
+      <div class="details-body" id="detailsBody"></div>
+    </aside>
+  </div>
+
+  <!-- Templates popover -->
+  <div class="modal-overlay hidden" id="templatesModal">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>Шаблоны быстрых ответов</h3>
+        <button class="icon-btn" id="templatesClose">×</button>
+      </div>
+      <div class="templates-list" id="templatesList"></div>
+      <div class="template-form">
+        <input id="tplTitle" placeholder="Название" />
+        <textarea id="tplBody" rows="2" placeholder="Текст ответа"></textarea>
+        <button id="tplAdd" class="btn-primary">Добавить шаблон</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Team lead settings: sites + who handles what -->
+  <div class="modal-overlay hidden" id="settingsModal">
+    <div class="modal modal-wide">
+      <div class="modal-head">
+        <h3>Настройки отдела</h3>
+        <button class="icon-btn" id="settingsClose">×</button>
+      </div>
+      <div class="tabs">
+        <button class="tab active" data-tab="sites">Сайты</button>
+        <button class="tab" data-tab="team">Сотрудники</button>
+      </div>
+
+      <div class="tab-pane" id="tabSites">
+        <div class="sites-list" id="sitesList"></div>
+        <div class="site-form">
+          <input id="siteName" placeholder="Название сайта, например «Casino Royal»" />
+          <div class="site-form-row">
+            <input id="siteDomain" placeholder="домен (необязательно)" />
+            <input id="siteColor" type="color" value="#6d5efc" title="Цвет метки" />
+            <button id="siteAdd" class="btn-primary">Добавить сайт</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane hidden" id="tabTeam">
+        <p class="hint-text">Отметьте, какие сайты обрабатывает каждый сотрудник. Изменения применяются сразу, без перезахода.</p>
+        <div class="team-list" id="teamList"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/operator/operator.js"></script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Демо-сайт</title>
+  <style>
+    :root { --accent: #6d5efc; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #14152a; background: #fff; }
+    header { display: flex; align-items: center; justify-content: space-between; padding: 18px 6vw; border-bottom: 1px solid #eee; }
+    .logo { font-weight: 800; font-size: 22px; letter-spacing: -.5px; display: flex; align-items: center; gap: 10px; }
+    .logo .mark { width: 14px; height: 14px; border-radius: 4px; background: var(--accent); }
+    nav a { margin-left: 22px; text-decoration: none; color: #4a4d5e; font-size: 15px; }
+    .hero { padding: 74px 6vw; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, #fff), color-mix(in srgb, var(--accent) 4%, #fff)); }
+    .hero h1 { font-size: 42px; margin: 0 0 14px; max-width: 640px; line-height: 1.12; }
+    .hero p { font-size: 17px; color: #55596b; max-width: 540px; margin: 0; }
+    .hero button { margin-top: 22px; background: var(--accent); color: #fff; border: none; padding: 13px 26px; border-radius: 10px; font-size: 16px; cursor: pointer; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 20px; padding: 54px 6vw; }
+    .card { border: 1px solid #eee; border-radius: 14px; padding: 22px; }
+    .card h3 { margin: 0 0 8px; font-size: 17px; }
+    .card p { color: #666; font-size: 14px; margin: 0; }
+    .hint { background: #fffbe6; border: 1px solid #ffe58f; border-radius: 10px; padding: 13px 18px; margin: 20px 6vw; font-size: 14px; color: #6b5900; }
+    .hint a { color: #8a6d00; }
+    footer { padding: 34px 6vw; background: #12132a; color: #b9bbd0; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo"><span class="mark"></span><span id="brand">Демо-сайт</span></div>
+    <nav><a href="#">Игры</a><a href="#">Бонусы</a><a href="#">Турниры</a><a href="/demo/">Все сайты</a></nav>
+  </header>
+
+  <section class="hero">
+    <h1 id="heroTitle">Добро пожаловать</h1>
+    <p>Демонстрационная страница бренда. Виджет поддержки внизу справа привязан
+       к <b>этому конкретному сайту</b> — обращение попадёт операторам именно этого проекта.</p>
+    <button onclick="alert('Это демо-кнопка 🙂')">Играть</button>
+  </section>
+
+  <div class="hint">
+    👉 Напишите в чат справа внизу, затем откройте <a href="/operator/" target="_blank">панель оператора</a> —
+    диалог появится в группе <b id="hintBrand">этого сайта</b>.
+  </div>
+
+  <section class="grid">
+    <div class="card"><h3>🎁 Бонус новичкам</h3><p>Демонстрационный блок контента для наглядности страницы.</p></div>
+    <div class="card"><h3>⚡ Быстрые выплаты</h3><p>Демонстрационный блок контента для наглядности страницы.</p></div>
+    <div class="card"><h3>🛡️ Поддержка 24/7</h3><p>Операторы отвечают в чате круглосуточно.</p></div>
+  </section>
+
+  <footer>© 2026 <span id="footerBrand">Демо-сайт</span>. Поддержка на базе Q desk.</footer>
+
+  <script>
+    const siteKey = new URLSearchParams(location.search).get('site');
+
+    if (!siteKey) {
+      document.getElementById('heroTitle').textContent = 'Не указан ключ сайта';
+    } else {
+      fetch('/api/public/site/' + encodeURIComponent(siteKey))
+        .then((r) => (r.ok ? r.json() : Promise.reject()))
+        .then(({ site }) => {
+          document.title = site.name + ' — демо';
+          document.getElementById('brand').textContent = site.name;
+          document.getElementById('heroTitle').textContent = 'Добро пожаловать в ' + site.name;
+          document.getElementById('hintBrand').textContent = '«' + site.name + '»';
+          document.getElementById('footerBrand').textContent = site.name;
+          if (site.color) document.documentElement.style.setProperty('--accent', site.color);
+          mountWidget(site);
+        })
+        .catch(() => {
+          document.getElementById('heroTitle').textContent = 'Сайт с таким ключом не найден';
+        });
+    }
+
+    // Mount the widget for this specific brand.
+    function mountWidget(site) {
+      const s = document.createElement('script');
+      s.src = '/widget/widget.js';
+      s.setAttribute('data-site', siteKey);
+      s.setAttribute('data-title', 'Поддержка ' + site.name);
+      s.setAttribute('data-subtitle', 'Онлайн-консультант · отвечаем быстро');
+      if (site.color) s.setAttribute('data-accent', site.color);
+      document.body.appendChild(s);
+    }
+  </script>
+</body>
+</html>
