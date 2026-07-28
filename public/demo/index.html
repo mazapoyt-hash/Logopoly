@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nordwind Shop — демо-сайт с чатом Logopoly</title>
+  <style>
+    :root { --accent: #6d5efc; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1a1c2b; background: #fff; }
+    header { display: flex; align-items: center; justify-content: space-between; padding: 20px 6vw; border-bottom: 1px solid #eee; }
+    .logo { font-weight: 800; font-size: 22px; letter-spacing: -.5px; }
+    .logo span { color: var(--accent); }
+    nav a { margin-left: 24px; text-decoration: none; color: #4a4d5e; font-size: 15px; }
+    .hero { padding: 80px 6vw; background: linear-gradient(135deg, #f6f5ff, #eef0ff); }
+    .hero h1 { font-size: 44px; margin: 0 0 16px; max-width: 640px; line-height: 1.1; }
+    .hero p { font-size: 18px; color: #55596b; max-width: 520px; }
+    .hero button { margin-top: 24px; background: var(--accent); color: #fff; border: none; padding: 14px 28px; border-radius: 10px; font-size: 16px; cursor: pointer; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; padding: 60px 6vw; }
+    .card { border: 1px solid #eee; border-radius: 14px; padding: 24px; }
+    .card h3 { margin: 0 0 8px; }
+    .card p { color: #666; font-size: 14px; }
+    footer { padding: 40px 6vw; background: #12132a; color: #b9bbd0; font-size: 14px; }
+    .hint { background: #fffbe6; border: 1px solid #ffe58f; border-radius: 10px; padding: 14px 18px; margin: 24px 6vw; font-size: 14px; color: #6b5900; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">Nord<span>wind</span></div>
+    <nav>
+      <a href="#">Каталог</a>
+      <a href="#">Доставка</a>
+      <a href="#">О нас</a>
+      <a href="#">Контакты</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <h1>Тёплые куртки для настоящей зимы</h1>
+    <p>Демо-витрина интернет-магазина. Она нужна, чтобы показать, как виджет поддержки Logopoly Chat встраивается на реальный сайт.</p>
+    <button onclick="alert('Это демо-кнопка 🙂')">Смотреть каталог</button>
+  </section>
+
+  <div class="hint">
+    👉 В правом нижнем углу — <b>виджет чата</b>. Напишите сообщение, а затем откройте
+    <a href="/operator/" target="_blank">панель оператора</a>, чтобы ответить в реальном времени.
+  </div>
+
+  <section class="grid">
+    <div class="card"><h3>🚚 Быстрая доставка</h3><p>Отправляем заказы в день оформления по всей стране.</p></div>
+    <div class="card"><h3>♻️ Возврат 30 дней</h3><p>Не подошло — вернём деньги без лишних вопросов.</p></div>
+    <div class="card"><h3>💳 Удобная оплата</h3><p>Карта, СБП, рассрочка — как вам удобно.</p></div>
+  </section>
+
+  <footer>© 2026 Nordwind Shop (демо). Поддержка на базе Logopoly Chat.</footer>
+
+  <!-- Logopoly Chat widget -->
+  <script src="/widget/widget.js"
+          data-title="Поддержка Nordwind"
+          data-subtitle="Онлайн-консультант · отвечаем быстро"
+          data-accent="#6d5efc"></script>
+</body>
+</html>
