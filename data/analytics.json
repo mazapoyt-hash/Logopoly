@@ -1,0 +1,980 @@
+{
+ "generatedAt": 1788961766820,
+ "overall": {
+  "trades": 2834,
+  "wins": 1034,
+  "losses": 1800,
+  "winRate": 0.36485532815808047,
+  "avgR": -0.13820396029011756,
+  "expectancy": -0.13820396029011756,
+  "profitFactor": 0.803078203297105,
+  "totalR": -391.6700234621931,
+  "maxDrawdownR": 457.31826183027283,
+  "grossWinR": 1597.2922449103803,
+  "grossLossR": 1988.9622683725731,
+  "bestR": 1.9563595644576974,
+  "worstR": -1.9695132709625773,
+  "avgBarsHeld": 9.985532815808044,
+  "reliable": true
+ },
+ "sample": {
+  "trades": 2834,
+  "from": 1760918400000,
+  "to": 1788926400000
+ },
+ "breakdowns": [
+  {
+   "key": "score",
+   "label": "Score сигнала",
+   "question": "Ранжирует ли score сделки? Если нет — вероятность рядом с сигналом ничего не значит.",
+   "buckets": [
+    {
+     "key": "60–64",
+     "trades": 545,
+     "winRate": 0.3908256880733945,
+     "winLow": 0.35076064005113855,
+     "winHigh": 0.4324190606129512,
+     "avgR": -0.09836828217106222,
+     "avgLow": -0.2107290428678956,
+     "avgHigh": 0.013992478525771151,
+     "totalR": -53.61071378322891,
+     "profitFactor": 0.8551284323497,
+     "enough": true,
+     "significant": false
+    },
+    {
+     "key": "65–69",
+     "trades": 258,
+     "winRate": 0.40310077519379844,
+     "winLow": 0.34509070044741724,
+     "winHigh": 0.4639541572069815,
+     "avgR": -0.07172143090729691,
+     "avgLow": -0.23452592083186394,
+     "avgHigh": 0.09108305901727012,
+     "totalR": -18.504129174082603,
+     "profitFactor": 0.8917896219667971,
+     "enough": true,
+     "significant": false
+    },
+    {
+     "key": "70–74",
+     "trades": 430,
+     "winRate": 0.36511627906976746,
+     "winLow": 0.32098917902891677,
+     "winHigh": 0.4116321279181349,
+     "avgR": -0.1207241132371728,
+     "avgLow": -0.2450400357973248,
+     "avgHigh": 0.0035918093229792003,
+     "totalR": -51.91136869198431,
+     "profitFactor": 0.820211402285891,
+     "enough": true,
+     "significant": false
+    },
+    {
+     "key": "75–79",
+     "trades": 235,
+     "winRate": 0.37446808510638296,
+     "winLow": 0.3150730821683727,
+     "winHigh": 0.43790127405767837,
+     "avgR": -0.11764797720977414,
+     "avgLow": -0.2870152583224864,
+     "avgHigh": 0.05171930390293812,
+     "totalR": -27.647274644296925,
+     "profitFactor": 0.8269764276573877,
+     "enough": true,
+     "significant": false
+    },
+    {
+     "key": "80+",
+     "trades": 1366,
+     "winRate": 0.34553440702781846,
+     "winLow": 0.32078072237454536,
+     "winHigh": 0.3711544619562561,
+     "avgR": -0.1756929261849192,
+     "avgLow": -0.24720216157207642,
+     "avgHigh": -0.10418369079776198,
+     "totalR": -239.99653716859962,
+     "profitFactor": 0.7598544143913267,
+     "enough": true,
+     "significant": true
+    }
+   ],
+   "tested": 5,
+   "flagged": 1,
+   "expectedByChance": 0.25
+  },
+  {
+   "key": "direction",
+   "label": "Направление",
+   "question": "Работает ли стратегия в обе стороны или только по тренду рынка?",
+   "buckets": [
+    {
+     "key": "Лонг",
+     "trades": 799,
+     "winRate": 0.36295369211514394,
+     "winLow": 0.3303406977379977,
+     "winHigh": 0.39687822066383904,
+     "avgR": -0.18661827044993973,
+     "avgLow": -0.2782875642299246,
+     "avgHigh": -0.09494897666995486,
+     "totalR": -149.10799808950185,
+     "profitFactor": 0.7419830213293288,
+     "enough": true,
+     "significant": true
+    },
+    {
+     "key": "Шорт",
+     "trades": 2035,
+     "winRate": 0.3656019656019656,
+     "winLow": 0.34494869778799353,
+     "winHigh": 0.3867617009011445,
+     "avgR": -0.1191950984632386,
+     "avgLow": -0.17758383570109149,
+     "avgHigh": -0.0608063612253857,
+     "totalR": -242.56202537269056,
+     "profitFactor": 0.8280997078872828,
+     "enough": true,
+     "significant": true
+    }
+   ],
+   "tested": 2,
+   "flagged": 2,
+   "expectedByChance": 0.1
+  },
+  {
+   "key": "symbol",
+   "label": "Монета",
+   "question": "Есть ли монеты, на которых логика систематически не работает?",
+   "buckets": [
+    {
+     "key": "ADAUSDT",
+     "trades": 349,
+     "winRate": 0.40974212034383956,
+     "winLow": 0.3594006345026189,
+     "winHigh": 0.4620489904849108,
+     "avgR": -0.014782274382951044,
+     "avgLow": -0.15713085564860246,
+     "avgHigh": 0.12756630688270038,
+     "totalR": -5.159013759649914,
+     "profitFactor": 0.9769811990431404,
+     "enough": true,
+     "significant": false
+    },
+    {
+     "key": "AVAXUSDT",
+     "trades": 342,
+     "winRate": 0.3684210526315789,
+     "winLow": 0.31902186281960965,
+     "winHigh": 0.4207433938759411,
+     "avgR": -0.11405390656845339,
+     "avgLow": -0.25425838020608765,
+     "avgHigh": 0.026150567069180855,
+     "totalR": -39.00643604641106,
+     "profitFactor": 0.8308251779078357,
+     "enough": true,
+     "significant": false
+    },
+    {
+     "key": "BNBUSDT",
+     "trades": 348,
+     "winRate": 0.35919540229885055,
+     "winLow": 0.3105777195770058,
+     "winHigh": 0.41088784901977166,
+     "avgR": -0.17820358893924532,
+     "avgLow": -0.320421928534828,
+     "avgHigh": -0.03598524934366265,
+     "totalR": -62.01484895085737,
+     "profitFactor": 0.758920739637534,
+     "enough": true,
+     "significant": true
+    },
+    {
+     "key": "BTCUSDT",
+     "trades": 396,
+     "winRate": 0.3181818181818182,
+     "winLow": 0.27424073534270466,
+     "winHigh": 0.36561664818117073,
+     "avgR": -0.2746215743484517,
+     "avgLow": -0.40508065908772095,
+     "avgHigh": -0.14416248960918243,
+     "totalR": -108.75014344198688,
+     "profitFactor": 0.6474223373797142,
+     "enough": true,
+     "significant": true
+    },
+    {
+     "key": "ETHUSDT",
+     "trades": 376,
+     "winRate": 0.35638297872340424,
+     "winLow": 0.3096490813630137,
+     "winHigh": 0.4060218720028103,
+     "avgR": -0.15886365686447462,
+     "avgLow": -0.29367753897337107,
+     "avgHigh": -0.02404977475557818,
+     "totalR": -59.73273498104246,
+     "profitFactor": 0.7776055550103562,
+     "enough": true,
+     "significant": true
+    },
+    {
+     "key": "LINKUSDT",
+     "trades": 333,
+     "winRate": 0.3813813813813814,
+     "winLow": 0.33084438773729763,
+     "winHigh": 0.4346240104652997,
+     "avgR": -0.1258608523815594,
+     "avgLow": -0.26649207041737444,
+     "avgHigh": 0.014770365654255685,
+     "totalR": -41.91166384305928,
+     "profitFactor": 0.8136123447896764,
+     "enough": true,
+     "significant": false
+    },
+    {
+     "key": "SOLUSDT",
+     "trades": 348,
+     "winRate": 0.3649425287356322,
+     "winLow": 0.31609170033110945,
+     "winHigh": 0.4167426205678405,
+     "avgR": -0.08866669054843568,
+     "avgLow": -0.23109895116415405,
+     "avgHigh": 0.05376557006728269,
+     "totalR": -30.856008310855618,
+     "profitFactor": 0.8694636373466166,
+     "enough": true,
+     "significant": false
+    },
+    {
+     "key": "XRPUSDT",
+     "trades": 342,
+     "winRate": 0.3684210526315789,
+     "winLow": 0.31902186281960965,
+     "winHigh": 0.4207433938759411,
+     "avgR": -0.12935431031675396,
+     "avgLow": -0.27180891461208573,
+     "avgHigh": 0.013100293978577815,
+     "totalR": -44.23917412832985,
+     "profitFactor": 0.8147124368730383,
+     "enough": true,
+     "significant": false
+    }
+   ],
+   "tested": 8,
+   "flagged": 3,
+   "expectedByChance": 0.4
+  },
+  {
+   "key": "adx",
+   "label": "Сила тренда (ADX)",
+   "question": "Трендследящая логика должна работать лучше в сильном тренде. Проверяем.",
+   "buckets": [
+    {
+     "key": "20–25",
+     "trades": 1148,
+     "winRate": 0.3614982578397213,
+     "winLow": 0.33421075919606136,
+     "winHigh": 0.3897096131884748,
+     "avgR": -0.15823147647705343,
+     "avgLow": -0.23610732943497664,
+     "avgHigh": -0.08035562351913024,
+     "totalR": -181.64973499565735,
+     "profitFactor": 0.7802094265109004,
+     "enough": true,
+     "significant": true
+    },
+    {
+     "key": "25–30",
+     "trades": 552,
+     "winRate": 0.3351449275362319,
+     "winLow": 0.2970249230996083,
+     "winHigh": 0.3755436647858612,
+     "avgR": -0.24658037398150162,
+     "avgLow": -0.35313516327845723,
+     "avgHigh": -0.140025584684546,
+     "totalR": -136.1123664377889,
+     "profitFactor": 0.6642999965236164,
+     "enough": true,
+     "significant": true
+    },
+    {
+     "key": "30–40",
+     "trades": 645,
+     "winRate": 0.3736434108527132,
+     "winLow": 0.33715974166132623,
+     "winHigh": 0.41162332033716453,
+     "avgR": -0.12190798843263258,
+     "avgLow": -0.22407508584647412,
+     "avgHigh": -0.01974089101879105,
+     "totalR": -78.63065253904801,
+     "profitFactor": 0.8206745151835432,
+     "enough": true,
+     "significant": true
+    },
+    {
+     "key": "40+",
+     "trades": 489,
+     "winRate": 0.3946830265848671,
+     "winLow": 0.35234244286492344,
+     "winHigh": 0.438665459065433,
+     "avgR": 0.009657935603889197,
+     "avgLow": -0.11378472096986708,
+     "avgHigh": 0.13310059217764547,
+     "totalR": 4.722730510301817,
+     "profitFactor": 1.0148254098138816,
+     "enough": true,
+     "significant": false
+    }
+   ],
+   "tested": 4,
+   "flagged": 3,
+   "expectedByChance": 0.2
+  },
+  {
+   "key": "rsi",
+   "label": "RSI на входе",
+   "question": "Входим ли мы в перегретый рынок и платим ли за это?",
+   "buckets": [
+    {
+     "key": "<40",
+     "trades": 1053,
+     "winRate": 0.3817663817663818,
+     "winLow": 0.35290254062746534,
+     "winHigh": 0.41148977701029604,
+     "avgR": -0.05826808860683852,
+     "avgLow": -0.14040108977674404,
+     "avgHigh": 0.023864912563066998,
+     "totalR": -61.356297303000964,
+     "profitFactor": 0.9125699498006646,
+     "enough": true,
+     "significant": false
+    },
+    {
+     "key": "40–50",
+     "trades": 767,
+     "winRate": 0.3520208604954368,
+     "winLow": 0.3190341031703196,
+     "winHigh": 0.3864825684779153,
+     "avgR": -0.18584424576774486,
+     "avgLow": -0.2794442857466236,
+     "avgHigh": -0.09224420578886608,
+     "totalR": -142.5425365038603,
+     "profitFactor": 0.7433136077077295,
+     "enough": true,
+     "significant": true
+    },
+    {
+     "key": "50–60",
+     "trades": 615,
+     "winRate": 0.36585365853658536,
+     "winLow": 0.3287270060194256,
+     "winHigh": 0.40464579891159397,
+     "avgR": -0.1788041556648108,
+     "avgLow": -0.2818299289952626,
+     "avgHigh": -0.07577838233435902,
+     "totalR": -109.96455573385865,
+     "profitFactor": 0.746154706853657,
+     "enough": true,
+     "significant": true
+    },
+    {
+     "key": "60–70",
+     "trades": 204,
+     "winRate": 0.3284313725490196,
+     "winLow": 0.2676743491969842,
+     "winHigh": 0.39553070696116693,
+     "avgR": -0.26142080643173793,
+     "avgLow": -0.44156063782018834,
+     "avgHigh": -0.08128097504328752,
+     "totalR": -53.32984451207454,
+     "profitFactor": 0.6567319911210444,
+     "enough": true,
+     "significant": true
+    },
+    {
+     "key": "70+",
+     "trades": 195,
+     "winRate": 0.358974358974359,
+     "winLow": 0.2949669589870876,
+     "winHigh": 0.4284309617699371,
+     "avgR": -0.1255219969712707,
+     "avgLow": -0.32191552210703567,
+     "avgHigh": 0.07087152816449427,
+     "totalR": -24.47678940939779,
+     "profitFactor": 0.8292088949993326,
+     "enough": true,
+     "significant": false
+    }
+   ],
+   "tested": 5,
+   "flagged": 3,
+   "expectedByChance": 0.25
+  },
+  {
+   "key": "relVol",
+   "label": "Объём к среднему",
+   "question": "Подтверждает ли объём движение или это шум?",
+   "buckets": [
+    {
+     "key": "<0.9",
+     "trades": 698,
+     "winRate": 0.3954154727793696,
+     "winLow": 0.3598097864757993,
+     "winHigh": 0.43216606676515995,
+     "avgR": -0.06424320500194126,
+     "avgLow": -0.1635626540814947,
+     "avgHigh": 0.03507624407761217,
+     "totalR": -44.841757091355,
+     "profitFactor": 0.902481797506604,
+     "enough": true,
+     "significant": false
+    },
+    {
+     "key": "0.9–1.1",
+     "trades": 243,
+     "winRate": 0.40329218106995884,
+     "winLow": 0.34358068125018465,
+     "winHigh": 0.4660138117364107,
+     "avgR": -0.04503524036520201,
+     "avgLow": -0.21604242731553763,
+     "avgHigh": 0.1259719465851336,
+     "totalR": -10.943563408744089,
+     "profitFactor": 0.9313434338269487,
+     "enough": true,
+     "significant": false
+    },
+    {
+     "key": "1.1–1.5",
+     "trades": 516,
+     "winRate": 0.3546511627906977,
+     "winLow": 0.31458506448246304,
+     "winHigh": 0.3968655004588577,
+     "avgR": -0.18580716871203326,
+     "avgLow": -0.3011154158638334,
+     "avgHigh": -0.07049892156023314,
+     "totalR": -95.87649905540916,
+     "profitFactor": 0.7453010591615776,
+     "enough": true,
+     "significant": true
+    },
+    {
+     "key": "1.5+",
+     "trades": 1377,
+     "winRate": 0.3464052287581699,
+     "winLow": 0.3217313924601713,
+     "winHigh": 0.37193368831375667,
+     "avgR": -0.17429789680950197,
+     "avgLow": -0.24470757601120163,
+     "avgHigh": -0.1038882176078023,
+     "totalR": -240.0082039066842,
+     "profitFactor": 0.7583744111277094,
+     "enough": true,
+     "significant": true
+    }
+   ],
+   "tested": 4,
+   "flagged": 2,
+   "expectedByChance": 0.2
+  },
+  {
+   "key": "atrPct",
+   "label": "Волатильность (ATR к цене)",
+   "question": "Стоп масштабируется по ATR. Одинаково ли это работает в тихом и в бурном рынке?",
+   "buckets": [
+    {
+     "key": "<0.5%",
+     "trades": 280,
+     "winRate": 0.31785714285714284,
+     "winLow": 0.266094653327478,
+     "winHigh": 0.3745499879090426,
+     "avgR": -0.3860157460819155,
+     "avgLow": -0.5450649195565479,
+     "avgHigh": -0.22696657260728312,
+     "totalR": -108.08440890293635,
+     "profitFactor": 0.5609268894012935,
+     "enough": true,
+     "significant": true
+    },
+    {
+     "key": "0.5–1%",
+     "trades": 1373,
+     "winRate": 0.36270939548434084,
+     "winLow": 0.3376937484564571,
+     "winHigh": 0.3884911663514626,
+     "avgR": -0.15219963039641823,
+     "avgLow": -0.22326748093790943,
+     "avgHigh": -0.08113177985492702,
+     "totalR": -208.97009253428223,
+     "profitFactor": 0.7877934258502973,
+     "enough": true,
+     "significant": true
+    },
+    {
+     "key": "1–2%",
+     "trades": 1052,
+     "winRate": 0.3773764258555133,
+     "winLow": 0.3485805600805322,
+     "winHigh": 0.4070646048760295,
+     "avgR": -0.07479988602289141,
+     "avgLow": -0.1543343914982077,
+     "avgHigh": 0.004734619452424899,
+     "totalR": -78.68948009608177,
+     "profitFactor": 0.884327949784384,
+     "enough": true,
+     "significant": false
+    },
+    {
+     "key": "2%+",
+     "trades": 129,
+     "winRate": 0.3875968992248062,
+     "winLow": 0.3079326844457963,
+     "winHigh": 0.473762206311316,
+     "avgR": 0.03158107031866743,
+     "avgLow": -0.20155066610338457,
+     "avgHigh": 0.2647128067407194,
+     "totalR": 4.073958071108098,
+     "profitFactor": 1.05238602112092,
+     "enough": true,
+     "significant": false
+    }
+   ],
+   "tested": 4,
+   "flagged": 2,
+   "expectedByChance": 0.2
+  },
+  {
+   "key": "emaGap",
+   "label": "Удалённость от EMA200",
+   "question": "Не входим ли мы слишком поздно, когда движение уже произошло?",
+   "buckets": [
+    {
+     "key": "<2%",
+     "trades": 959,
+     "winRate": 0.3753910323253389,
+     "winLow": 0.3452980216323863,
+     "winHigh": 0.4064783868651276,
+     "avgR": -0.1589924700009508,
+     "avgLow": -0.24346089248591493,
+     "avgHigh": -0.07452404751598665,
+     "totalR": -152.47377873091182,
+     "profitFactor": 0.7770242108648392,
+     "enough": true,
+     "significant": true
+    },
+    {
+     "key": "2–5%",
+     "trades": 944,
+     "winRate": 0.3474576271186441,
+     "winLow": 0.31775556128002735,
+     "winHigh": 0.37839620078654573,
+     "avgR": -0.19130160592396475,
+     "avgLow": -0.27620817796952635,
+     "avgHigh": -0.10639503387840317,
+     "totalR": -180.58871599222272,
+     "profitFactor": 0.7386275548534654,
+     "enough": true,
+     "significant": true
+    },
+    {
+     "key": "5–10%",
+     "trades": 656,
+     "winRate": 0.37652439024390244,
+     "winLow": 0.3402668672744961,
+     "winHigh": 0.41421966403847355,
+     "avgR": -0.08361699861016351,
+     "avgLow": -0.18566090521018608,
+     "avgHigh": 0.018426907989859062,
+     "totalR": -54.85275108826726,
+     "profitFactor": 0.8739978467847608,
+     "enough": true,
+     "significant": false
+    },
+    {
+     "key": "10%+",
+     "trades": 275,
+     "winRate": 0.36,
+     "winLow": 0.3055555555555556,
+     "winHigh": 0.41830200371824,
+     "avgR": -0.013653736911966231,
+     "avgLow": -0.1764512163641441,
+     "avgHigh": 0.14914374254021165,
+     "totalR": -3.7547776507907136,
+     "profitFactor": 0.9790109728593088,
+     "enough": true,
+     "significant": false
+    }
+   ],
+   "tested": 4,
+   "flagged": 2,
+   "expectedByChance": 0.2
+  },
+  {
+   "key": "session",
+   "label": "Торговая сессия (UTC)",
+   "question": "Крипта торгуется круглосуточно, но ликвидность — нет.",
+   "buckets": [
+    {
+     "key": "Азия 00–08",
+     "trades": 821,
+     "winRate": 0.3373934226552984,
+     "winLow": 0.30587423446634593,
+     "winHigh": 0.3704272517826503,
+     "avgR": -0.22748085435998053,
+     "avgLow": -0.31674481564744833,
+     "avgHigh": -0.13821689307251273,
+     "totalR": -186.76178142954402,
+     "profitFactor": 0.6920608586890469,
+     "enough": true,
+     "significant": true
+    },
+    {
+     "key": "Вечер 21–24",
+     "trades": 326,
+     "winRate": 0.3006134969325153,
+     "winLow": 0.2533970913371581,
+     "winHigh": 0.35247433300713327,
+     "avgR": -0.3219196879168573,
+     "avgLow": -0.46142199512456494,
+     "avgHigh": -0.1824173807091497,
+     "totalR": -104.94581826089549,
+     "profitFactor": 0.5907626612605033,
+     "enough": true,
+     "significant": true
+    },
+    {
+     "key": "Европа 08–13",
+     "trades": 432,
+     "winRate": 0.42824074074074076,
+     "winLow": 0.382412881661136,
+     "winHigh": 0.47533360238260824,
+     "avgR": 0.045820277457397446,
+     "avgLow": -0.08530167835442998,
+     "avgHigh": 0.17694223326922487,
+     "totalR": 19.794359861595698,
+     "profitFactor": 1.0728379639122771,
+     "enough": true,
+     "significant": false
+    },
+    {
+     "key": "США 13–21",
+     "trades": 1255,
+     "winRate": 0.3776892430278884,
+     "winLow": 0.35127799068172216,
+     "winHigh": 0.4048470055052484,
+     "avgR": -0.09542373197876373,
+     "avgLow": -0.16985925964082407,
+     "avgHigh": -0.020988204316703396,
+     "totalR": -119.75678363334849,
+     "profitFactor": 0.8598141822245837,
+     "enough": true,
+     "significant": true
+    }
+   ],
+   "tested": 4,
+   "flagged": 3,
+   "expectedByChance": 0.2
+  },
+  {
+   "key": "weekday",
+   "label": "День недели",
+   "question": "Контрольная нарезка: осмысленной связи тут быть не должно. Если она «найдётся» — это калибровка того, сколько врёт случайность.",
+   "buckets": [
+    {
+     "key": "Вс",
+     "trades": 508,
+     "winRate": 0.297244094488189,
+     "winLow": 0.25914101564024933,
+     "winHigh": 0.3383907207406936,
+     "avgR": -0.3645873253770801,
+     "avgLow": -0.4802406559701886,
+     "avgHigh": -0.2489339947839716,
+     "totalR": -185.2103612915567,
+     "profitFactor": 0.5714383981278205,
+     "enough": true,
+     "significant": true
+    },
+    {
+     "key": "Вт",
+     "trades": 383,
+     "winRate": 0.36553524804177545,
+     "winLow": 0.31886121411852736,
+     "winHigh": 0.4148799347134493,
+     "avgR": -0.15327896291112797,
+     "avgLow": -0.28738515994294966,
+     "avgHigh": -0.019172765879306247,
+     "totalR": -58.70584279496202,
+     "profitFactor": 0.7855606549538661,
+     "enough": true,
+     "significant": true
+    },
+    {
+     "key": "Пн",
+     "trades": 462,
+     "winRate": 0.37012987012987014,
+     "winLow": 0.32734081450760183,
+     "winHigh": 0.4150608945711923,
+     "avgR": -0.14076485908101483,
+     "avgLow": -0.2631520068827571,
+     "avgHigh": -0.01837771127927257,
+     "totalR": -65.03336489542885,
+     "profitFactor": 0.8010103387053895,
+     "enough": true,
+     "significant": true
+    },
+    {
+     "key": "Пт",
+     "trades": 358,
+     "winRate": 0.3575418994413408,
+     "winLow": 0.30964759878072196,
+     "winHigh": 0.40846109850560436,
+     "avgR": -0.14432881449689136,
+     "avgLow": -0.27094912282327105,
+     "avgHigh": -0.017708506170511673,
+     "totalR": -51.66971558988711,
+     "profitFactor": 0.7668500786183589,
+     "enough": true,
+     "significant": true
+    },
+    {
+     "key": "Сб",
+     "trades": 305,
+     "winRate": 0.419672131147541,
+     "winLow": 0.3656220463033835,
+     "winHigh": 0.4757205707533859,
+     "avgR": -0.0652411435183603,
+     "avgLow": -0.21136838942069253,
+     "avgHigh": 0.08088610238397193,
+     "totalR": -19.89854877309989,
+     "profitFactor": 0.8975705466047431,
+     "enough": true,
+     "significant": false
+    },
+    {
+     "key": "Ср",
+     "trades": 386,
+     "winRate": 0.33678756476683935,
+     "winLow": 0.2914528437723952,
+     "winHigh": 0.38533896089904063,
+     "avgR": -0.16495084083216063,
+     "avgLow": -0.29841204062846816,
+     "avgHigh": -0.03148964103585308,
+     "totalR": -63.671024561214004,
+     "profitFactor": 0.7712078319883079,
+     "enough": true,
+     "significant": true
+    },
+    {
+     "key": "Чт",
+     "trades": 432,
+     "winRate": 0.4305555555555556,
+     "winLow": 0.38467657154467017,
+     "winHigh": 0.47765873559443717,
+     "avgR": 0.12157137602767608,
+     "avgLow": -0.011909170717693138,
+     "avgHigh": 0.2550519227730453,
+     "totalR": 52.51883444395607,
+     "profitFactor": 1.2004237239262463,
+     "enough": true,
+     "significant": false
+    }
+   ],
+   "tested": 7,
+   "flagged": 5,
+   "expectedByChance": 0.35000000000000003
+  }
+ ],
+ "multipleComparisons": {
+  "tested": 47,
+  "flagged": 26,
+  "expected": 2.35,
+  "surplus": 23.65
+ },
+ "excursions": {
+  "trades": 2834,
+  "losers": 1800,
+  "medianMfeR": 0.9095380641635358,
+  "p75MfeR": 2.0692204410050854,
+  "medianLoserMfeR": 0.43798579556203204,
+  "p75LoserMfeR": 0.8488313991143404,
+  "medianWinnerMaeR": 0.3880975612636822,
+  "p90WinnerMaeR": 0.8260872336386662,
+  "reach": [
+   {
+    "level": 0.5,
+    "all": 0.6534932956951306,
+    "losers": 0.45555555555555555
+   },
+   {
+    "level": 1,
+    "all": 0.47776993648553284,
+    "losers": 0.19555555555555557
+   },
+   {
+    "level": 1.5,
+    "all": 0.36450247000705716,
+    "losers": 0.06666666666666667
+   },
+   {
+    "level": 2,
+    "all": 0.28405081157374734,
+    "losers": 0
+   },
+   {
+    "level": 2.5,
+    "all": 0.11432604093154553,
+    "losers": 0
+   },
+   {
+    "level": 3,
+    "all": 0.056810162314749474,
+    "losers": 0
+   }
+  ],
+  "currentTargetR": 2
+ },
+ "calibration": {
+  "rows": [
+   {
+    "key": "<40%",
+    "trades": 0,
+    "stated": null,
+    "actual": null,
+    "low": null,
+    "high": null,
+    "consistent": null
+   },
+   {
+    "key": "40–55%",
+    "trades": 0,
+    "stated": null,
+    "actual": null,
+    "low": null,
+    "high": null,
+    "consistent": null
+   },
+   {
+    "key": "55–70%",
+    "trades": 0,
+    "stated": null,
+    "actual": null,
+    "low": null,
+    "high": null,
+    "consistent": null
+   },
+   {
+    "key": "70%+",
+    "trades": 0,
+    "stated": null,
+    "actual": null,
+    "low": null,
+    "high": null,
+    "consistent": null
+   }
+  ],
+  "verdict": "unknown",
+  "sample": 0,
+  "minBucket": 25
+ },
+ "tuning": {
+  "verdict": "decays",
+  "text": "Лучший набор на обучающей половине давал -0.08R на сделку, а на невиданных данных — -0.10R. Разница 0.03R и есть цена подгонки: улучшение существовало только на тех данных, по которым выбирали.",
+  "ratio": 0.7,
+  "best": {
+   "params": {
+    "minScore": 60,
+    "atrStopMult": 2,
+    "rewardRisk": 2
+   },
+   "inSample": {
+    "trades": 1482,
+    "winRate": 0.39271255060728744,
+    "avgR": -0.07501667421569261,
+    "totalR": -111.17471118765644,
+    "profitFactor": 0.8748908749378048,
+    "maxDrawdownR": 123.36274290656188
+   },
+   "outOfSample": {
+    "trades": 690,
+    "winRate": 0.3739130434782609,
+    "avgR": -0.10205828667457306,
+    "totalR": -70.42021780545541,
+    "profitFactor": 0.8335343758878219,
+    "maxDrawdownR": 93.12852262384659
+   }
+  },
+  "baseline": {
+   "params": {
+    "minScore": 60,
+    "minAdx": 20,
+    "atrStopMult": 1.5,
+    "rewardRisk": 2,
+    "expiryBars": 24,
+    "requireHtfAlignment": true
+   },
+   "outOfSample": {
+    "trades": 917,
+    "winRate": 0.35768811341330425,
+    "avgR": -0.16968971691086393,
+    "totalR": -155.60547040726223,
+    "profitFactor": 0.7639677964110733,
+    "maxDrawdownR": 173.50961121565282
+   }
+  },
+  "decay": 0.027041612458880454,
+  "cellsConsidered": 96
+ },
+ "minBucket": 25,
+ "history": {
+  "requested": 8000,
+  "timeframe": "1h",
+  "quality": [
+   {
+    "symbol": "BTCUSDT",
+    "bars": 7999,
+    "ok": true,
+    "detail": "в порядке"
+   },
+   {
+    "symbol": "ETHUSDT",
+    "bars": 7999,
+    "ok": true,
+    "detail": "в порядке"
+   },
+   {
+    "symbol": "SOLUSDT",
+    "bars": 7999,
+    "ok": true,
+    "detail": "в порядке"
+   },
+   {
+    "symbol": "BNBUSDT",
+    "bars": 7999,
+    "ok": true,
+    "detail": "в порядке"
+   },
+   {
+    "symbol": "XRPUSDT",
+    "bars": 7999,
+    "ok": true,
+    "detail": "в порядке"
+   },
+   {
+    "symbol": "ADAUSDT",
+    "bars": 7999,
+    "ok": true,
+    "detail": "в порядке"
+   },
+   {
+    "symbol": "AVAXUSDT",
+    "bars": 7999,
+    "ok": true,
+    "detail": "в порядке"
+   },
+   {
+    "symbol": "LINKUSDT",
+    "bars": 7999,
+    "ok": true,
+    "detail": "в порядке"
+   }
+  ]
+ }
+}
