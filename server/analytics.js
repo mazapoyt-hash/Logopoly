@@ -30,7 +30,7 @@ import { summarize, backtestSymbol } from './backtest.js';
 import { wilsonInterval } from './probability.js';
 import { GRID } from './validate.js';
 import { randomEntryBenchmark, rotationNull } from './nulls.js';
-import { costSensitivity, tollFromTrades } from './economics.js';
+import { costSensitivity, tollFromTrades, winRateCurve } from './economics.js';
 
 /** Below this a bucket is reported but never called an edge. */
 export const MIN_BUCKET = Number(process.env.COINSCOPE_MIN_BUCKET || 25);
@@ -588,6 +588,12 @@ export function analyse({
      * Fixed by the timeframe and the stop multiple; no threshold moves it.
      */
     toll: tollFromTrades(trades),
+    /*
+     * What a demanded win rate is actually worth. Kept next to the toll
+     * because they are the same argument: the closer the target, the higher
+     * the win rate AND the higher the win rate needed to break even.
+     */
+    winRateCurve: winRateCurve(trades),
     minBucket: MIN_BUCKET,
   };
 }

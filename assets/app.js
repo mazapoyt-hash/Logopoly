@@ -685,6 +685,33 @@
       </div>`;
   }
 
+  function winRateHtml(w) {
+    if (!w) return '<div class="low-sample">Кривая винрейта не считалась.</div>';
+    const rows = w.rows.map((r) => `
+      <tr${r.profitable ? ' class="current"' : ''}>
+        <td>${fmtNum(r.target, 2)}R</td>
+        <td class="num">${pctOf(r.winRate, 0)}</td>
+        <td class="num">${pctOf(r.requiredWinRate, 0)}</td>
+        <td class="num ${signCls(r.gap)}">${(r.gap * 100).toFixed(1)} п.п.</td>
+        <td class="num ${signCls(r.avgR)}">${fmtR(r.avgR)}</td>
+      </tr>`).join('');
+    const d = w.demanded80;
+    const badge = !d ? ['neutral', '80% недостижимо на этих данных']
+      : d.avgR > 0 ? ['ok', 'Высокий винрейт окупается']
+        : ['bad', 'Высокий винрейт достигнут и убыточен'];
+    return `
+      <div class="verdict-head"><span class="badge ${badge[0]}">${badge[1]}</span></div>
+      <p class="analytics-note">${w.text}</p>
+      <div class="table-wrap">
+        <table class="grid mini">
+          <thead><tr><th>Цель</th><th class="num">Успешных</th><th class="num">Нужно для нуля</th>
+            <th class="num">Разрыв</th><th class="num">Средний R</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <p class="muted small">${esc(w.note)}</p>`;
+  }
+
   function tollHtml(toll, byTf) {
     if (!toll && !byTf) return '<div class="low-sample">Пошлина не считалась.</div>';
     const head = !toll ? '' : `
@@ -937,6 +964,7 @@
     state.analytics = rep;
 
     $('#randomEntryBox').innerHTML = randomEntryHtml(rep.randomEntry);
+    $('#winRateBox').innerHTML = winRateHtml(rep.winRateCurve);
     $('#tollBox').innerHTML = tollHtml(rep.toll, rep.tollByTimeframe);
     $('#costsBox').innerHTML = costsHtml(rep.costs);
     $('#vaultBox').innerHTML = vaultHtml(rep.vault);

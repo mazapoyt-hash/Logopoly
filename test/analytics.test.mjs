@@ -430,6 +430,56 @@ check('expected false positives scale with the number of buckets tested',
     flat.best === null);
 }
 
+/* --------------------------- win rate vs money ------------------------ */
+{
+  const { winRateCurve } = await import('../server/economics.js');
+
+  /*
+   * Trades built so the answer is known. Every trade has a 1% stop; mfeR is
+   * set so that exactly 90% of them reach 0.25R and only 30% reach 2R. This is
+   * the demonstration the whole section exists for: a near target buys a high
+   * win rate and cannot pay for itself.
+   */
+  const made = Array.from({ length: 400 }, (_, i) => {
+    const mfeR = i % 10 === 0 ? 0.1 : (i % 10 < 3 ? 2.5 : 0.4);
+    return {
+      direction: 'LONG', entry: 100, stop: 99,
+      exit: mfeR >= 2 ? 102 : 99, mfeR, maeR: 0,
+      r: mfeR >= 2 ? 2 : -1,
+    };
+  });
+  const c = winRateCurve(made, { targets: [0.25, 1, 2] });
+
+  check('the curve reports a win rate for each target', c && c.rows.length === 3);
+  check('a nearer target wins more often', (() => {
+    const r = c.rows.map((x) => x.winRate);
+    return r.every((v, i) => i === 0 || v <= r[i - 1] + 1e-9);
+  })());
+  check('a nearer target also demands a higher win rate to break even', (() => {
+    const q = c.rows.map((x) => x.requiredWinRate);
+    return q.every((v, i) => i === 0 || v <= q[i - 1] + 1e-9);
+  })());
+  check('the break-even rate follows (1+toll)/(1+target)', (() => {
+    const row = c.rows.find((x) => x.target === 1);
+    return Math.abs(row.requiredWinRate - (1 + c.tollR) / 2) < 1e-9;
+  })());
+
+  /*
+   * The point of the whole exercise: a 90% win rate that loses money must be
+   * reported as losing money, not as a 90% win rate.
+   */
+  const near = c.rows.find((x) => x.target === 0.25);
+  check('a 90% win rate is achievable at a near target', near.winRate >= 0.85);
+  check('and it is correctly reported as unprofitable',
+    near.avgR < 0 && near.gap < 0 && near.profitable === false);
+  check('the verdict text names the trap rather than the number',
+    /убыточ/i.test(c.text) || near.avgR > 0);
+
+  check('the curve refuses to run on too few trades', winRateCurve(made.slice(0, 10)) === null);
+  check('targets beyond the measured excursion ceiling are dropped',
+    winRateCurve(made, { targets: [1, 99] }).rows.every((r) => r.target !== 99));
+}
+
 /* ------------------------------- the vault ---------------------------- */
 {
   const { reserveVault, evaluateOnVault, VAULT_RATIO } = await import('../server/analytics.js');

@@ -215,6 +215,20 @@ function printSummary(rep) {
     }
   }
 
+  if (rep.winRateCurve) {
+    const w = rep.winRateCurve;
+    out.push('## Винрейт против денег\n');
+    out.push(w.text + '\n');
+    out.push('| Цель | Успешных | Нужно для нуля | Разрыв | Средний R |',
+      '|---|---:|---:|---:|---:|');
+    for (const row of w.rows) {
+      out.push(`| ${row.target}R | ${pct(row.winRate)} | ${pct(row.requiredWinRate)} | ` +
+        `${(row.gap * 100).toFixed(1)} п.п. | ${r2(row.avgR)} |`);
+    }
+    out.push('');
+    out.push(`_${w.note}_\n`);
+  }
+
   if (rep.costs) {
     out.push('## Издержки\n');
     out.push(rep.costs.text + '\n');
