@@ -29,6 +29,7 @@ import { config } from './config.js';
 import { summarize, backtestSymbol } from './backtest.js';
 import { wilsonInterval } from './probability.js';
 import { GRID } from './validate.js';
+import { randomEntryBenchmark, rotationNull, costSensitivity } from './nulls.js';
 
 /** Below this a bucket is reported but never called an edge. */
 export const MIN_BUCKET = Number(process.env.COINSCOPE_MIN_BUCKET || 25);
@@ -322,6 +323,52 @@ export function calibration(closedSignals) {
 
 /* ---------------------- In-sample / out-of-sample ---------------------- */
 
+/* ------------------------------- The vault ---------------------------- */
+
+export const VAULT_RATIO = Number(process.env.COINSCOPE_VAULT_RATIO || 0.2);
+
+/**
+ * Set aside the most recent slice of history and do not look at it.
+ *
+ * This exists because of a flaw in how a holdout actually gets used. A 70/30
+ * split is honest exactly once. Then you read the out-of-sample number, it
+ * informs the next idea, you re-run, and read it again — and after a handful
+ * of iterations the "unseen" half has quietly become part of the training set,
+ * because your choices have been fitted to it through you. Nothing in the code
+ * notices; the report still says "out-of-sample" and still looks rigorous.
+ *
+ * So the last slice is reserved and never enters the ordinary run at all.
+ * Opening it is a deliberate act (COINSCOPE_OPEN_VAULT=1) and every opening is
+ * appended to a log that lives in git — because the number that matters is how
+ * many times it has been opened. Opened once, it is a fair test. Opened ten
+ * times, it is a training set with extra steps, and the log is what stops that
+ * from being forgotten.
+ */
+export function reserveVault(dataBySymbol, vaultRatio = VAULT_RATIO) {
+  const working = {};
+  const vault = {};
+  for (const [symbol, { candles, htf }] of Object.entries(dataBySymbol)) {
+    const cut = Math.floor(candles.length * (1 - vaultRatio));
+    const cutTime = candles[cut]?.time ?? Infinity;
+    working[symbol] = { candles: candles.slice(0, cut), htf, scoreFrom: 0 };
+    const warm = Math.max(0, cut - 260);   // indicator warm-up only, never scored
+    vault[symbol] = { candles: candles.slice(warm), htf, scoreFrom: cutTime };
+  }
+  return { working, vault };
+}
+
+/** Run one parameter set against the reserved slice. A one-shot measurement. */
+export function evaluateOnVault(vaultData, params = config.strategy) {
+  const all = [];
+  for (const [symbol, { candles, htf, scoreFrom = 0 }] of Object.entries(vaultData)) {
+    const { trades } = backtestSymbol({
+      symbol, timeframe: config.timeframe, candles, htfCandles: htf, params,
+    });
+    for (const t of trades) if (t.entryTime >= scoreFrom) all.push(t);
+  }
+  return { params: { ...params }, stats: summarize(all), trades: all.length };
+}
+
 /**
  * Split each symbol's candles into a tuning half and a verification half.
  *
@@ -459,13 +506,25 @@ const pick = (s) => (s ? {
  * backtestSymbol records; `signals` are the site's own published, resolved
  * signals for the calibration section.
  */
-export function analyse({ trades, signals = [], dataBySymbol = null, ratio = 0.7 }) {
+export function analyse({
+  trades, signals = [], dataBySymbol = null, ratio = 0.7, nullReplicates = 200,
+}) {
   const breakdowns = DIMENSIONS.map((d) => breakdown(trades, d));
 
   // Across every dimension at once: this is the number that decides whether a
   // single good-looking bucket means anything.
   const tested = breakdowns.reduce((s, b) => s + b.tested, 0);
   const flagged = breakdowns.reduce((s, b) => s + b.flagged, 0);
+
+  /*
+   * The analytic 5% assumes independent trades. They are not: consecutive
+   * trades sit in the same regime, so the real false-positive rate of this
+   * pipeline is higher than arithmetic says. Measure it instead of assuming
+   * it — push outcome-rotated data through the identical counting rule.
+   */
+  const countFlags = (rows) => DIMENSIONS
+    .reduce((s, d) => s + breakdown(rows, d).flagged, 0);
+  const measuredNull = rotationNull(trades, countFlags, { replicates: nullReplicates });
 
   return {
     generatedAt: Date.now(),
@@ -485,10 +544,28 @@ export function analyse({ trades, signals = [], dataBySymbol = null, ratio = 0.7
        * and even then it says "look here", not "trade this".
        */
       surplus: flagged - expectedFalsePositives(tested),
+      /*
+       * The measured floor, which supersedes the arithmetic one wherever the
+       * two disagree — and they disagree in the direction that matters, the
+       * measured floor being the higher of the two.
+       */
+      measured: measuredNull && {
+        median: measuredNull.median, p95: measuredNull.p95,
+        max: measuredNull.max, replicates: measuredNull.replicates,
+        clears: flagged > measuredNull.p95,
+      },
     },
     excursions: excursions(trades),
     calibration: calibration(signals),
     tuning: dataBySymbol ? outOfSampleTuning(dataBySymbol, { ratio }) : null,
+    /*
+     * The question every other section is downstream of: does the entry logic
+     * beat a coin flip with the same exits? If not, nothing else matters.
+     */
+    randomEntry: dataBySymbol
+      ? randomEntryBenchmark(dataBySymbol, trades, { replicates: nullReplicates })
+      : null,
+    costs: costSensitivity(trades),
     minBucket: MIN_BUCKET,
   };
 }
