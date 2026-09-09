@@ -4,7 +4,7 @@
  * tested against recorded payload shapes).
  */
 import { fetchCandles, fetchPrice } from '../server/sources/synthetic.js';
-import { parseKlines, dropUnclosed, parseTickers } from '../server/sources/binance.js';
+import { parseKlines, dropUnclosed, parseTickers, classifyStatus, hostList } from '../server/sources/binance.js';
 import { makeChecker, close } from './helpers.mjs';
 
 const results = [];
@@ -104,6 +104,26 @@ check('a ticker with a bad price is skipped, not fatal',
 check('a non-array ticker payload is rejected', (() => {
   try { parseTickers({ code: -1121 }); return false; } catch { return true; }
 })());
+
+/* --------------------------- failure handling ------------------------- */
+// Binance answers 451/403 by location — exactly the case the mirror list
+// exists for, so those must move to another host rather than give up.
+check('a geo-block moves to the next mirror', classifyStatus(451) === 'nextHost');
+check('a forbidden response moves to the next mirror', classifyStatus(403) === 'nextHost');
+check('rate limiting is retried on the same host', classifyStatus(429) === 'retry');
+check('an IP ban response is retried', classifyStatus(418) === 'retry');
+check('server errors are retried', classifyStatus(500) === 'retry' && classifyStatus(503) === 'retry');
+check('a transport failure is retried', classifyStatus(null) === 'retry');
+// A bad symbol fails identically everywhere; retrying only burns the quota.
+check('a bad request is not retried anywhere', classifyStatus(400) === 'fatal');
+check('a missing endpoint is not retried anywhere', classifyStatus(404) === 'fatal');
+
+check('the mirror list has several distinct hosts', (() => {
+  const hosts = hostList();
+  return hosts.length >= 2 && new Set(hosts).size === hosts.length;
+})());
+check('the market-data mirror is among the fallbacks',
+  hostList().some((h) => h.includes('data-api.binance.vision')));
 
 const passed = results.filter(([, ok]) => ok).length;
 console.log(`  ${passed}/${results.length} passed`);

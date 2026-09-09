@@ -1,0 +1,37 @@
+name: Тесты
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: npm test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # The suites force the offline generator, so this never touches an
+      # exchange and cannot fail because of a network policy.
+      - name: Прогнать тесты
+        run: npm test 2>&1 | tee test-output.txt
+
+      - name: Итог в сводку
+        if: always()
+        run: |
+          {
+            echo "# Тесты"
+            echo
+            echo '```'
+            grep -E '^(▶|  [0-9]+/|✓|✗|  ❌)' test-output.txt || cat test-output.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

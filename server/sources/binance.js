@@ -31,11 +31,29 @@ export function hostList() {
 /** Index of the host currently believed to work; sticky between calls. */
 let preferredHost = 0;
 
+/** Which mirror actually served the last successful request. */
+export function activeHost() {
+  return hostList()[preferredHost] || null;
+}
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** Retryable: transport failures, rate limits and server-side errors. */
-function isRetryable(status) {
-  return status === null || status === 429 || status === 418 || status >= 500;
+/**
+ * How to react to a failed response.
+ *
+ *  'retry'    — transient: same host, after a pause.
+ *  'nextHost' — this host will not serve us (geo-block, forbidden), but a
+ *               mirror might. Binance answers 451/403 by location, which is
+ *               precisely what the mirror list exists for.
+ *  'fatal'    — a bad symbol or malformed argument fails identically
+ *               everywhere; retrying just burns the rate limit.
+ */
+export function classifyStatus(status) {
+  if (status === null) return 'retry';              // transport / timeout
+  if (status === 429 || status === 418) return 'retry';
+  if (status >= 500) return 'retry';
+  if (status === 403 || status === 451 || status === 401) return 'nextHost';
+  return 'fatal';
 }
 
 /**
@@ -52,8 +70,9 @@ async function request(path, params, { attempts = 3 } = {}) {
 
   for (let hostTry = 0; hostTry < hosts.length; hostTry++) {
     const host = hosts[(preferredHost + hostTry) % hosts.length];
+    let abandonHost = false;
 
-    for (let attempt = 0; attempt < attempts; attempt++) {
+    for (let attempt = 0; attempt < attempts && !abandonHost; attempt++) {
       const url = new URL(host + path);
       for (const [k, v] of Object.entries(params || {})) url.searchParams.set(k, v);
 
@@ -69,15 +88,15 @@ async function request(path, params, { attempts = 3 } = {}) {
         }
         const body = await res.text().catch(() => '');
         lastError = new Error(`Binance ${res.status} on ${path} (${host}): ${body.slice(0, 160)}`);
-        // A rejected symbol or bad argument will fail identically on every
-        // retry and every mirror — fail fast instead of hammering.
-        if (!isRetryable(status)) throw lastError;
       } catch (err) {
-        if (lastError !== err) lastError = err;
-        if (status !== null && !isRetryable(status)) throw lastError;
+        lastError = err;
       } finally {
         clearTimeout(timer);
       }
+
+      const action = classifyStatus(status);
+      if (action === 'fatal') throw lastError;
+      if (action === 'nextHost') { abandonHost = true; break; }
 
       if (attempt < attempts - 1) {
         // Exponential backoff, and honour a rate-limit cool-off generously.
