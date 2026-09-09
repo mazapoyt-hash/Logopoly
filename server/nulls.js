@@ -102,10 +102,20 @@ function randomTrade(candles, ind, rng, direction, params, warmup) {
  * is left is the entry timing, which is the only thing the indicators do.
  */
 export function randomEntryBenchmark(dataBySymbol, realTrades, {
-  replicates = 200, seed = 20260909, params = config.strategy,
+  replicates = 200, seed = 20260909, params = config.strategy, costs = COSTS,
 } = {}) {
-  const real = summarize(realTrades);
   if (!realTrades.length) return null;
+  /*
+   * Both sides are re-priced at the same cost level, so the comparison stays
+   * apples-to-apples when it is run frictionlessly. Costs are charged per
+   * trade as a fixed fraction of price, so they hit a tight stop far harder
+   * than a wide one — which means a with-costs comparison partly measures
+   * position geometry, not timing. Running it at zero cost separates the two.
+   */
+  const reprice = (t) => ({
+    ...t, r: netR({ direction: t.direction, entry: t.entry, stop: t.stop, exit: t.exit }, costs),
+  });
+  const real = summarize(realTrades.map(reprice));
 
   // The shape to imitate: how many trades of each direction on each symbol.
   const shape = new Map();
@@ -136,7 +146,7 @@ export function randomEntryBenchmark(dataBySymbol, realTrades, {
       }
     }
     if (!trades.length) continue;
-    const s = summarize(trades);
+    const s = summarize(trades.map(reprice));
     avgRs.push(s.avgR);
     winRates.push(s.winRate);
   }

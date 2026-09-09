@@ -653,7 +653,36 @@
           <div class="v">${(re.percentile * 100).toFixed(0)}</div>
           <div class="note">место среди случайных</div></div>
       </div>
-      <p class="analytics-note">${esc(re.text)}</p>`;
+      <p class="analytics-note">${esc(re.text)}</p>
+      ${grossHtml(re, state.analytics?.randomEntryGross)}`;
+  }
+
+  /**
+   * The same test without costs. The gap between the two verdicts separates
+   * "there is no signal" from "there is a signal too small to pay for itself",
+   * and those have nothing in common as problems.
+   */
+  function grossHtml(withCosts, gross) {
+    if (!gross) return '';
+    const signalOnly = gross.percentile >= 0.95 && withCosts.percentile < 0.95;
+    const verdict = signalOnly
+      ? '<b>Сигнал есть, но он не окупает издержки.</b> Без комиссии входы обыгрывают случайные, ' +
+        'с комиссией — нет. Это лечится не порогами: издержки берутся от цены, поэтому съедают ' +
+        'тем большую долю риска, чем ближе стоп. Значит, смотреть надо в сторону более широкого ' +
+        'риска на сделку — старший таймфрейм, более волатильные условия, реже входы.'
+      : gross.percentile >= 0.95
+        ? 'Входы обыгрывают случайные и с издержками, и без них.'
+        : '<b>Дело не в издержках.</b> Даже при нулевых входы не лучше случайных. Значит, плюс ' +
+          'без издержек создан не выбором момента, а чем-то ещё — дрейфом рынка или самой ' +
+          'геометрией стопа и цели.';
+    return `
+      <div class="gross">
+        <div class="gross-head">Без издержек — процентиль
+          <b>${(gross.percentile * 100).toFixed(0)}</b>
+          (стратегия ${fmtR(gross.real.avgR)} против медианы случайных ${fmtR(gross.nullModel.p50)})
+        </div>
+        <p class="analytics-note">${verdict}</p>
+      </div>`;
   }
 
   function costsHtml(c) {
