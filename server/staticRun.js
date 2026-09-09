@@ -100,9 +100,37 @@ export async function runStatic({ dir = DATA_DIR, now = Date.now() } = {}) {
   let prices = {};
   try { prices = await getPrices(config.symbols); } catch { /* candles still work */ }
 
+  // Fetch once, use for everything below.
+  const data = {};
   for (const symbol of config.symbols) {
-    const candles = await getCandles(symbol, config.timeframe, config.candleLimit, { fresh: true });
-    const htf = await getCandles(symbol, config.higherTimeframe, config.candleLimit, { fresh: true });
+    data[symbol] = {
+      candles: await getCandles(symbol, config.timeframe, config.candleLimit, { fresh: true }),
+      htf: await getCandles(symbol, config.higherTimeframe, config.candleLimit, { fresh: true }),
+    };
+  }
+
+  /*
+   * Backtest FIRST. A signal's success estimate is frozen when it is
+   * published, so the evidence has to exist by then — running the backtest
+   * afterwards left the very first batch of signals permanently marked
+   * "нет оценки" even though the history to judge them was already there.
+   */
+  const btPerSymbol = [];
+  const allTrades = [];
+  for (const symbol of config.symbols) {
+    const { candles, htf } = data[symbol];
+    if (!candles.length) continue;
+    const { trades, stats } = backtestSymbol({ symbol, timeframe: config.timeframe, candles, htfCandles: htf });
+    btPerSymbol.push({ symbol, stats });
+    allTrades.push(...trades);
+  }
+  state.backtestTrades = allTrades.map((t) => ({
+    symbol: t.symbol, timeframe: t.timeframe, direction: t.direction,
+    score: Math.round(t.score ?? 0), r: t.r, entryTime: t.entryTime,
+  }));
+
+  for (const symbol of config.symbols) {
+    const { candles, htf } = data[symbol];
     if (!candles.length) continue;
 
     // 1. Settle open signals for this symbol.
@@ -186,21 +214,7 @@ export async function runStatic({ dir = DATA_DIR, now = Date.now() } = {}) {
     log.push(`${symbol}: новый сигнал ${sig.direction}, score ${sig.score}`);
   }
 
-  /* --------------------------- Backtest + stats ----------------------- */
-  const btPerSymbol = [];
-  const allTrades = [];
-  for (const symbol of config.symbols) {
-    const candles = await getCandles(symbol, config.timeframe, config.candleLimit);
-    const htf = await getCandles(symbol, config.higherTimeframe, config.candleLimit);
-    const { trades, stats } = backtestSymbol({ symbol, timeframe: config.timeframe, candles, htfCandles: htf });
-    btPerSymbol.push({ symbol, stats });
-    allTrades.push(...trades);
-  }
-  state.backtestTrades = allTrades.map((t) => ({
-    symbol: t.symbol, timeframe: t.timeframe, direction: t.direction,
-    score: Math.round(t.score ?? 0), r: t.r, entryTime: t.entryTime,
-  }));
-
+  /* ------------------------------- Stats ------------------------------ */
   const closed = state.signals.filter((s) => s.status !== 'open');
   const liveStats = summarize(closed.map((s) => ({ r: s.r ?? 0, barsHeld: s.barsHeld ?? 0 })));
   const timeline = segmentTrades(allTrades, 4);

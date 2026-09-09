@@ -50,6 +50,14 @@ check('stop and target straddle the entry', signals.open.every((s) => (
   s.direction === 'LONG' ? s.stop < s.entry && s.target > s.entry
     : s.stop > s.entry && s.target < s.entry)));
 
+// Regression: the backtest used to run after signals were generated, so the
+// first batch was published with no evidence and, because the estimate is
+// frozen at publication, stayed "нет оценки" for good.
+check('the very first run already has probability evidence',
+  loadState(DIR).backtestTrades.length > 0);
+check('signals from the first run carry an estimate when evidence exists',
+  signals.open.every((s) => s.probSample > 0 || loadState(DIR).backtestTrades.length === 0));
+
 const stats = read('stats.json');
 check('stats include the backtest', stats.backtest.perSymbol.length === status.symbols.length);
 check('stats include the time-segment verdict', !!stats.consistency?.verdict);
