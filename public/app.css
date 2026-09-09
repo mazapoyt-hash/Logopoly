@@ -29,6 +29,60 @@ button { font-family: inherit; }
   padding: 9px 24px; font-size: 13px; text-align: center;
 }
 .banner b { color: #ffd98a; }
+.banner.error { background: #3a0f14; color: #ff9aa2; border-bottom-color: #6b1f27; }
+.banner.error b { color: #ffc2c7; }
+.banner code { background: rgba(255,255,255,.08); padding: 1px 5px; border-radius: 4px; }
+
+.source-tag { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px; letter-spacing: .03em; white-space: nowrap; }
+.source-tag.live { background: rgba(22,199,132,.15); color: var(--long); }
+.source-tag.demo { background: rgba(240,160,32,.15); color: var(--warn); }
+.pill.grey { background: var(--border); color: var(--muted); }
+
+/* ------------------------- Probability block -------------------------- */
+.prob { background: var(--panel-2); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
+.prob-head { display: flex; align-items: baseline; justify-content: space-between; }
+.prob-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.prob-val { font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.prob.good .prob-val { color: var(--long); }
+.prob.mid .prob-val { color: var(--warn); }
+.prob.weak .prob-val { color: var(--short); }
+.prob.unknown .prob-val { color: var(--muted); font-size: 14px; font-weight: 600; }
+.prob-bar { height: 5px; background: #0e1220; border-radius: 3px; overflow: hidden; margin: 7px 0 6px; }
+.prob-fill { height: 100%; background: linear-gradient(90deg, #4d8dff, #16c784); }
+.prob.weak .prob-fill { background: linear-gradient(90deg, #ea3943, #f0a020); }
+.prob-note { font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+
+/* ------------------------------- Plan --------------------------------- */
+.plan { display: flex; flex-direction: column; gap: 1px; background: var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 12px; }
+.plan-row { display: flex; align-items: center; justify-content: space-between; background: var(--panel-2); padding: 9px 12px; }
+.plan-k { font-size: 12px; color: var(--muted); }
+.plan-v { font-size: 14px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.plan-sub { display: block; font-size: 11px; font-weight: 500; color: var(--muted); margin-top: 1px; }
+.plan-row.take .plan-v { color: var(--long); }
+.plan-row.take .plan-k::before { content: "▲ "; color: var(--long); }
+.plan-row.lose .plan-v { color: var(--short); }
+.plan-row.lose .plan-k::before { content: "▼ "; color: var(--short); }
+.plan-row.entry .plan-v { color: var(--ink); }
+
+/* ---------------------------- Live price ------------------------------ */
+.live-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+.live-price { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.track { position: relative; height: 6px; background: linear-gradient(90deg, rgba(234,57,67,.35), rgba(22,199,132,.35)); border-radius: 3px; overflow: hidden; }
+.track-fill { height: 100%; background: linear-gradient(90deg, var(--short), var(--long)); opacity: .85; }
+.track-entry { position: absolute; top: -2px; width: 2px; height: 10px; background: var(--accent); }
+.track-ends { display: flex; justify-content: space-between; font-size: 10.5px; margin-top: 3px; }
+
+/* ---------------------------- Badges ---------------------------------- */
+.badge { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 6px; white-space: nowrap; }
+.badge.ok { background: rgba(22,199,132,.15); color: var(--long); }
+.badge.bad { background: rgba(234,57,67,.15); color: var(--short); }
+.badge.neutral { background: rgba(139,147,168,.15); color: var(--muted); }
+
+.calibration {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px 16px; margin-bottom: 14px; font-size: 13px; color: #b6bed2;
+}
+.calibration b { color: var(--ink); }
 
 /* ------------------------------- Topbar ------------------------------- */
 .topbar {
@@ -181,3 +235,5 @@ table.grid tbody tr:hover { background: var(--panel); }
   .topbar { flex-wrap: wrap; gap: 12px; }
   .tabs { order: 3; width: 100%; overflow-x: auto; }
 }
+
+.tag.replay { background: rgba(77,141,255,.14); color: var(--accent); font-size: 10px; }

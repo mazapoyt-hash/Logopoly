@@ -4,7 +4,7 @@
  * tested against recorded payload shapes).
  */
 import { fetchCandles, fetchPrice } from '../server/sources/synthetic.js';
-import { parseKlines, dropUnclosed } from '../server/sources/binance.js';
+import { parseKlines, dropUnclosed, parseTickers } from '../server/sources/binance.js';
 import { makeChecker, close } from './helpers.mjs';
 
 const results = [];
@@ -91,6 +91,19 @@ check('the still-forming candle is dropped',
 check('fully closed candles are all kept',
   dropUnclosed(withOpen, 1700009999999).length === 2);
 check('dropUnclosed copes with an empty series', dropUnclosed([], Date.now()).length === 0);
+
+// Batch ticker payload, used by the live price loop.
+const tickers = parseTickers([
+  { symbol: 'BTCUSDT', price: '64123.45000000' },
+  { symbol: 'ETHUSDT', price: '3210.10000000' },
+]);
+check('batch tickers become a symbol -> price map',
+  close(tickers.BTCUSDT, 64123.45) && close(tickers.ETHUSDT, 3210.1));
+check('a ticker with a bad price is skipped, not fatal',
+  Object.keys(parseTickers([{ symbol: 'X', price: 'oops' }, { symbol: 'Y', price: '1.5' }])).length === 1);
+check('a non-array ticker payload is rejected', (() => {
+  try { parseTickers({ code: -1121 }); return false; } catch { return true; }
+})());
 
 const passed = results.filter(([, ok]) => ok).length;
 console.log(`  ${passed}/${results.length} passed`);

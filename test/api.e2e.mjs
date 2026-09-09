@@ -44,6 +44,36 @@ await fetch(BASE + '/api/scan', { method: 'POST' });
 const after = (await get('/api/signals/open')).body.signals.length;
 check('re-scanning the same candle does not duplicate signals', before === after);
 
+/* --------------------------- all signals ----------------------------- */
+const all = await get('/api/signals/all');
+check('the combined signal list responds', all.status === 200);
+check('it separates open from closed',
+  Array.isArray(all.body.open) && Array.isArray(all.body.closed));
+check('every closed signal is marked win, loss or expired',
+  all.body.closed.every((s) => ['win', 'loss', 'expired'].includes(s.status)));
+check('open signals carry no outcome yet', all.body.open.every((s) => s.status === 'open'));
+
+/* ------------------------- probability fields ------------------------ */
+if (sig) {
+  const hasProbFields = 'win_prob' in sig && 'prob_sample' in sig;
+  check('signals expose the success-estimate fields', hasProbFields);
+  // With an empty history the honest answer is "no estimate", not a number.
+  check('no probability is invented without evidence',
+    sig.win_prob === null || (sig.prob_sample >= 15 && sig.win_prob >= 0 && sig.win_prob <= 1));
+}
+
+// After a backtest there is evidence, so later signals can carry an estimate.
+await fetch(BASE + '/api/backtest/run', { method: 'POST' });
+const afterBt = await get('/api/signals/open');
+check('probabilities stay within [0,1] when present',
+  afterBt.body.signals.every((s) => s.win_prob === null || (s.win_prob >= 0 && s.win_prob <= 1)));
+check('a stated probability always comes with its sample size',
+  afterBt.body.signals.every((s) => s.win_prob === null || Number.isFinite(s.prob_sample)));
+
+/* ------------------------------- prices ------------------------------ */
+const prices = await get('/api/prices');
+check('prices endpoint responds', prices.status === 200 && typeof prices.body.values === 'object');
+
 /* ------------------------------- market ------------------------------ */
 const market = await get('/api/market');
 check('market snapshot responds', market.status === 200);

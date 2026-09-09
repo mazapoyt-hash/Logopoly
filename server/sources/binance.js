@@ -86,6 +86,29 @@ export async function fetchPrice(symbol) {
   return price;
 }
 
+/** Parse the batch ticker payload. Exported so it can be tested offline. */
+export function parseTickers(rows) {
+  if (!Array.isArray(rows)) throw new Error('Binance tickers: expected an array');
+  const out = {};
+  for (const r of rows) {
+    const price = Number(r?.price);
+    if (r?.symbol && Number.isFinite(price)) out[r.symbol] = price;
+  }
+  return out;
+}
+
+/**
+ * One request for every tracked coin — the price loop runs every few seconds,
+ * so asking per symbol would burn the rate limit for nothing.
+ */
+export async function fetchPrices(symbols) {
+  if (!symbols?.length) return {};
+  const rows = await request('/api/v3/ticker/price', {
+    symbols: JSON.stringify(symbols),
+  });
+  return parseTickers(rows);
+}
+
 /** Sanity check used at startup so a misconfigured host fails loudly. */
 export async function ping() {
   await request('/api/v3/ping', {});

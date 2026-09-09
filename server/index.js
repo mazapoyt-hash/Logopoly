@@ -57,6 +57,19 @@ app.get('/api/signals/history', (req, res) => {
   res.json({ signals: Signals.history({ limit, symbol: req.query.symbol || null }) });
 });
 
+/** Every signal ever published — open ones first, then resolved. */
+app.get('/api/signals/all', (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 200, 500);
+  const open = Signals.open();
+  const closed = Signals.history({ limit, symbol: req.query.symbol || null });
+  res.json({ open, closed, total: Signals.countAll() });
+});
+
+/** Latest exchange prices, so the UI can show live progress toward TP/SL. */
+app.get('/api/prices', (_req, res) => {
+  res.json({ at: tracker.prices.at, values: tracker.prices.values, error: tracker.status.priceError });
+});
+
 app.get('/api/signals/:id', (req, res) => {
   const sig = Signals.get(Number(req.params.id));
   if (!sig) return res.status(404).json({ error: 'not found' });
@@ -157,10 +170,15 @@ app.get('/api/events', (req, res) => {
   const onNew = (s) => send('signal:new', s);
   const onResolved = (s) => send('signal:resolved', s);
   const onScan = (s) => send('scan:done', s);
+  const onPrices = (p) => send('prices', p);
 
   tracker.events.on('signal:new', onNew);
   tracker.events.on('signal:resolved', onResolved);
   tracker.events.on('scan:done', onScan);
+  tracker.events.on('prices', onPrices);
+
+  // Send what we already have so a fresh tab is not blank until the next tick.
+  if (tracker.prices.at) send('prices', { at: tracker.prices.at, values: tracker.prices.values });
 
   const keepAlive = setInterval(() => res.write(': ping\n\n'), 25_000);
 
@@ -169,6 +187,7 @@ app.get('/api/events', (req, res) => {
     tracker.events.off('signal:new', onNew);
     tracker.events.off('signal:resolved', onResolved);
     tracker.events.off('scan:done', onScan);
+    tracker.events.off('prices', onPrices);
   });
 });
 
@@ -180,8 +199,10 @@ const server = app.listen(config.port, async () => {
 
   const health = await checkSource();
   if (!health.ok) {
-    console.log(`\n  ⚠ Источник «${health.source}» недоступен: ${health.error}`);
-    console.log(`     Запустите с COINSCOPE_SOURCE=synthetic, либо укажите BINANCE_BASE_URL.`);
+    console.log(`\n  ⚠ Биржа недоступна («${health.source}»): ${health.error}`);
+    console.log(`     Сигналов не будет, пока нет котировок. Что можно сделать:`);
+    console.log(`       • другой хост Binance:  BINANCE_BASE_URL=https://data-api.binance.vision`);
+    console.log(`       • демо без сети:        COINSCOPE_SOURCE=synthetic`);
   }
   if (process.env.COINSCOPE_NO_LOOP !== '1') {
     tracker.start();

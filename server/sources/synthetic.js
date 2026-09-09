@@ -115,4 +115,10 @@ export async function fetchPrice(symbol, timeframe = '1h') {
   return c[c.length - 1].close;
 }
 
+export async function fetchPrices(symbols, timeframe = '1h') {
+  const out = {};
+  for (const s of symbols) out[s] = await fetchPrice(s, timeframe);
+  return out;
+}
+
 export const name = 'synthetic';

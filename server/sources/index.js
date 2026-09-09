@@ -34,6 +34,11 @@ export async function getPrice(symbol, timeframe = config.timeframe) {
   return activeSource().fetchPrice(symbol, timeframe);
 }
 
+/** Current price for many symbols in one call. */
+export async function getPrices(symbols, timeframe = config.timeframe) {
+  return activeSource().fetchPrices(symbols, timeframe);
+}
+
 export function clearCache() {
   cache.clear();
 }

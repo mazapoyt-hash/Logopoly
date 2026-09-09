@@ -17,6 +17,7 @@ const suites = [
   { file: 'strategy.test.mjs', server: false },
   { file: 'backtest.test.mjs', server: false },
   { file: 'tracker.test.mjs', server: false },
+  { file: 'probability.test.mjs', server: false },
   { file: 'api.e2e.mjs', server: true },
 ];
 

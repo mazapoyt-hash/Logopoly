@@ -11,7 +11,7 @@ process.env.COINSCOPE_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'coinscop
 process.env.COINSCOPE_SOURCE = 'synthetic';
 
 const { Signals } = await import('../server/db.js');
-const { resolveSignal, liveRecord } = await import('../server/tracker.js');
+const { resolveSignal, liveRecord, resolveAgainstPrice } = await import('../server/tracker.js');
 const { makeChecker, close } = await import('./helpers.mjs');
 
 const results = [];
@@ -80,6 +80,25 @@ const bars = (specs, startTime) => specs.map((s, i) => ({
   const first = Signals.add({ ...base, direction: 'LONG', entry: 100, stop: 98, target: 104, barTime });
   const second = Signals.add({ ...base, direction: 'LONG', entry: 100, stop: 98, target: 104, barTime });
   check('the same candle cannot produce two signals', !!first && second === null);
+}
+
+/* ------------------- live resolution on the tick price ---------------- */
+// The backtest fills a stop or target that trades intrabar, so the live side
+// must settle on the current price rather than waiting for the candle to close.
+{
+  const barTime = 6_000_000 * HOUR;
+  const sig = Signals.add({ ...base, symbol: 'ETHUSDT', direction: 'LONG', entry: 100, stop: 98, target: 104, barTime });
+  check('a price between the levels leaves it open', resolveAgainstPrice(sig, 101.5) === null);
+  const done = resolveAgainstPrice(sig, 104.2);
+  check('a price through the target settles it as a win', done?.status === 'win');
+  check('the fill is the target, not the overshoot', close(done.exit_price, 104));
+}
+{
+  const barTime = 6_100_000 * HOUR;
+  const sig = Signals.add({ ...base, symbol: 'ETHUSDT', direction: 'SHORT', entry: 100, stop: 102, target: 96, barTime });
+  const done = resolveAgainstPrice(sig, 102.5);
+  check('a short stopped out on the tick price is a loss', done?.status === 'loss');
+  check('the fill is the stop level', close(done.exit_price, 102));
 }
 
 /* ------------------------------- record ------------------------------ */

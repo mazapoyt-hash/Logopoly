@@ -10,20 +10,28 @@
  */
 import { EventEmitter } from 'node:events';
 import { config, timeframeMs } from './config.js';
-import { getCandles } from './sources/index.js';
+import { getCandles, getPrices } from './sources/index.js';
 import { scanLatest } from './strategy.js';
-import { resolveOnBar, backtestSymbol, summarize } from './backtest.js';
-import { Signals, Backtests } from './db.js';
+import { resolveOnBar, backtestSymbol, summarize, netR } from './backtest.js';
+import { Signals, Backtests, BacktestTrades } from './db.js';
+import { estimateProbability } from './probability.js';
 
 export const events = new EventEmitter();
 
 let running = false;
 let timer = null;
+let priceTimer = null;
+
+/** Latest exchange price per symbol, refreshed by the price loop. */
+export const prices = { at: null, values: {} };
+
 export const status = {
   lastScanAt: null,
   lastScanMs: null,
+  lastPriceAt: null,
   scanned: 0,
   errors: [],
+  priceError: null,
   source: config.source,
 };
 
@@ -70,8 +78,65 @@ async function scanSymbol(symbol) {
   const sig = scanLatest(candles, htf, { symbol, timeframe: config.timeframe });
   if (!sig) return;
 
+  // Attach the success estimate as it stands right now, and store it with the
+  // signal so the history shows what was actually claimed at publication.
+  sig.probability = estimateProbability({
+    symbol, direction: sig.direction, score: sig.score, timeframe: config.timeframe,
+  });
+
   const saved = Signals.add(sig);
   if (saved) events.emit('signal:new', saved);
+}
+
+/**
+ * Check open signals against the current exchange price.
+ *
+ * The backtest assumes a stop or target that trades intrabar is filled, so the
+ * live side must do the same — waiting for the candle to close would make the
+ * forward record look better than the historical one.
+ */
+export function resolveAgainstPrice(signal, price) {
+  const long = signal.direction === 'LONG';
+  const hitStop = long ? price <= signal.stop : price >= signal.stop;
+  const hitTarget = long ? price >= signal.target : price <= signal.target;
+
+  let exit = null;
+  let outcome = null;
+  if (hitStop) { exit = signal.stop; outcome = 'loss'; }   // stop wins ties, as in the backtest
+  else if (hitTarget) { exit = signal.target; outcome = 'win'; }
+  if (exit === null) return null;
+
+  const r = netR({ direction: signal.direction, entry: signal.entry, stop: signal.stop, exit });
+  const updated = Signals.resolve(signal.id, {
+    status: outcome,
+    exitPrice: exit,
+    exitTime: Date.now(),
+    barsHeld: signal.bars_held ?? null,
+    r,
+  });
+  if (updated) events.emit('signal:resolved', updated);
+  return updated;
+}
+
+/** Poll current prices and settle anything that has hit its level. */
+export async function priceTick() {
+  try {
+    const values = await getPrices(config.symbols);
+    prices.values = values;
+    prices.at = Date.now();
+    status.lastPriceAt = prices.at;
+    status.priceError = null;
+
+    for (const sig of Signals.open()) {
+      const price = values[sig.symbol];
+      if (Number.isFinite(price)) resolveAgainstPrice(sig, price);
+    }
+    events.emit('prices', { at: prices.at, values });
+  } catch (err) {
+    status.priceError = err.message;
+    events.emit('prices:error', { error: err.message });
+  }
+  return prices;
 }
 
 export async function scanOnce() {
@@ -95,17 +160,27 @@ export async function scanOnce() {
 export function start() {
   if (running) return;
   running = true;
-  const loop = async () => {
+
+  const scanLoop = async () => {
     try { await scanOnce(); } catch (err) { status.errors = [{ error: err.message }]; }
-    if (running) timer = setTimeout(loop, config.scanIntervalSec * 1000);
+    if (running) timer = setTimeout(scanLoop, config.scanIntervalSec * 1000);
   };
-  loop();
+  // Prices move continuously; candles only close occasionally. Two cadences.
+  const priceLoop = async () => {
+    await priceTick();
+    if (running) priceTimer = setTimeout(priceLoop, config.priceIntervalSec * 1000);
+  };
+
+  scanLoop();
+  priceLoop();
 }
 
 export function stop() {
   running = false;
   if (timer) clearTimeout(timer);
+  if (priceTimer) clearTimeout(priceTimer);
   timer = null;
+  priceTimer = null;
 }
 
 /** Run the historical verification for every configured symbol and store it. */
@@ -120,6 +195,10 @@ export async function runBacktests() {
       });
       Backtests.save({
         symbol, timeframe: config.timeframe, source: config.source, stats, bars: candles.length,
+      });
+      // Individual trades feed the success estimate on future signals.
+      BacktestTrades.replaceFor({
+        symbol, timeframe: config.timeframe, source: config.source, trades,
       });
       results.push({ symbol, stats, trades });
     } catch (err) {

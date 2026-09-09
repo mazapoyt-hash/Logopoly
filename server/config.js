@@ -12,11 +12,11 @@ export const config = {
 
   /**
    * 'binance'   — live public market data (no API key needed, read-only)
-   * 'synthetic' — deterministic generated candles, works with no network.
-   * Live exchange access is blocked in some environments; synthetic keeps the
-   * whole pipeline runnable and testable there.
+   * 'synthetic' — deterministic generated candles for tests and for networks
+   *               where exchange APIs are blocked.
+   * Live is the default: the point of the product is the real market.
    */
-  source: env.COINSCOPE_SOURCE || 'synthetic',
+  source: env.COINSCOPE_SOURCE || 'binance',
 
   binance: {
     // api.binance.com is geo-restricted in some countries; these mirrors serve
@@ -36,8 +36,15 @@ export const config = {
   /** How many candles to keep/scan per symbol. */
   candleLimit: Number(env.COINSCOPE_CANDLES || 500),
 
-  /** Seconds between scan cycles. */
+  /** Seconds between full scan cycles (new signals on closed candles). */
   scanIntervalSec: Number(env.COINSCOPE_SCAN_SEC || 60),
+
+  /**
+   * Seconds between live price ticks. Open signals are checked against the
+   * current exchange price on every tick, so a stop or target is registered
+   * when it is actually hit — not once the candle finally closes.
+   */
+  priceIntervalSec: Number(env.COINSCOPE_PRICE_SEC || 10),
 
   strategy: {
     /** Minimum confluence score (0-100) required to publish a signal. */
@@ -60,6 +67,14 @@ export const config = {
    * services mislead people.
    */
   minSampleForStats: Number(env.COINSCOPE_MIN_SAMPLE || 20),
+
+  /**
+   * A published signal shows an estimated success probability only when it can
+   * be backed by at least this many comparable historical outcomes. Below it
+   * the site says "недостаточно данных" instead of printing a number nobody
+   * can stand behind.
+   */
+  minSampleForProbability: Number(env.COINSCOPE_MIN_PROB_SAMPLE || 15),
 };
 
 /** Milliseconds per candle for the timeframes we support. */
