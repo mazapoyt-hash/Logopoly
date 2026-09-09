@@ -119,6 +119,107 @@ export function tollFromTrades(trades, costs = COSTS) {
   };
 }
 
+/* --------------------------- Win rate vs money ------------------------ */
+
+/**
+ * What a demanded win rate actually costs.
+ *
+ * "We need 80–90% of signals to be successful" is a request that can always be
+ * granted and is almost always worthless, and this is the calculation that
+ * shows why. Move the target close enough to the entry and nearly every trade
+ * reaches it: with a stop at 1R and a target at 0.2R, price only has to move a
+ * fifth as far in your favour as against you, so most trades win. What you
+ * collect on each win shrinks in exact proportion.
+ *
+ * The break-even win rate for a target T, once the toll is paid, is
+ *
+ *     p =  (1 + toll)  /  (1 + T)
+ *
+ * and the trap is that this required rate rises FASTER than the achievable one
+ * as the target comes in. At T=2 you need 38%; at T=0.5 you need 77%; at T=0.25
+ * you need 92%. So a strategy proudly winning 85% of the time at a 0.25R target
+ * is losing money, and losing it while looking excellent.
+ *
+ * The achievable side is measured, not modelled: a trade would have hit target
+ * T exactly when its favourable excursion reached T before the stop bar, which
+ * is what mfeR records. Every trade is then re-priced at that target and the
+ * real expectancy computed.
+ *
+ * One honest limit: changing the target changes when trades end, and with one
+ * position per symbol that shifts which later trades exist at all. This curve
+ * holds the trade set fixed, so it is an estimate. The exact answer comes from
+ * re-running the whole strategy at each target — which the parameter grid does.
+ */
+export function winRateCurve(trades, {
+  targets = [0.25, 0.5, 0.75, 1, 1.5, 2], costs = COSTS,
+} = {}) {
+  const usable = trades.filter((t) => Number.isFinite(t.mfeR) && Number.isFinite(t.entry));
+  if (usable.length < 50) return null;
+
+  const toll = tollFromTrades(usable, costs);
+  const tollR = toll?.costR ?? 0;
+
+  // MFE is censored at the target a winner actually used, so a target beyond
+  // it cannot be evaluated from this data — say so rather than extrapolate.
+  const ceiling = Math.max(...usable.map((t) => t.mfeR));
+
+  const rows = targets.filter((T) => T <= ceiling + 1e-9).map((T) => {
+    let wins = 0;
+    let totalR = 0;
+    for (const t of usable) {
+      const risk = Math.abs(t.entry - t.stop);
+      const long = t.direction === 'LONG';
+      const hit = t.mfeR >= T;
+      if (hit) wins++;
+      const exit = hit ? (long ? t.entry + risk * T : t.entry - risk * T) : t.exit;
+      if (!Number.isFinite(exit)) continue;
+      totalR += netR({ direction: t.direction, entry: t.entry, stop: t.stop, exit }, costs);
+    }
+    const winRate = wins / usable.length;
+    const required = (1 + tollR) / (1 + T);
+    return {
+      target: T,
+      winRate,
+      requiredWinRate: required,
+      gap: winRate - required,
+      avgR: totalR / usable.length,
+      totalR,
+      profitable: totalR > 0,
+    };
+  });
+
+  if (!rows.length) return null;
+
+  // Where a demanded win rate lands, and what it is worth there.
+  const forRate = (want) => {
+    const reachable = rows.filter((r) => r.winRate >= want);
+    return reachable.length ? reachable[reachable.length - 1] : null;
+  };
+
+  const high = forRate(0.8);
+  const best = rows.reduce((a, b) => (a.avgR >= b.avgR ? a : b));
+
+  const text = high
+    ? `Цель ${high.target}R даёт ${(high.winRate * 100).toFixed(0)}% успешных сигналов — ` +
+      `и ${high.avgR >= 0 ? '+' : ''}${high.avgR.toFixed(3)}R на сделку. ` +
+      `Чтобы при такой цели выйти в ноль, побеждать надо в ` +
+      `${(high.requiredWinRate * 100).toFixed(0)}% случаев. ` +
+      (high.avgR > 0
+        ? 'Здесь высокий винрейт действительно окупается.'
+        : '**Высокий винрейт достигнут и убыточен.** Чем ближе цель, тем чаще выигрыш и тем ' +
+          'выше требуемый порог — требование растёт быстрее достижимого.')
+    : 'Даже самая близкая из проверенных целей не даёт 80% успешных сигналов на этих данных.';
+
+  return {
+    rows, best, tollR,
+    demanded80: high,
+    text,
+    note: 'Винрейт и прибыльность — почти независимые величины. Один сигнал с 90% успеха и ' +
+      'целью 0.2R теряет деньги; один с 35% успеха и целью 3R зарабатывает. Значение имеет ' +
+      'только средний R на сделку.',
+  };
+}
+
 /**
  * The same toll at other timeframes, computed from real volatility.
  *
