@@ -1,0 +1,79 @@
+name: Проверка на живых данных биржи
+
+# Runs the whole pipeline against real Binance data and writes a readable
+# report into the job summary — so the check can be launched and read from a
+# phone, with nothing installed locally.
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: 'Источник данных'
+        type: choice
+        default: binance
+        options: [binance, synthetic]
+      symbols:
+        description: 'Монеты через запятую (пусто — список по умолчанию)'
+        type: string
+        default: ''
+      timeframe:
+        description: 'Таймфрейм'
+        type: choice
+        default: '1h'
+        options: ['15m', '30m', '1h', '4h']
+  schedule:
+    # Monday 06:00 UTC — a weekly read on whether the edge still holds.
+    - cron: '0 6 * * 1'
+
+jobs:
+  check:
+    name: Отчёт
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Собрать отчёт
+        id: report
+        env:
+          COINSCOPE_SOURCE: ${{ inputs.source || 'binance' }}
+          COINSCOPE_TIMEFRAME: ${{ inputs.timeframe || '1h' }}
+          COINSCOPE_SYMBOLS: ${{ inputs.symbols }}
+          COINSCOPE_DATA_DIR: ${{ runner.temp }}/coinscope-data
+        run: |
+          set -o pipefail
+          node server/cli-report.js | tee report.md
+        continue-on-error: true
+
+      - name: Показать отчёт
+        if: always()
+        run: |
+          if [ -s report.md ]; then
+            cat report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "# Отчёт не собрался" >> "$GITHUB_STEP_SUMMARY"
+            echo "Скрипт завершился до того, как что-либо вывел — смотрите лог шага выше." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Сохранить отчёт файлом
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coinscope-report
+          path: report.md
+          if-no-files-found: warn
+
+      # Binance geo-blocks some cloud ranges; a failure here is information,
+      # not a broken build, so the job is marked accordingly rather than
+      # silently passing.
+      - name: Отметить неудачу
+        if: steps.report.outcome == 'failure'
+        run: |
+          echo "::warning::Отчёт не собрался — вероятнее всего биржа недоступна с этого раннера."
+          exit 1
