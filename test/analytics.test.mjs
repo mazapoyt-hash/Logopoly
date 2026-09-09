@@ -11,7 +11,7 @@ import { makeChecker } from './helpers.mjs';
 
 const {
   meanInterval, expectedFalsePositives, breakdown, excursions, calibration,
-  splitCandles, analyse, DIMENSIONS, MIN_BUCKET,
+  splitCandles, analyse, differsFromRest, DIMENSIONS, MIN_BUCKET,
 } = await import('../server/analytics.js');
 const { backtestSymbol } = await import('../server/backtest.js');
 const { getHistory } = await import('../server/sources/index.js');
@@ -84,6 +84,32 @@ check('expected false positives scale with the number of buckets tested',
 }
 
 /* ---------------- the part that matters: not fooling itself ----------- */
+/* ------------------- comparing a group to the others ------------------ */
+{
+  const same = Array.from({ length: 300 }, () => (rnd() > 0.5 ? 1 : -1));
+  const other = Array.from({ length: 300 }, () => (rnd() > 0.5 ? 1 : -1));
+  check('two samples from the same process are not called different',
+    differsFromRest(same, other).significant === false);
+
+  const better = Array.from({ length: 300 }, () => (rnd() > 0.2 ? 1 : -1));
+  const worse = Array.from({ length: 300 }, () => (rnd() > 0.8 ? 1 : -1));
+  const c = differsFromRest(better, worse);
+  check('a genuinely different group is detected', c.significant && c.diff > 0);
+  check('the size of the difference is reported, not just a yes/no',
+    Number.isFinite(c.diff) && Number.isFinite(c.stdErr));
+
+  /*
+   * The regression that this whole comparison exists for. Both groups lose
+   * money at exactly the same rate. Measured against zero, both look
+   * "significant"; measured against each other, neither is — and the second
+   * reading is the one that answers the reader's actual question.
+   */
+  const losingA = Array.from({ length: 400 }, () => (rnd() > 0.65 ? 1 : -1));
+  const losingB = Array.from({ length: 400 }, () => (rnd() > 0.65 ? 1 : -1));
+  check('two equally losing groups are not called different from each other',
+    differsFromRest(losingA, losingB).significant === false);
+}
+
 {
   /*
    * Pure noise, sliced every way the module knows how. There is no effect to
@@ -97,6 +123,20 @@ check('expected false positives scale with the number of buckets tested',
 
   check('on pure noise, findings do not exceed what chance explains',
     mc.flagged <= Math.max(3, mc.expected * 3));
+
+  /*
+   * The failure found on real data: a uniformly losing strategy flagged 26 of
+   * 47 buckets, including the day-of-week control, because every bucket's
+   * interval excluded zero. Uniform loss must flag nothing — there is no
+   * group here that differs from any other.
+   */
+  const uniformLoss = Array.from({ length: 1600 }, () => trade({ r: rnd() > 0.65 ? 1.9 : -1.05 }));
+  const lossRep = analyse({ trades: uniformLoss });
+  check('a uniformly losing strategy does not flag every bucket as a finding',
+    lossRep.multipleComparisons.flagged <= Math.max(3, lossRep.multipleComparisons.expected * 3));
+  check('the overall loss is still reported plainly', lossRep.overall.avgR < 0);
+  check('buckets still record that they differ from zero, separately from the flag',
+    lossRep.breakdowns.some((b) => b.buckets.some((x) => x.differsFromZero)));
   check('the surplus over chance is reported, not just the raw count',
     Number.isFinite(mc.surplus) && mc.surplus === mc.flagged - mc.expected);
   check('a noise sample produces no strong claim',
@@ -117,6 +157,26 @@ check('expected false positives scale with the number of buckets tested',
   const b = breakdown(planted, DIMENSIONS.find((d) => d.key === 'adx'));
   const top = b.buckets.find((x) => x.key === '40+');
   check('a planted effect is actually detected', top && top.significant && top.avgR > 0.3);
+  check('a detected effect reports how much better it is than the rest',
+    top.vsRest > 0);
+}
+
+/* -------------------------- tuning verdicts --------------------------- */
+{
+  // The verdict wording matters: "the price of overfitting" is the wrong story
+  // when the best cell lost money on the very data it was picked from.
+  const { outOfSampleTuning } = await import('../server/analytics.js');
+  const candles = await getHistory('BNBUSDT', '1h', 1500);
+  const htf = await getHistory('BNBUSDT', '4h', 500);
+  const t = outOfSampleTuning({ BNBUSDT: { candles, htf } }, { ratio: 0.7 });
+  check('the tuning check returns a verdict from the known set',
+    ['holds', 'decays', 'nothing', 'unknown'].includes(t.verdict));
+  check('"nothing to tune" is only claimed when nothing was profitable in-sample',
+    t.verdict !== 'nothing' || t.best.inSample.avgR <= 0);
+  check('a decay verdict requires a profitable in-sample result to decay from',
+    t.verdict !== 'decays' || t.best.inSample.avgR > 0);
+  check('the count of profitable in-sample cells is reported',
+    Number.isFinite(t.profitableInSample) || t.verdict === 'unknown');
 }
 
 /* ------------------------------ excursions ---------------------------- */

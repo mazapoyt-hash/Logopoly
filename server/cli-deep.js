@@ -101,19 +101,36 @@ function printSummary(rep) {
 
   const mc = rep.multipleComparisons;
   out.push('## Множественные сравнения\n');
-  out.push(`Проверено групп: **${mc.tested}**. Значимых: **${mc.flagged}**. ` +
+  out.push(`Проверено групп: **${mc.tested}**. Отличаются от остальных: **${mc.flagged}**. ` +
     `Случайность дала бы примерно **${mc.expected.toFixed(1)}**. ` +
     (mc.surplus > 1
       ? `Превышение на ${mc.surplus.toFixed(1)} — есть что смотреть.`
       : 'Превышения нет: всё найденное объясняется случайностью.') + '\n');
 
+  const ctl = rep.breakdowns.find((b) => b.key === 'weekday');
+  if (ctl?.tested) {
+    const rest = rep.breakdowns.filter((b) => b.key !== 'weekday');
+    const rt = rest.reduce((s, b) => s + b.tested, 0);
+    const rf = rest.reduce((s, b) => s + b.flagged, 0);
+    const ctlRate = ctl.flagged / ctl.tested;
+    const restRate = rt ? rf / rt : 0;
+    out.push(`**Контроль — день недели.** Связи там быть не может, поэтому его доля пометок — ` +
+      `уровень шума. Контроль: ${ctl.flagged}/${ctl.tested} (${pct(ctlRate)}). ` +
+      `Остальные: ${rf}/${rt} (${pct(restRate)}). ` +
+      (restRate > ctlRate * 1.5
+        ? 'Осмысленные разрезы помечаются заметно чаще — есть что изучать.\n'
+        : 'Осмысленные разрезы помечаются не чаще бессмысленного — находок нет.\n'));
+  }
+
   for (const b of rep.breakdowns) {
     out.push(`## ${b.label}\n`);
     out.push(`_${b.question}_\n`);
-    out.push('| Группа | Сделок | Винрейт | Средний R (95% ДИ) | Сумма R |', '|---|---:|---:|---:|---:|');
+    out.push('| Группа | Сделок | Винрейт | Средний R (95% ДИ) | Против остальных | Сумма R |',
+      '|---|---:|---:|---:|---:|---:|');
     for (const x of b.buckets) {
       const ci = x.avgLow == null ? '—' : `${r2(x.avgR)} (${r2(x.avgLow)} … ${r2(x.avgHigh)})`;
-      out.push(`| ${x.key}${x.significant ? ' ⚑' : ''} | ${x.trades} | ${pct(x.winRate)} | ${ci} | ${r2(x.totalR)} |`);
+      out.push(`| ${x.key}${x.significant ? ' ⚑' : ''} | ${x.trades} | ${pct(x.winRate)} | ${ci} | ` +
+        `${r2(x.vsRest)} | ${r2(x.totalR)} |`);
     }
     out.push('');
   }
