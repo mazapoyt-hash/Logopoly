@@ -30,6 +30,12 @@
   const fmtProb = (v) => (v == null || !Number.isFinite(v) ? '—' : `${Math.round(v * 100)}%`);
   const fmtTime = (ts) => (ts ? new Date(ts).toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
   const fmtClock = (ts) => (ts ? new Date(ts).toLocaleTimeString('ru-RU') : '—');
+  const fmtAge = (mins) => {
+    if (mins < 60) return `${mins} мин`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m ? `${h} ч ${m} мин` : `${h} ч`;
+  };
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   const OUTCOME = {
@@ -188,11 +194,17 @@
     if (state.mode === 'static') {
       const age = state.status.updatedAt ? Date.now() - state.status.updatedAt : null;
       const mins = age == null ? null : Math.round(age / 60000);
-      modeBanner.className = 'banner';
-      modeBanner.innerHTML =
-        `<b>Сайт работает без сервера.</b> Сигналы пересчитываются по расписанию в GitHub Actions` +
-        (mins == null ? '' : `, последний прогон ${mins < 1 ? 'только что' : mins + ' мин назад'}`) +
-        '. Цены в карточках обновляются в браузере в реальном времени.';
+      // GitHub can drop scheduled runs. Rather than presenting an old scan as
+      // current, say plainly how old it is once it stops being fresh.
+      const stale = mins != null && mins > 90;
+      modeBanner.className = 'banner' + (stale ? ' error' : '');
+      modeBanner.innerHTML = stale
+        ? `<b>Данные устарели:</b> последний пересчёт был ${fmtAge(mins)} назад. ` +
+          'Плановый прогон в GitHub Actions, видимо, не отработал — сигналы ниже могли ' +
+          'уже закрыться. Запустить вручную: Actions → «Скан рынка» → Run workflow.'
+        : `<b>Сайт работает без сервера.</b> Сигналы пересчитываются по расписанию в GitHub Actions` +
+          (mins == null ? '' : `, последний прогон ${mins < 1 ? 'только что' : fmtAge(mins) + ' назад'}`) +
+          '. Цены в карточках обновляются в браузере в реальном времени.';
       modeBanner.classList.remove('hidden');
     } else {
       modeBanner.classList.add('hidden');
@@ -494,6 +506,43 @@
     if (state.mode === 'static' && s.timeline) {
       state.staticTimeline = { timeline: s.timeline, consistency: s.consistency };
     }
+
+    renderEdgeWarning(portfolio, s.live, minSample);
+  }
+
+  /**
+   * The signals tab is the one people actually look at, and a card with an
+   * entry, a stop and a target reads as a recommendation. If the measured
+   * result of this same logic is negative, that has to be visible there — not
+   * buried on the statistics tab behind a click nobody makes.
+   */
+  function renderEdgeWarning(backtest, live, minSample) {
+    const box = $('#edgeWarning');
+    if (!box) return;
+
+    const bad = (st) => st && st.trades > 0 &&
+      (st.totalR < 0 || (st.profitFactor != null && st.profitFactor < 1));
+
+    const parts = [];
+    if (bad(backtest)) {
+      parts.push(`на истории (${backtest.trades} сделок) — ${fmtR(backtest.totalR)} суммарно` +
+        (backtest.profitFactor == null ? '' : `, profit factor ${fmtNum(backtest.profitFactor)}`));
+    }
+    if (bad(live)) {
+      parts.push(`по выданным сигналам (${live.trades} шт.) — ${fmtR(live.totalR)} суммарно`);
+    }
+
+    if (!parts.length) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+
+    const thin = backtest && backtest.trades < minSample;
+    box.innerHTML =
+      '<b>Измеренное преимущество отрицательное.</b> ' +
+      `Эта же логика в проверке даёт минус: ${parts.join('; ')}. ` +
+      'Сигналы ниже показаны как есть — они не «отобранные удачные», а всё, ' +
+      'что выдал движок. Торговать по ним сейчас значит терять деньги.' +
+      (thin ? ` Выборка при этом мала (меньше ${minSample} сделок), так что и сам минус ещё не доказан.` : '') +
+      ' Подробности — на вкладке «Статистика».';
+    box.classList.remove('hidden');
   }
 
   /* ----------------------------- Validation --------------------------- */
@@ -674,7 +723,9 @@
       return;
     }
     // A missing section must not take the whole page down with it.
-    for (const load of [loadSignals, loadMarket, loadPrices]) {
+    // loadStats runs here, not only when the statistics tab is opened, because
+    // the negative-edge warning on the signals tab is computed from it.
+    for (const load of [loadSignals, loadMarket, loadPrices, loadStats]) {
       try { await load(); } catch { /* section stays empty */ }
     }
     connectFeed();
