@@ -49,7 +49,15 @@ export function segmentTrades(trades, segments = 4) {
 export const GRID = {
   minScore: [50, 55, 60, 65, 70, 75],
   atrStopMult: [1.0, 1.25, 1.5, 2.0],
-  rewardRisk: [1.5, 2, 2.5, 3],
+  /*
+   * The low end (1 and 1.25) is here because the excursion measurement asked
+   * for it, not because the sweep needed more cells: on real data only 28% of
+   * trades ever traded through +2R, while 48% reached +1R. A grid whose
+   * cheapest target was 1.5R could never test the one thing the data actually
+   * suggested. Widening it does not make the sweep more likely to find a
+   * winner — every cell still has to survive the out-of-sample half.
+   */
+  rewardRisk: [1, 1.25, 1.5, 2, 2.5, 3],
 };
 
 function* gridCombos() {

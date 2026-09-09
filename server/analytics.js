@@ -130,8 +130,38 @@ export const DIMENSIONS = [
 ];
 
 /**
+ * Does this bucket differ from everything else, by more than sampling noise?
+ *
+ * Welch's two-sample comparison: the difference of means against its own
+ * standard error, which does not assume the two groups have equal spread.
+ */
+export function differsFromRest(inGroup, rest, z = 1.96) {
+  if (inGroup.length < 2 || rest.length < 2) return { diff: null, significant: false };
+  const mean = (a) => a.reduce((s, v) => s + v, 0) / a.length;
+  const varOf = (a, m) => a.reduce((s, v) => s + (v - m) ** 2, 0) / (a.length - 1);
+
+  const mA = mean(inGroup);
+  const mB = mean(rest);
+  const se = Math.sqrt(varOf(inGroup, mA) / inGroup.length + varOf(rest, mB) / rest.length);
+  if (!(se > 0)) return { diff: mA - mB, significant: false };
+
+  const diff = mA - mB;
+  return { diff, stdErr: se, significant: Math.abs(diff) > z * se };
+}
+
+/**
  * Group trades by one dimension and describe every bucket with an interval,
  * never a bare number.
+ *
+ * A bucket is flagged when it differs from the OTHER trades — not when its
+ * average differs from zero. That distinction turned out to matter enormously.
+ * Measured against zero, a strategy with a clearly negative overall result
+ * flags almost every bucket in every dimension, including the deliberate
+ * control (day of week), because they all inherit the same global drift. The
+ * table then reads as "we found 26 effects" when the honest reading is "the
+ * whole thing loses money and nothing here distinguishes one slice from
+ * another". Comparing each bucket to the rest asks the question the reader
+ * actually has: is THIS group different?
  */
 export function breakdown(trades, dim) {
   const groups = new Map();
@@ -147,6 +177,14 @@ export function breakdown(trades, dim) {
     const wins = list.filter((t) => t.r > 0).length;
     const win = wilsonInterval(wins, list.length);
     const avg = meanInterval(list.map((t) => t.r));
+
+    const inGroup = list.map((t) => t.r);
+    const rest = [];
+    for (const [otherKey, otherList] of groups) {
+      if (otherKey !== key) for (const t of otherList) rest.push(t.r);
+    }
+    const contrast = differsFromRest(inGroup, rest);
+
     return {
       key,
       trades: list.length,
@@ -157,12 +195,12 @@ export function breakdown(trades, dim) {
       totalR: stats.totalR,
       profitFactor: stats.profitFactor,
       enough: list.length >= MIN_BUCKET,
-      /*
-       * "Significant" here means only: with this many trades, the interval for
-       * the average result does not straddle zero. It is a floor, not a proof
-       * — see falsePositives below.
-       */
-      significant: list.length >= MIN_BUCKET && avg.low != null &&
+      /** How much better or worse than the other buckets, in R per trade. */
+      vsRest: contrast.diff,
+      /** Differs from the rest by more than sampling noise explains. */
+      significant: list.length >= MIN_BUCKET && contrast.significant,
+      /** Kept separately: the interval for the bucket's own average. */
+      differsFromZero: list.length >= MIN_BUCKET && avg.low != null &&
         (avg.low > 0 || avg.high < 0),
     };
   });
@@ -367,11 +405,25 @@ export function outOfSampleTuning(dataBySymbol, { ratio = 0.7 } = {}) {
   const outAvg = bestOut?.stats.avgR ?? null;
   const decay = inAvg != null && outAvg != null ? inAvg - outAvg : null;
 
+  const profitableInSample = inCells.filter((c) => c.stats.avgR > 0).length;
+
   let verdict;
   let text;
   if (outAvg == null || (bestOut?.stats.trades ?? 0) < MIN_BUCKET) {
     verdict = 'unknown';
     text = 'На проверочной половине набралось слишком мало сделок, чтобы судить о подобранных настройках.';
+  } else if (inAvg <= 0) {
+    /*
+     * The case that matters most and is easiest to mis-describe. When the BEST
+     * cell in the whole grid loses money on the very data it was chosen from,
+     * there is no improvement to overfit — calling the in/out gap "the price of
+     * curve fitting" would dress up a much simpler finding as a subtle one.
+     */
+    verdict = 'nothing';
+    text = `Ни один из ${inCells.length} наборов параметров не вышел в плюс даже на тех данных, ` +
+      `по которым его выбирали: лучший даёт ${inAvg.toFixed(2)}R на сделку, на проверочной ` +
+      `половине — ${outAvg.toFixed(2)}R. Подбирать здесь нечего: это не вопрос порогов, ` +
+      'убыточен сам подход.';
   } else if (outAvg > 0) {
     verdict = 'holds';
     text = `Настройки, подобранные на первых ${Math.round(ratio * 100)}% истории, на оставшихся ` +
@@ -391,6 +443,7 @@ export function outOfSampleTuning(dataBySymbol, { ratio = 0.7 } = {}) {
     baseline: { params: { ...config.strategy }, outOfSample: pick(baselineOut?.stats) },
     decay,
     cellsConsidered: inCells.length,
+    profitableInSample,
   };
 }
 

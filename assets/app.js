@@ -14,7 +14,7 @@
 
   const state = {
     mode: null, status: null, open: [], closed: [], market: [],
-    prices: {}, pricesAt: null, priceSource: null, chart: null,
+    prices: {}, pricesAt: null, priceSource: null, chart: null, analytics: null,
   };
 
   /* ------------------------------ Helpers ----------------------------- */
@@ -572,6 +572,35 @@
         ? 'Превышение над случайностью есть, но маленькое. На таком не строят решений.'
         : 'Найденное не превышает то, что даёт чистая случайность. Читать отдельные ' +
           'группы ниже как открытия — значит обманывать себя.';
+    /*
+     * The control dimension is the sharpest reading available, and it is a
+     * comparison of RATES, not counts: day of week cannot possibly drive
+     * results, so however often it flags is the noise floor. A real dimension
+     * has to beat that floor to mean anything — and if it does not, no amount
+     * of confidence intervals makes its flags into findings.
+     */
+    const all = state.analytics?.breakdowns || [];
+    const ctl = all.find((b) => b.key === 'weekday');
+    let control = '';
+    if (ctl?.tested) {
+      const rest = all.filter((b) => b.key !== 'weekday');
+      const restTested = rest.reduce((s, b) => s + b.tested, 0);
+      const restFlagged = rest.reduce((s, b) => s + b.flagged, 0);
+      const ctlRate = ctl.flagged / ctl.tested;
+      const restRate = restTested ? restFlagged / restTested : 0;
+      const beats = restRate > ctlRate * 1.5;
+      control =
+        `<p class="analytics-note"><b>Контроль — день недели.</b> Связи между днём недели и ` +
+        `результатом быть не может, поэтому как часто помечается он — это и есть уровень шума. ` +
+        `Контроль: ${ctl.flagged} из ${ctl.tested} (${pctOf(ctlRate, 0)}). ` +
+        `Остальные разрезы: ${restFlagged} из ${restTested} (${pctOf(restRate, 0)}). ` +
+        (beats
+          ? 'Осмысленные разрезы помечаются заметно чаще контрольного — значит, там есть что изучать.'
+          : '<b>Осмысленные разрезы помечаются не чаще заведомо бессмысленного.</b> ' +
+            'Это значит, что ни одна из групп ниже не выделяется сильнее, чем выделяется чистый шум. ' +
+            'Читать их как открытия нельзя.') +
+        '</p>';
+    }
     return `
       <div class="mc-row">
         <div class="metric"><div class="k">Проверено групп</div><div class="v">${mc.tested}</div></div>
@@ -581,7 +610,7 @@
           <div class="v ${signCls(surplus)}">${surplus >= 0 ? '+' : ''}${fmtNum(surplus, 1)}</div></div>
       </div>
       <div class="verdict-head"><span class="badge ${cls}">${label}</span></div>
-      <p class="analytics-note">${verdict}</p>`;
+      <p class="analytics-note">${verdict}</p>${control}`;
   }
 
   function bucketRows(b) {
@@ -591,7 +620,8 @@
       const win = x.winLow == null ? pctOf(x.winRate)
         : `${pctOf(x.winRate, 0)} <span class="ci">${pctOf(x.winLow, 0)} … ${pctOf(x.winHigh, 0)}</span>`;
       return `<tr class="${x.enough ? '' : 'thin'}">
-        <td>${esc(String(x.key))}${x.significant ? ' <span class="flag" title="Интервал среднего не пересекает ноль">⚑</span>' : ''}</td>
+        <td>${esc(String(x.key))}${x.significant
+          ? ` <span class="flag" title="Отличается от остальных групп на ${fmtR(x.vsRest)} на сделку">⚑</span>` : ''}</td>
         <td class="num">${x.trades}</td>
         <td class="num">${win}</td>
         <td class="num ${signCls(x.avgR)}">${ci}</td>
@@ -616,6 +646,8 @@
         </div>
         <p class="muted small">
           Серым под числом — 95% доверительный интервал: с такой выборкой истина лежит где-то там.
+          ⚑ означает, что группа отличается <b>от остальных групп</b>, а не просто отличается от нуля:
+          иначе при общем минусе помечалось бы почти всё подряд.
           Групп с достаточной выборкой: ${b.tested}. Помечено ⚑: ${b.flagged}.
           Случайность дала бы ${fmtNum(b.expectedByChance, 1)}.
           Строки бледнее — меньше ${minBucket} сделок, они показаны для полноты и ничего не доказывают.
@@ -699,7 +731,7 @@
   function tuningHtml(t) {
     if (!t) return '<div class="low-sample">Подбор не запускался.</div>';
     const V = { holds: ['ok', 'Улучшение сохранилось'], decays: ['bad', 'Улучшение не пережило проверку'],
-      unknown: ['neutral', 'Судить не о чем'] };
+      nothing: ['bad', 'Подбирать нечего'], unknown: ['neutral', 'Судить не о чем'] };
     const [cls, label] = V[t.verdict] || V.unknown;
     const p = t.best?.params;
     const cmp = (a, b) => `
@@ -743,6 +775,9 @@
     }
     empty.classList.add('hidden');
     box.classList.remove('hidden');
+    // Stored before rendering: the multiple-comparisons panel reads the control
+    // dimension out of the same report to say how loose the flagging is.
+    state.analytics = rep;
 
     $('#mcBox').innerHTML = mcHtml(rep.multipleComparisons);
     $('#tuningBox').innerHTML = tuningHtml(rep.tuning);
