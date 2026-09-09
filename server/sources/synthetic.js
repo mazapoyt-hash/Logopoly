@@ -111,6 +111,15 @@ export function fetchCandles(symbol, timeframe, limit) {
 }
 
 /**
+ * Deep history costs nothing here: the series is a pure function of the bar
+ * index, so any depth is generated directly. The signature matches the
+ * exchange adapter so the analytics pipeline runs offline unchanged.
+ */
+export function fetchCandlesRange(symbol, timeframe, bars) {
+  return fetchCandles(symbol, timeframe, bars);
+}
+
+/**
  * The clock this source runs on. Freshness must be judged against it, not
  * against the wall clock: with a pinned anchor the series is deliberately
  * historical, and calling that "stale" would be measuring the wrong thing.

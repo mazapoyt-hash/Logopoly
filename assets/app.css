@@ -157,6 +157,21 @@ main { padding: 26px 24px 40px; max-width: 1320px; margin: 0 auto; }
 .live-pnl.up { color: var(--long); }
 .live-pnl.down { color: var(--short); }
 
+/* ---------------------------- Edge warning ---------------------------- */
+/* Shown above the signal cards whenever the measured result is negative. */
+.edge-warning {
+  background: rgba(234,57,67,.10);
+  border: 1px solid rgba(234,57,67,.45);
+  border-left-width: 3px;
+  color: #ffb3b8;
+  border-radius: 10px;
+  padding: 12px 15px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.edge-warning b { color: #ff8f97; }
+
 /* -------------------------------- Empty ------------------------------- */
 .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
 .empty-icon { font-size: 40px; color: var(--border); margin-bottom: 10px; }
@@ -258,3 +273,30 @@ table.grid.mini td { padding: 7px 10px; }
 .small { font-size: 12px; line-height: 1.5; }
 
 @media (max-width: 900px) { .verdicts { grid-template-columns: 1fr; } }
+
+/* ---------------------------- Analytics view -------------------------- */
+.mc-row {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px; margin-bottom: 14px;
+}
+.analytics-note { font-size: 13px; color: #b6bed2; line-height: 1.6; margin: 10px 0 14px; }
+
+/* A confidence interval is not a footnote — it is the number's honest width. */
+.ci { display: block; font-size: 11px; color: var(--muted); font-weight: 400; margin-top: 1px; }
+
+/* Buckets below the sample floor stay visible but must not read as evidence. */
+tr.thin td { opacity: .45; }
+.flag { color: var(--warn); font-size: 12px; }
+
+.badge.neutral { background: var(--border); color: var(--muted); }
+
+@media (max-width: 900px) {
+  .mc-row { grid-template-columns: 1fr 1fr; }
+}
+
+/* On a phone the interesting columns must be on screen without scrolling
+   sideways. `.opt` marks the ones that can be derived from the rest. */
+@media (max-width: 620px) {
+  table.grid.mini th.opt, table.grid.mini td.opt { display: none; }
+  table.grid.mini th, table.grid.mini td { padding: 7px 8px; }
+}

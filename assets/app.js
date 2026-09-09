@@ -30,6 +30,12 @@
   const fmtProb = (v) => (v == null || !Number.isFinite(v) ? '—' : `${Math.round(v * 100)}%`);
   const fmtTime = (ts) => (ts ? new Date(ts).toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
   const fmtClock = (ts) => (ts ? new Date(ts).toLocaleTimeString('ru-RU') : '—');
+  const fmtAge = (mins) => {
+    if (mins < 60) return `${mins} мин`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m ? `${h} ч ${m} мин` : `${h} ч`;
+  };
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   const OUTCOME = {
@@ -85,6 +91,9 @@
       return { live: record.portfolio, backtest: { perSymbol: bt.results, portfolio: null }, minSample: record.minSample };
     },
     validation: async () => (await getJson('/api/validation')).report,
+    // The deep report is produced by a scheduled job and committed as a file;
+    // the server build reads the same file rather than recomputing it.
+    analytics: () => getJson('data/analytics.json').catch(() => null),
     prices: async () => getJson('/api/prices'),
     candles: (symbol, tf, limit) => getJson(`/api/candles/${symbol}?limit=${limit}&tf=${encodeURIComponent(tf)}`),
   };
@@ -106,6 +115,7 @@
       };
     },
     validation: () => getJson('data/validation.json').catch(() => null),
+    analytics: () => getJson('data/analytics.json').catch(() => null),
 
     /**
      * Prices straight from Binance. Its public market-data endpoints allow
@@ -176,6 +186,7 @@
       // loadValidation falls back to the time-segment verdict that loadStats
       // unpacks from stats.json, so it must run after it.
       if (tab.dataset.view === 'stats') loadStats().then(loadValidation);
+      if (tab.dataset.view === 'analytics') loadAnalytics();
     });
   });
 
@@ -188,11 +199,17 @@
     if (state.mode === 'static') {
       const age = state.status.updatedAt ? Date.now() - state.status.updatedAt : null;
       const mins = age == null ? null : Math.round(age / 60000);
-      modeBanner.className = 'banner';
-      modeBanner.innerHTML =
-        `<b>Сайт работает без сервера.</b> Сигналы пересчитываются по расписанию в GitHub Actions` +
-        (mins == null ? '' : `, последний прогон ${mins < 1 ? 'только что' : mins + ' мин назад'}`) +
-        '. Цены в карточках обновляются в браузере в реальном времени.';
+      // GitHub can drop scheduled runs. Rather than presenting an old scan as
+      // current, say plainly how old it is once it stops being fresh.
+      const stale = mins != null && mins > 90;
+      modeBanner.className = 'banner' + (stale ? ' error' : '');
+      modeBanner.innerHTML = stale
+        ? `<b>Данные устарели:</b> последний пересчёт был ${fmtAge(mins)} назад. ` +
+          'Плановый прогон в GitHub Actions, видимо, не отработал — сигналы ниже могли ' +
+          'уже закрыться. Запустить вручную: Actions → «Скан рынка» → Run workflow.'
+        : `<b>Сайт работает без сервера.</b> Сигналы пересчитываются по расписанию в GitHub Actions` +
+          (mins == null ? '' : `, последний прогон ${mins < 1 ? 'только что' : fmtAge(mins) + ' назад'}`) +
+          '. Цены в карточках обновляются в браузере в реальном времени.';
       modeBanner.classList.remove('hidden');
     } else {
       modeBanner.classList.add('hidden');
@@ -494,6 +511,250 @@
     if (state.mode === 'static' && s.timeline) {
       state.staticTimeline = { timeline: s.timeline, consistency: s.consistency };
     }
+
+    renderEdgeWarning(portfolio, s.live, minSample);
+  }
+
+  /**
+   * The signals tab is the one people actually look at, and a card with an
+   * entry, a stop and a target reads as a recommendation. If the measured
+   * result of this same logic is negative, that has to be visible there — not
+   * buried on the statistics tab behind a click nobody makes.
+   */
+  function renderEdgeWarning(backtest, live, minSample) {
+    const box = $('#edgeWarning');
+    if (!box) return;
+
+    const bad = (st) => st && st.trades > 0 &&
+      (st.totalR < 0 || (st.profitFactor != null && st.profitFactor < 1));
+
+    const parts = [];
+    if (bad(backtest)) {
+      parts.push(`на истории (${backtest.trades} сделок) — ${fmtR(backtest.totalR)} суммарно` +
+        (backtest.profitFactor == null ? '' : `, profit factor ${fmtNum(backtest.profitFactor)}`));
+    }
+    if (bad(live)) {
+      parts.push(`по выданным сигналам (${live.trades} шт.) — ${fmtR(live.totalR)} суммарно`);
+    }
+
+    if (!parts.length) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+
+    const thin = backtest && backtest.trades < minSample;
+    box.innerHTML =
+      '<b>Измеренное преимущество отрицательное.</b> ' +
+      `Эта же логика в проверке даёт минус: ${parts.join('; ')}. ` +
+      'Сигналы ниже показаны как есть — они не «отобранные удачные», а всё, ' +
+      'что выдал движок. Торговать по ним сейчас значит терять деньги.' +
+      (thin ? ` Выборка при этом мала (меньше ${minSample} сделок), так что и сам минус ещё не доказан.` : '') +
+      ' Подробности — на вкладке «Статистика».';
+    box.classList.remove('hidden');
+  }
+
+  /* ----------------------------- Analytics ---------------------------- */
+  const pctOf = (v, d = 1) => (v == null || !Number.isFinite(v) ? '—' : (v * 100).toFixed(d) + '%');
+  const signCls = (v) => (v == null ? '' : v >= 0 ? 'up' : 'down');
+
+  function mcHtml(mc) {
+    if (!mc || !mc.tested) {
+      return '<div class="low-sample">Групп, набравших достаточную выборку, пока нет.</div>';
+    }
+    // The whole point: a count of findings means nothing without the count of
+    // findings chance alone would produce.
+    const surplus = mc.surplus;
+    const cls = surplus > 2 ? 'ok' : surplus > 0.5 ? 'warn' : 'bad';
+    const label = surplus > 2 ? 'Есть что смотреть'
+      : surplus > 0.5 ? 'На грани' : 'Всё объясняется случайностью';
+    const verdict = surplus > 2
+      ? `Найдено заметно больше, чем даёт случайность — на ${fmtNum(surplus, 1)} группы. ` +
+        'Это повод изучить конкретные разрезы ниже, но всё ещё не основание торговать: ' +
+        'следующий шаг — проверить находку на данных, по которым её не искали.'
+      : surplus > 0.5
+        ? 'Превышение над случайностью есть, но маленькое. На таком не строят решений.'
+        : 'Найденное не превышает то, что даёт чистая случайность. Читать отдельные ' +
+          'группы ниже как открытия — значит обманывать себя.';
+    return `
+      <div class="mc-row">
+        <div class="metric"><div class="k">Проверено групп</div><div class="v">${mc.tested}</div></div>
+        <div class="metric"><div class="k">Значимых</div><div class="v">${mc.flagged}</div></div>
+        <div class="metric"><div class="k">Дала бы случайность</div><div class="v">${fmtNum(mc.expected, 1)}</div></div>
+        <div class="metric"><div class="k">Превышение</div>
+          <div class="v ${signCls(surplus)}">${surplus >= 0 ? '+' : ''}${fmtNum(surplus, 1)}</div></div>
+      </div>
+      <div class="verdict-head"><span class="badge ${cls}">${label}</span></div>
+      <p class="analytics-note">${verdict}</p>`;
+  }
+
+  function bucketRows(b) {
+    return b.buckets.map((x) => {
+      const ci = x.avgLow == null ? '—'
+        : `${fmtR(x.avgR)} <span class="ci">${fmtNum(x.avgLow)} … ${fmtNum(x.avgHigh)}</span>`;
+      const win = x.winLow == null ? pctOf(x.winRate)
+        : `${pctOf(x.winRate, 0)} <span class="ci">${pctOf(x.winLow, 0)} … ${pctOf(x.winHigh, 0)}</span>`;
+      return `<tr class="${x.enough ? '' : 'thin'}">
+        <td>${esc(String(x.key))}${x.significant ? ' <span class="flag" title="Интервал среднего не пересекает ноль">⚑</span>' : ''}</td>
+        <td class="num">${x.trades}</td>
+        <td class="num">${win}</td>
+        <td class="num ${signCls(x.avgR)}">${ci}</td>
+        <td class="num opt ${signCls(x.totalR)}">${fmtNum(x.totalR, 1)}R</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderBreakdowns(list, minBucket) {
+    $('#breakdowns').innerHTML = list.map((b) => `
+      <div class="panel">
+        <h2>${esc(b.label)}</h2>
+        <p class="panel-sub">${esc(b.question)}</p>
+        <div class="table-wrap">
+          <table class="grid mini">
+            <thead><tr>
+              <th>Группа</th><th class="num">Сделок</th><th class="num">Винрейт</th>
+              <th class="num">Средний R</th><th class="num opt">Сумма</th>
+            </tr></thead>
+            <tbody>${bucketRows(b)}</tbody>
+          </table>
+        </div>
+        <p class="muted small">
+          Серым под числом — 95% доверительный интервал: с такой выборкой истина лежит где-то там.
+          Групп с достаточной выборкой: ${b.tested}. Помечено ⚑: ${b.flagged}.
+          Случайность дала бы ${fmtNum(b.expectedByChance, 1)}.
+          Строки бледнее — меньше ${minBucket} сделок, они показаны для полноты и ничего не доказывают.
+        </p>
+      </div>`).join('');
+  }
+
+  function excursionHtml(e) {
+    if (!e) return '<div class="low-sample">Данных о ходе цены нет.</div>';
+    const rows = e.reach.map((l) => `
+      <tr><td>+${l.level}R</td>
+        <td class="num">${pctOf(l.all, 0)}</td>
+        <td class="num">${pctOf(l.losers, 0)}</td></tr>`).join('');
+    // The diagnosis, stated plainly, because this is the one table that says
+    // WHY the win rate is what it is.
+    const near = e.medianLoserMfeR != null && e.medianLoserMfeR >= e.currentTargetR * 0.6;
+    const diagnosis = near
+      ? `Убыточные сделки в среднем доходили до ${fmtNum(e.medianLoserMfeR)}R при цели ` +
+        `${fmtNum(e.currentTargetR)}R — то есть цена шла в нашу сторону и разворачивалась ` +
+        'у самой цели. Проблема в выходе, а не во входе.'
+      : `Убыточные сделки доходили в среднем лишь до ${fmtNum(e.medianLoserMfeR)}R при цели ` +
+        `${fmtNum(e.currentTargetR)}R — цена почти не шла в нашу сторону. Это проблема входа, ` +
+        'и переносом цели она не лечится.';
+    return `
+      <div class="mc-row">
+        <div class="metric"><div class="k">Медианный максимум</div><div class="v">${fmtNum(e.medianMfeR)}R</div>
+          <div class="note">по всем сделкам</div></div>
+        <div class="metric"><div class="k">У убыточных</div><div class="v">${fmtNum(e.medianLoserMfeR)}R</div>
+          <div class="note">насколько дошли до цели</div></div>
+        <div class="metric"><div class="k">Просадка выигрышных</div><div class="v">${fmtNum(e.medianWinnerMaeR)}R</div>
+          <div class="note">медиана; 90-й перцентиль ${fmtNum(e.p90WinnerMaeR)}R</div></div>
+        <div class="metric"><div class="k">Цель сейчас</div><div class="v">${fmtNum(e.currentTargetR)}R</div></div>
+      </div>
+      <p class="analytics-note">${diagnosis}</p>
+      <div class="table-wrap">
+        <table class="grid mini">
+          <thead><tr><th>Дошла до</th><th class="num">Все</th><th class="num">Убыточные</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <p class="muted small">
+        Колонка «все сделки» занижена по построению: выигрышная сделка закрывается на цели,
+        и куда цена пошла бы дальше — неизвестно. Честный ответ на вопрос «а если цель
+        подвинуть» даёт не эта таблица, а перезапуск стратегии с другой целью — он ниже,
+        в блоке подбора настроек.
+      </p>`;
+  }
+
+  function calibrationHtml(c) {
+    if (!c || !c.sample) {
+      return '<div class="low-sample">Закрытых сигналов с заявленной вероятностью пока нет. ' +
+        'Проверять калибровку не на чем — и выдумывать её мы не будем.</div>';
+    }
+    const V = { calibrated: ['ok', 'Заявленное совпадает с фактом'],
+      mixed: ['warn', 'Совпадает не везде'], off: ['bad', 'Заявленное не подтверждается'],
+      unknown: ['neutral', 'Выборки не хватает'] };
+    const [cls, label] = V[c.verdict] || V.unknown;
+    const rows = c.rows.map((r) => `
+      <tr class="${r.trades >= c.minBucket ? '' : 'thin'}">
+        <td>${esc(r.key)}</td>
+        <td class="num">${r.trades}</td>
+        <td class="num">${pctOf(r.stated, 0)}</td>
+        <td class="num">${pctOf(r.actual, 0)}${r.low == null ? ''
+          : ` <span class="ci">${pctOf(r.low, 0)} … ${pctOf(r.high, 0)}</span>`}</td>
+        <td>${r.consistent === null ? '<span class="muted">мало данных</span>'
+          : r.consistent ? '<span class="up">сходится</span>' : '<span class="down">не сходится</span>'}</td>
+      </tr>`).join('');
+    return `
+      <div class="verdict-head"><span class="badge ${cls}">${label}</span></div>
+      <div class="table-wrap">
+        <table class="grid mini">
+          <thead><tr><th>Заявляли</th><th class="num">Сигналов</th><th class="num">Обещано</th>
+            <th class="num">Вышло (95% ДИ)</th><th>Итог</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <p class="muted small">Всего закрытых сигналов с оценкой: ${c.sample}.
+        Строка считается проверенной от ${c.minBucket} сигналов.</p>`;
+  }
+
+  function tuningHtml(t) {
+    if (!t) return '<div class="low-sample">Подбор не запускался.</div>';
+    const V = { holds: ['ok', 'Улучшение сохранилось'], decays: ['bad', 'Улучшение не пережило проверку'],
+      unknown: ['neutral', 'Судить не о чем'] };
+    const [cls, label] = V[t.verdict] || V.unknown;
+    const p = t.best?.params;
+    const cmp = (a, b) => `
+      <tr><td>${esc(a)}</td>
+        <td class="num ${signCls(b?.in)}">${b?.in == null ? '—' : b.fmt(b.in)}</td>
+        <td class="num ${signCls(b?.out)}">${b?.out == null ? '—' : b.fmt(b.out)}</td></tr>`;
+    const bi = t.best?.inSample;
+    const bo = t.best?.outOfSample;
+    const table = !bi ? '' : `
+      <div class="table-wrap">
+        <table class="grid mini">
+          <thead><tr><th>Метрика</th>
+            <th class="num">Обучающая</th><th class="num">Проверочная</th></tr></thead>
+          <tbody>
+            ${cmp('Сделок', { in: bi.trades, out: bo?.trades, fmt: (v) => v })}
+            ${cmp('Винрейт', { in: bi.winRate, out: bo?.winRate, fmt: (v) => pctOf(v, 0) })}
+            ${cmp('Средний R', { in: bi.avgR, out: bo?.avgR, fmt: (v) => fmtR(v) })}
+            ${cmp('Сумма', { in: bi.totalR, out: bo?.totalR, fmt: (v) => fmtNum(v, 1) + 'R' })}
+          </tbody>
+        </table>
+      </div>`;
+    const params = p ? `<p class="muted small">Набор: score ≥ ${p.minScore}, стоп ${p.atrStopMult}×ATR,
+      соотношение 1:${p.rewardRisk}. Рассмотрено наборов: ${t.cellsConsidered}.
+      Он намеренно НЕ применяется как настройка — именно это превращает подбор в подгонку.</p>` : '';
+    return `
+      <div class="verdict-head"><span class="badge ${cls}">${label}</span></div>
+      <p class="analytics-note">${esc(t.text)}</p>
+      ${table}${params}`;
+  }
+
+  async function loadAnalytics() {
+    const box = $('#analyticsBody');
+    const empty = $('#analyticsEmpty');
+    let rep = null;
+    try { rep = await API.analytics(); } catch { rep = null; }
+
+    if (!rep || !rep.overall) {
+      box.classList.add('hidden');
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+    box.classList.remove('hidden');
+
+    $('#mcBox').innerHTML = mcHtml(rep.multipleComparisons);
+    $('#tuningBox').innerHTML = tuningHtml(rep.tuning);
+    $('#excursionBox').innerHTML = excursionHtml(rep.excursions);
+    $('#calibrationBox').innerHTML = calibrationHtml(rep.calibration);
+    renderBreakdowns(rep.breakdowns || [], rep.minBucket ?? 25);
+
+    const s = rep.sample || {};
+    $('#analyticsMeta').textContent =
+      `Отчёт от ${fmtTime(rep.generatedAt)} · период ${fmtTime(s.from)} — ${fmtTime(s.to)} · ` +
+      `${s.trades} сделок на ${(rep.history?.quality || []).length || '—'} монетах ` +
+      `по ${(rep.history?.quality?.[0]?.bars ?? '—')} свечей.`;
   }
 
   /* ----------------------------- Validation --------------------------- */
@@ -674,7 +935,9 @@
       return;
     }
     // A missing section must not take the whole page down with it.
-    for (const load of [loadSignals, loadMarket, loadPrices]) {
+    // loadStats runs here, not only when the statistics tab is opened, because
+    // the negative-edge warning on the signals tab is computed from it.
+    for (const load of [loadSignals, loadMarket, loadPrices, loadStats]) {
       try { await load(); } catch { /* section stays empty */ }
     }
     connectFeed();

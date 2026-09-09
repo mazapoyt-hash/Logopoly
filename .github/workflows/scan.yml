@@ -4,9 +4,19 @@ name: Скан рынка
 # schedule, and commits its results as JSON that GitHub Pages serves.
 on:
   schedule:
-    # Every 15 minutes. GitHub often delays scheduled runs under load, which is
-    # fine — signals are decided on closed hourly candles.
-    - cron: '*/15 * * * *'
+    # Twice an hour, a few minutes after the candle closes so the exchange has
+    # settled.
+    #
+    # NOT every 15 minutes: measured on this repository, a `*/15` schedule
+    # fired once in 7.5 hours instead of ~30 times. GitHub deprioritises and
+    # drops frequent cron schedules under load, so a high frequency here buys
+    # nothing and quietly makes the site staler than it claims to be. Sparse
+    # schedules are honoured far more reliably.
+    #
+    # Nothing is lost by scanning less often: new signals are decided on closed
+    # 1h candles, so there is nothing new to find between them, and browser-side
+    # prices keep the cards live regardless.
+    - cron: '5,35 * * * *'
   workflow_dispatch:
   push:
     branches: [main]

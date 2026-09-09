@@ -152,6 +152,71 @@ export async function fetchCandles(symbol, timeframe, limit) {
   return dropUnclosed(parseKlines(rows)).slice(-limit);
 }
 
+/**
+ * Merge overlapping pages into one clean ascending series.
+ * Pages are requested by time window, so their edges overlap by design;
+ * a duplicate bar would be counted twice by every statistic downstream.
+ */
+export function mergePages(pages) {
+  const byTime = new Map();
+  for (const page of pages) for (const c of page) byTime.set(c.time, c);
+  return [...byTime.values()].sort((a, b) => a.time - b.time);
+}
+
+/**
+ * A long history, assembled by paging backwards.
+ *
+ * One request returns at most 1000 candles — about 41 days on 1h. That is a
+ * single market regime, and any conclusion drawn from it says more about the
+ * last six weeks than about the strategy. Statistics sliced by score, session
+ * or volatility need far more than that before a bucket holds enough trades to
+ * mean anything, so this walks back page by page.
+ *
+ * `onPage` reports progress; a long fetch is otherwise a silent several-minute
+ * wait in CI.
+ */
+export async function fetchCandlesRange(symbol, timeframe, bars, { onPage } = {}) {
+  const interval = INTERVAL[timeframe];
+  if (!interval) throw new Error(`Unsupported timeframe for Binance: ${timeframe}`);
+
+  const PAGE = 1000;
+  const pages = [];
+  let endTime = Date.now();
+  let have = 0;
+
+  // The bound is generous: pages can come back short near the listing date,
+  // and the loop must end even then.
+  const maxPages = Math.ceil(bars / PAGE) + 4;
+  for (let p = 0; p < maxPages && have < bars; p++) {
+    const rows = await request('/api/v3/klines', {
+      symbol, interval, limit: PAGE, endTime,
+    });
+    const page = parseKlines(rows);
+    if (!page.length) break;
+
+    pages.push(page);
+    have += page.length;
+    onPage?.({ symbol, fetched: have, want: bars });
+
+    // Step strictly before this page's first bar, or the same page repeats.
+    const nextEnd = page[0].time - 1;
+    if (nextEnd >= endTime) break;      // no progress: stop rather than spin
+    endTime = nextEnd;
+
+    // Fewer bars than asked means the coin's history starts here.
+    if (page.length < PAGE) break;
+    // Binance allows 6000 weight/minute; this stays far below it while still
+    // being polite on a fetch that issues dozens of requests in a row.
+    await sleep(120);
+  }
+
+  const merged = mergePages(pages);
+  const closed = dropUnclosed(merged);
+  // A gap-free tail matters more than raw count: statistics are computed on
+  // consecutive bars, so hand back the newest `bars` of what we actually got.
+  return closed.slice(-bars);
+}
+
 export async function fetchPrice(symbol) {
   const data = await request('/api/v3/ticker/price', { symbol });
   const price = Number(data?.price);

@@ -76,6 +76,32 @@ export function resolveOnBar(trade, bar, barsSinceEntry) {
 }
 
 /**
+ * The market conditions a trade was entered in.
+ *
+ * Recorded at entry, from bars <= i only, so a breakdown by these features is
+ * subject to exactly the same no-lookahead rule as the signal itself. Without
+ * them the only question the statistics can answer is "did it work overall?",
+ * which is the least useful question there is: what matters is where it works
+ * and where it does not.
+ */
+function entryContext(ind, i, bar, htfTrend) {
+  const price = ind.close[i];
+  const num = (v) => (Number.isFinite(v) ? v : null);
+  const d = new Date(bar.time);
+  const ema200 = ind.ema200[i];
+  return {
+    adx: num(ind.adx[i]),
+    rsi: num(ind.rsi[i]),
+    relVol: num(ind.relVol[i]),
+    atrPct: Number.isFinite(ind.atr[i]) && price ? (ind.atr[i] / price) * 100 : null,
+    emaGapPct: Number.isFinite(ema200) && ema200 ? ((price - ema200) / ema200) * 100 : null,
+    htfTrend,
+    hourUtc: d.getUTCHours(),
+    weekday: d.getUTCDay(),
+  };
+}
+
+/**
  * Walk one symbol's history and collect trades.
  * Returns { trades, stats }.
  */
@@ -93,6 +119,29 @@ export function backtestSymbol({ symbol, timeframe, candles, htfCandles, params 
 
     // --- Resolve an open trade using THIS bar (which is strictly after entry)
     if (open) {
+      /*
+       * Excursions, tracked bar by bar while the trade lives.
+       *
+       * MFE answers a question the win rate cannot: when a trade lost, did
+       * price never go our way, or did it run most of the way to the target
+       * and turn around? Those are different problems with different fixes,
+       * and a bare 33% win rate hides which one we have.
+       *
+       * MFE is measured only on bars BEFORE the stop bar, because a target
+       * inside the stop bar would not have been counted as reached — the same
+       * "stop wins ties" rule the resolver uses. Measuring it on the stop bar
+       * too would quietly credit the strategy with moves it never captured.
+       */
+      const risk = Math.abs(open.entry - open.stop);
+      const long = open.direction === 'LONG';
+      const stopBar = long ? bar.low <= open.stop : bar.high >= open.stop;
+      if (risk > 0 && !stopBar) {
+        const fav = long ? bar.high - open.entry : open.entry - bar.low;
+        const adv = long ? open.entry - bar.low : bar.high - open.entry;
+        open.mfeR = Math.max(open.mfeR, fav / risk);
+        open.maeR = Math.max(open.maeR, adv / risk);
+      }
+
       const res = resolveOnBar(open, bar, i - open.entryIndex);
       if (res) {
         trades.push({ ...open, ...res });
@@ -116,6 +165,9 @@ export function backtestSymbol({ symbol, timeframe, candles, htfCandles, params 
           entryTime: bar.time,
           entryIndex: i,
           expiryBars: sig.expiryBars,
+          context: entryContext(ind, i, bar, trend),
+          mfeR: 0,
+          maeR: 0,
         };
       }
     }

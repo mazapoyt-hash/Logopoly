@@ -1,0 +1,77 @@
+name: Глубокий анализ
+
+# The scheduled scan decides today's signals on 500 candles. This job answers a
+# different question — where does the strategy work and where does it not — and
+# that needs a long history, dozens of paged requests and several minutes. It is
+# deliberately separate and rare: running it often would add nothing (the answer
+# moves slowly) and would burn the exchange rate limit for no reason.
+on:
+  schedule:
+    # Mondays, 06:20 UTC. Weekly is the right cadence for a picture that changes
+    # over months, not hours.
+    - cron: '20 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      bars:
+        description: 'Сколько часовых свечей истории на монету (1000 ≈ 41 день)'
+        required: false
+        default: '8000'
+      ratio:
+        description: 'Доля истории для подбора параметров; остальное — проверка'
+        required: false
+        default: '0.7'
+
+concurrency:
+  group: coinscope-deep
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  analyse:
+    runs-on: ubuntu-latest
+    # Paging ~8000 candles for 8 coins on two timeframes, then running a 96-cell
+    # grid twice. Slow, not stuck.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Прогнать анализ
+        env:
+          COINSCOPE_SOURCE: binance
+          COINSCOPE_HISTORY_BARS: ${{ github.event.inputs.bars || '8000' }}
+          COINSCOPE_HOLDOUT_RATIO: ${{ github.event.inputs.ratio || '0.7' }}
+        run: node server/cli-deep.js | tee deep.log
+
+      - name: Закоммитить отчёт
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/analytics.json
+          if git diff --cached --quiet; then
+            echo "Отчёт не изменился."
+            exit 0
+          fi
+          git commit -m "Глубокий анализ: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          for i in 1 2 3; do
+            git pull --rebase --autostash origin main && git push origin HEAD:main && exit 0
+            sleep 5
+          done
+          echo "::error::Не удалось запушить отчёт после трёх попыток"
+          exit 1
+
+      - name: Сохранить лог
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deep-log
+          path: deep.log
+          if-no-files-found: ignore
