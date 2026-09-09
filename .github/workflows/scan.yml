@@ -4,19 +4,28 @@ name: Скан рынка
 # schedule, and commits its results as JSON that GitHub Pages serves.
 on:
   schedule:
-    # Twice an hour, a few minutes after the candle closes so the exchange has
-    # settled.
+    # Hourly, four minutes after the candle closes so the exchange has settled.
     #
-    # NOT every 15 minutes: measured on this repository, a `*/15` schedule
-    # fired once in 7.5 hours instead of ~30 times. GitHub deprioritises and
-    # drops frequent cron schedules under load, so a high frequency here buys
-    # nothing and quietly makes the site staler than it claims to be. Sparse
-    # schedules are honoured far more reliably.
+    # This is the third schedule here, and the reasoning is now measured rather
+    # than assumed. On this repository, over the workflow's first 9.5 hours:
+    #   `*/15`  — 1 scheduled run out of ~33 slots
+    #   `5,35`  — 0 out of 2
+    # Every other run came from a push. GitHub deprioritises frequent cron
+    # schedules, so asking more often produced *fewer* scans, not more, and
+    # made the site quietly staler than the README claimed.
     #
-    # Nothing is lost by scanning less often: new signals are decided on closed
-    # 1h candles, so there is nothing new to find between them, and browser-side
-    # prices keep the cards live regardless.
-    - cron: '5,35 * * * *'
+    # Hourly is also the most this workflow can usefully do: new signals are
+    # decided on closed 1h candles, so between them there is nothing new to
+    # find. The one scheduled run that did fire landed on the hour, which is
+    # weak evidence that hour-aligned slots fare better — one data point, not
+    # a law, so the site states the measured age of the data instead of
+    # promising a cadence.
+    #
+    # A missed hour costs opportunities, never correctness: whenever the scan
+    # runs it reads the newest closed candle, and open positions are settled
+    # from candle history, so the recorded result of a trade is the same
+    # whether it was noticed on time or hours late.
+    - cron: '4 * * * *'
   workflow_dispatch:
   push:
     branches: [main]

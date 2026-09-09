@@ -199,9 +199,14 @@
     if (state.mode === 'static') {
       const age = state.status.updatedAt ? Date.now() - state.status.updatedAt : null;
       const mins = age == null ? null : Math.round(age / 60000);
-      // GitHub can drop scheduled runs. Rather than presenting an old scan as
-      // current, say plainly how old it is once it stops being fresh.
-      const stale = mins != null && mins > 90;
+      /*
+       * GitHub drops scheduled runs, and on this repository it drops most of
+       * them: measured over the first 9.5 hours, 1 scheduled run out of ~35
+       * slots actually fired. So this banner is not an edge case, it is the
+       * normal way the user finds out — the threshold is two missed hourly
+       * slots, past which the data is genuinely behind rather than merely late.
+       */
+      const stale = mins != null && mins > 150;
       modeBanner.className = 'banner' + (stale ? ' error' : '');
       modeBanner.innerHTML = stale
         ? `<b>Данные устарели:</b> последний пересчёт был ${fmtAge(mins)} назад. ` +
