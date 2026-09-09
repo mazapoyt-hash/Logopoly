@@ -79,7 +79,7 @@ export function resolveOnBar(trade, bar, barsSinceEntry) {
  * Walk one symbol's history and collect trades.
  * Returns { trades, stats }.
  */
-export function backtestSymbol({ symbol, timeframe, candles, htfCandles }) {
+export function backtestSymbol({ symbol, timeframe, candles, htfCandles, params = null }) {
   const tfMs = timeframeMs(timeframe);
   const ind = computeIndicators(candles);
   const htfInd = computeIndicators(htfCandles);
@@ -104,7 +104,7 @@ export function backtestSymbol({ symbol, timeframe, candles, htfCandles }) {
     if (!open) {
       const closeMs = bar.time + tfMs;
       const { trend } = htfTrendAt(htfCandles, htfInd, closeMs);
-      const sig = evaluateBar(ind, i, trend, { symbol, timeframe, barTime: bar.time });
+      const sig = evaluateBar(ind, i, trend, { symbol, timeframe, barTime: bar.time }, params);
       if (sig) {
         open = {
           symbol, timeframe,

@@ -66,6 +66,13 @@ CREATE TABLE IF NOT EXISTS backtests (
 );
 
 CREATE INDEX IF NOT EXISTS idx_backtests_symbol ON backtests(symbol, created_at DESC);
+
+-- Generic slot for the latest computed report (validation, etc).
+CREATE TABLE IF NOT EXISTS reports (
+  key        TEXT PRIMARY KEY,
+  data       TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
 `);
 
 /** Add a column to an existing table if an older database lacks it. */
@@ -259,6 +266,19 @@ export const Backtests = {
        WHERE b.timeframe = ?`
     ).all(timeframe, timeframe);
     return rows.map((r) => ({ ...r, stats: parse(r.stats, null) }));
+  },
+};
+
+export const Reports = {
+  set(key, data) {
+    db.prepare(
+      `INSERT INTO reports (key, data, created_at) VALUES (?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET data = excluded.data, created_at = excluded.created_at`
+    ).run(key, JSON.stringify(data), now());
+  },
+  get(key) {
+    const row = db.prepare(`SELECT * FROM reports WHERE key = ?`).get(key);
+    return row ? { ...parse(row.data, null), storedAt: row.created_at } : null;
   },
 };
 

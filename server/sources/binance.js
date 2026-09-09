@@ -16,22 +16,76 @@ const INTERVAL = {
   '1h': '1h', '4h': '4h', '1d': '1d',
 };
 
-async function request(path, params) {
-  const url = new URL(config.binance.baseUrl + path);
-  for (const [k, v] of Object.entries(params || {})) url.searchParams.set(k, v);
+/** Hosts to try in order; the first that answers becomes the preferred one. */
+export function hostList() {
+  const extra = (process.env.BINANCE_BASE_URLS || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const defaults = [
+    config.binance.baseUrl,
+    'https://data-api.binance.vision', // Binance's market-data-only host
+    'https://api-gcp.binance.com',
+    'https://api1.binance.com',
+  ];
+  return [...new Set([...extra, ...defaults])];
+}
 
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), config.binance.timeoutMs);
-  try {
-    const res = await fetch(url, { signal: ctrl.signal });
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      throw new Error(`Binance ${res.status} on ${path}: ${body.slice(0, 200)}`);
+/** Index of the host currently believed to work; sticky between calls. */
+let preferredHost = 0;
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Retryable: transport failures, rate limits and server-side errors. */
+function isRetryable(status) {
+  return status === null || status === 429 || status === 418 || status >= 500;
+}
+
+/**
+ * One public GET with retries and host failover.
+ *
+ * A silent stall here is worse than an error: if the price loop stops, open
+ * signals never reach their stop or target and the track record quietly
+ * freezes. So transient failures are retried, and a dead host is abandoned in
+ * favour of a mirror.
+ */
+async function request(path, params, { attempts = 3 } = {}) {
+  const hosts = hostList();
+  let lastError = null;
+
+  for (let hostTry = 0; hostTry < hosts.length; hostTry++) {
+    const host = hosts[(preferredHost + hostTry) % hosts.length];
+
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      const url = new URL(host + path);
+      for (const [k, v] of Object.entries(params || {})) url.searchParams.set(k, v);
+
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), config.binance.timeoutMs);
+      let status = null;
+      try {
+        const res = await fetch(url, { signal: ctrl.signal });
+        status = res.status;
+        if (res.ok) {
+          preferredHost = (preferredHost + hostTry) % hosts.length;
+          return await res.json();
+        }
+        const body = await res.text().catch(() => '');
+        lastError = new Error(`Binance ${res.status} on ${path} (${host}): ${body.slice(0, 160)}`);
+        // A rejected symbol or bad argument will fail identically on every
+        // retry and every mirror — fail fast instead of hammering.
+        if (!isRetryable(status)) throw lastError;
+      } catch (err) {
+        if (lastError !== err) lastError = err;
+        if (status !== null && !isRetryable(status)) throw lastError;
+      } finally {
+        clearTimeout(timer);
+      }
+
+      if (attempt < attempts - 1) {
+        // Exponential backoff, and honour a rate-limit cool-off generously.
+        await sleep((status === 429 || status === 418 ? 2000 : 300) * 2 ** attempt);
+      }
     }
-    return await res.json();
-  } finally {
-    clearTimeout(timer);
   }
+  throw lastError || new Error(`Binance: ни один хост не ответил на ${path}`);
 }
 
 /**

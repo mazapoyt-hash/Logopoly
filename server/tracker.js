@@ -10,11 +10,12 @@
  */
 import { EventEmitter } from 'node:events';
 import { config, timeframeMs } from './config.js';
-import { getCandles, getPrices } from './sources/index.js';
-import { scanLatest } from './strategy.js';
+import { getCandles, getPrices, referenceNow } from './sources/index.js';
+import { scanLatest, PARAMS } from './strategy.js';
 import { resolveOnBar, backtestSymbol, summarize, netR } from './backtest.js';
 import { Signals, Backtests, BacktestTrades } from './db.js';
 import { estimateProbability } from './probability.js';
+import { auditCandles, describeAudit } from './dataQuality.js';
 
 export const events = new EventEmitter();
 
@@ -25,12 +26,16 @@ let priceTimer = null;
 /** Latest exchange price per symbol, refreshed by the price loop. */
 export const prices = { at: null, values: {} };
 
+/** Latest data-integrity report per symbol, surfaced on /api/status. */
+export const dataQuality = {};
+
 export const status = {
   lastScanAt: null,
   lastScanMs: null,
   lastPriceAt: null,
   scanned: 0,
   errors: [],
+  skipped: [],
   priceError: null,
   source: config.source,
 };
@@ -67,12 +72,28 @@ async function scanSymbol(symbol) {
   const htf = await getCandles(symbol, config.higherTimeframe, config.candleLimit, { fresh: true });
   if (!candles.length) return;
 
-  // 1. Close out anything already running.
+  // 1. Close out anything already running. Resolution is allowed even on a
+  //    flawed series — an open position must not be left hanging because the
+  //    feed hiccuped.
   for (const sig of Signals.open(symbol)) {
     resolveSignal(sig, candles);
   }
 
-  // 2. One idea per symbol at a time.
+  // 2. Refuse to open anything new on questionable data. A gap or a stale feed
+  //    shifts every indicator, and the resulting signal looks entirely normal.
+  const audit = auditCandles(candles, config.timeframe, {
+    minBars: PARAMS.emaSlow + 5, now: referenceNow(config.timeframe),
+  });
+  const htfAudit = auditCandles(htf, config.higherTimeframe, {
+    now: referenceNow(config.higherTimeframe),
+  });
+  dataQuality[symbol] = { ...audit, htfOk: htfAudit.ok, checkedAt: Date.now() };
+  if (!audit.ok || !htfAudit.ok) {
+    status.skipped.push({ symbol, reason: describeAudit(audit.ok ? htfAudit : audit) });
+    return;
+  }
+
+  // 3. One idea per symbol at a time.
   if (Signals.hasOpen(symbol, config.timeframe)) return;
 
   const sig = scanLatest(candles, htf, { symbol, timeframe: config.timeframe });
@@ -142,6 +163,7 @@ export async function priceTick() {
 export async function scanOnce() {
   const started = Date.now();
   const errors = [];
+  status.skipped = [];
   for (const symbol of config.symbols) {
     try {
       await scanSymbol(symbol);

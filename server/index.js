@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { getCandles, checkSource } from './sources/index.js';
 import { computeIndicators, htfTrendAt } from './strategy.js';
-import { Signals, Backtests } from './db.js';
+import { Signals, Backtests, Reports } from './db.js';
+import { runValidation } from './validate.js';
 import * as tracker from './tracker.js';
 
 const require = createRequire(import.meta.url);
@@ -42,9 +43,25 @@ app.get('/api/status', async (_req, res) => {
     strategy: config.strategy,
     minSampleForStats: config.minSampleForStats,
     scan: tracker.status,
+    dataQuality: tracker.dataQuality,
     totalSignals: Signals.countAll(),
     sourceHealth: await checkSource(),
   });
+});
+
+/* ------------------------------ Validation ---------------------------- */
+app.get('/api/validation', (_req, res) => {
+  res.json({ report: Reports.get('validation') });
+});
+
+app.post('/api/validation/run', async (_req, res) => {
+  try {
+    const report = await runValidation();
+    Reports.set('validation', report);
+    res.json({ report });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 /* ------------------------------ Signals ------------------------------- */

@@ -110,6 +110,17 @@ export function fetchCandles(symbol, timeframe, limit) {
   return candles;
 }
 
+/**
+ * The clock this source runs on. Freshness must be judged against it, not
+ * against the wall clock: with a pinned anchor the series is deliberately
+ * historical, and calling that "stale" would be measuring the wrong thing.
+ */
+export function referenceNow(timeframe = '1h') {
+  const step = timeframeMs(timeframe);
+  // The instant the newest generated candle closed, so freshness reads as 0.
+  return ORIGIN_MS + (endIndexFor(step) + 1) * step;
+}
+
 export async function fetchPrice(symbol, timeframe = '1h') {
   const c = fetchCandles(symbol, timeframe, 1);
   return c[c.length - 1].close;

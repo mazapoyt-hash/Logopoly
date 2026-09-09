@@ -237,3 +237,15 @@ table.grid tbody tr:hover { background: var(--panel); }
 }
 
 .tag.replay { background: rgba(77,141,255,.14); color: var(--accent); font-size: 10px; }
+
+/* --------------------------- Validation panel ------------------------- */
+.verdicts { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 10px; }
+.verdict p { font-size: 13px; color: #b6bed2; line-height: 1.55; margin: 10px 0; }
+.verdict-head { margin-bottom: 4px; }
+.badge.warn { background: rgba(240,160,32,.15); color: var(--warn); }
+table.grid.mini { min-width: 0; font-size: 12.5px; }
+table.grid.mini th { padding: 7px 10px; }
+table.grid.mini td { padding: 7px 10px; }
+.small { font-size: 12px; line-height: 1.5; }
+
+@media (max-width: 900px) { .verdicts { grid-template-columns: 1fr; } }

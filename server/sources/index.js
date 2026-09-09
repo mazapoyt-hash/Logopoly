@@ -34,6 +34,15 @@ export async function getPrice(symbol, timeframe = config.timeframe) {
   return activeSource().fetchPrice(symbol, timeframe);
 }
 
+/**
+ * The reference "now" for freshness checks. A source that runs on its own
+ * clock (the offline generator) declares it; a live exchange uses the real one.
+ */
+export function referenceNow(timeframe = config.timeframe) {
+  const src = activeSource();
+  return src.referenceNow ? src.referenceNow(timeframe) : Date.now();
+}
+
 /** Current price for many symbols in one call. */
 export async function getPrices(symbols, timeframe = config.timeframe) {
   return activeSource().fetchPrices(symbols, timeframe);

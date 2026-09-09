@@ -139,8 +139,10 @@ function scoreDirection(ind, i, dir) {
  * Evaluate bar `i` and return a signal, or null when nothing qualifies.
  * `htfTrend` must already be resolved for this bar's close time.
  */
-export function evaluateBar(ind, i, htfTrend, meta = {}) {
-  const s = config.strategy;
+export function evaluateBar(ind, i, htfTrend, meta = {}, overrides = null) {
+  // Overrides let the robustness sweep re-run the same logic under different
+  // thresholds without mutating global config.
+  const s = overrides ? { ...config.strategy, ...overrides } : config.strategy;
   const price = ind.close[i];
   const a = ind.adx[i];
   const atrNow = ind.atr[i];

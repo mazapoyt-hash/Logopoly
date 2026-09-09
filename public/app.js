@@ -41,7 +41,7 @@
       $(`#view-${tab.dataset.view}`).classList.remove('hidden');
       if (tab.dataset.view === 'market') loadMarket();
       if (tab.dataset.view === 'history') loadSignals();
-      if (tab.dataset.view === 'stats') loadStats();
+      if (tab.dataset.view === 'stats') { loadStats(); loadValidation(); }
     });
   });
 
@@ -76,6 +76,7 @@
     if (state.pricesAt) bits.push(`цены ${new Date(state.pricesAt).toLocaleTimeString('ru-RU')}`);
     if (s?.lastScanAt) bits.push(`скан ${new Date(s.lastScanAt).toLocaleTimeString('ru-RU')}`);
     if (s?.errors?.length) bits.push(`ошибок: ${s.errors.length}`);
+    if (s?.skipped?.length) bits.push(`пропущено по данным: ${s.skipped.length}`);
     $('#scanStatus').textContent = bits.join(' · ') || 'ожидание данных…';
   }
 
@@ -348,6 +349,74 @@
       </tr>`;
     }).join('') || '<tr><td colspan="7" class="muted">Бэктест ещё не запускался.</td></tr>';
   }
+
+  /* ----------------------------- Validation --------------------------- */
+  const VERDICT = {
+    consistent: { cls: 'ok', label: 'Стабильно во времени' },
+    concentrated: { cls: 'bad', label: 'Результат сделан одним периодом' },
+    mixed: { cls: 'warn', label: 'Смешанно' },
+    weak: { cls: 'bad', label: 'Неустойчиво' },
+    robust: { cls: 'ok', label: 'Устойчиво к настройкам' },
+    fragile: { cls: 'bad', label: 'Похоже на подгонку' },
+    unknown: { cls: 'neutral', label: 'Данных не хватает' },
+  };
+
+  function renderValidation(report) {
+    const box = $('#validation');
+    if (!report) {
+      box.innerHTML = '<div class="low-sample">Проверка ещё не запускалась. ' +
+        'Нажмите «Проверить» — она прогонит стратегию по отрезкам истории и по сетке параметров.</div>';
+      return;
+    }
+    const c = VERDICT[report.consistency?.verdict] || VERDICT.unknown;
+    const r = VERDICT[report.robustness?.verdict] || VERDICT.unknown;
+
+    const segs = (report.timeline || []).map((s) => `
+      <tr>
+        <td>${fmtTime(s.from)} — ${fmtTime(s.to)}</td>
+        <td class="num">${s.stats.trades}</td>
+        <td class="num">${s.stats.winRate == null ? '—' : (s.stats.winRate * 100).toFixed(0) + '%'}</td>
+        <td class="num ${s.stats.totalR >= 0 ? 'up' : 'down'}">${fmtNum(s.stats.totalR, 1)}R</td>
+      </tr>`).join('');
+
+    box.innerHTML = `
+      <div class="verdicts">
+        <div class="verdict">
+          <div class="verdict-head"><span class="badge ${c.cls}">${c.label}</span></div>
+          <p>${esc(report.consistency?.text || '')}</p>
+          <table class="grid mini">
+            <thead><tr><th>Отрезок</th><th class="num">Сделок</th><th class="num">Винрейт</th><th class="num">Сумма</th></tr></thead>
+            <tbody>${segs}</tbody>
+          </table>
+        </div>
+        <div class="verdict">
+          <div class="verdict-head"><span class="badge ${r.cls}">${r.label}</span></div>
+          <p>${esc(report.robustness?.text || '')}</p>
+          <p class="muted small">
+            Проверено ${report.grid?.length || 0} наборов порогов (score, размер стопа, соотношение риск/прибыль).
+            Лучшая ячейка сетки намеренно не предлагается как настройка: выбирать максимум
+            по той же истории — и есть подгонка.
+          </p>
+        </div>
+      </div>
+      <p class="muted small">Проверка от ${fmtTime(report.storedAt || report.createdAt)} · источник ${esc(report.source)} · ${report.bars} свечей на монету</p>`;
+  }
+
+  async function loadValidation() {
+    try { renderValidation((await api('/api/validation')).report); }
+    catch { renderValidation(null); }
+  }
+
+  $('#runValidation').addEventListener('click', async (e) => {
+    const btn = e.target;
+    btn.disabled = true; btn.textContent = 'Проверяю…';
+    try {
+      const { report } = await api('/api/validation/run', { method: 'POST' });
+      renderValidation(report);
+    } catch (err) {
+      $('#validation').innerHTML = `<div class="low-sample">Не удалось выполнить проверку: ${esc(err.message)}</div>`;
+    } finally { btn.disabled = false; btn.textContent = 'Проверить'; }
+  });
 
   $('#runBacktest').addEventListener('click', async (e) => {
     const btn = e.target;
