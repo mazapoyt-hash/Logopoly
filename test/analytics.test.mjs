@@ -304,8 +304,9 @@ check('expected false positives scale with the number of buckets tested',
 
 /* ------------------------------- nulls -------------------------------- */
 {
-  const { randomEntryBenchmark, rotationNull, costSensitivity, makeRng, percentileOf } =
+  const { randomEntryBenchmark, rotationNull, makeRng, percentileOf } =
     await import('../server/nulls.js');
+  const { costSensitivity } = await import('../server/economics.js');
   const { reserveVault, evaluateOnVault } = await import('../server/analytics.js');
 
   const a = makeRng(7)();
@@ -370,6 +371,63 @@ check('expected false positives scale with the number of buckets tested',
   })());
   check('cost sensitivity explains which of the two cases this is',
     typeof costs.text === 'string' && costs.text.length > 0);
+}
+
+/* -------------------------------- the toll ---------------------------- */
+{
+  const { tollFromTrades, tollByTimeframe, roundTripCost } =
+    await import('../server/economics.js');
+
+  check('round-trip cost charges both sides twice over',
+    Math.abs(roundTripCost({ feeRate: 0.001, slippageRate: 0.002 }) - 0.006) < 1e-12);
+
+  // A 1% stop against a 0.2% round trip must cost exactly 0.2R — the whole
+  // argument rests on this ratio, so it is pinned rather than eyeballed.
+  const toy = [{ direction: 'LONG', entry: 100, stop: 99 }];
+  const t = tollFromTrades(toy, { feeRate: 0.0005, slippageRate: 0.0005 });
+  check('the toll is the round-trip cost divided by the stop distance',
+    Math.abs(t.costR - 0.2) < 1e-9 && Math.abs(t.medianRiskPct - 1) < 1e-9);
+  check('break-even edge equals the toll — nothing else has to be assumed',
+    t.breakEvenEdgeR === t.costR);
+
+  const wide = tollFromTrades([{ direction: 'LONG', entry: 100, stop: 90 }],
+    { feeRate: 0.0005, slippageRate: 0.0005 });
+  check('a wider stop pays a smaller toll in R', wide.costR < t.costR);
+  check('the toll needs real trades', tollFromTrades([]) === null);
+
+  /*
+   * Built by hand, not fetched. The synthetic source is scale-invariant — its
+   * ATR is the same share of price on every timeframe — so it cannot exercise
+   * this comparison at all, and a test written against it would pass or fail
+   * by luck. These two series differ in volatility by construction.
+   */
+  const series = (rangePct, n = 300) => Array.from({ length: n }, (_, i) => {
+    const close = 100;
+    const half = (close * rangePct) / 2;
+    return { time: i * 3600_000, open: close, close, high: close + half, low: close - half };
+  });
+  const byTf = tollByTimeframe(
+    { '1h': { X: series(0.01) }, '1d': { X: series(0.05) } },
+    { atrMult: 1.5, costs: { feeRate: 0.0005, slippageRate: 0.0005 } }
+  );
+  check('the toll is comparable across timeframes', byTf && byTf.rows.length === 2);
+  check('a wider-ranging timeframe pays a smaller toll', (() => {
+    const h = byTf.rows.find((r) => r.timeframe === '1h');
+    const d = byTf.rows.find((r) => r.timeframe === '1d');
+    return d.stopPct > h.stopPct * 4 && d.costR < h.costR / 4;
+  })());
+  check('the cheapest timeframe is identified', byTf.best.timeframe === '1d');
+
+
+  // Where the timeframes genuinely do not differ, the comparison must say so
+  // rather than crowning a winner separated by rounding.
+  const flat = tollByTimeframe({ '1h': { X: series(0.01) }, '1d': { X: series(0.0101) } });
+  check('indistinguishable timeframes are reported as indistinguishable',
+    flat.indistinguishable === true);
+  check('a real difference is not called indistinguishable',
+    byTf.indistinguishable === false);
+  check('no cheapest timeframe is crowned when they cannot be told apart',
+    flat.best === null);
 }
 
 /* ------------------------------- the vault ---------------------------- */
