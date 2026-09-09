@@ -21,6 +21,7 @@
       <button class="tab" data-view="market">Рынок</button>
       <button class="tab" data-view="history">История <span class="pill grey" id="histCount">0</span></button>
       <button class="tab" data-view="stats">Статистика</button>
+      <button class="tab" data-view="analytics">Аналитика</button>
     </nav>
     <div class="topbar-right">
       <span class="source-tag" id="sourceTag">…</span>
@@ -158,6 +159,72 @@
               та же монета и направление). Рядом всегда указан размер выборки и доверительный интервал.
               Если похожих сигналов слишком мало, вместо числа написано «нет оценки».</li>
         </ul>
+      </div>
+    </section>
+    <!-- ----------------------------- ANALYTICS ----------------------------- -->
+    <section class="view hidden" id="view-analytics">
+      <div class="view-head">
+        <h1>Детальная аналитика</h1>
+        <p class="sub">
+          Разбор на длинной истории: где логика работает, а где нет. Это диагностика,
+          а не витрина — нарезки сделаны в том числе для того, чтобы найти,
+          что не работает.
+        </p>
+      </div>
+
+      <div id="analyticsEmpty" class="empty hidden">
+        <div class="empty-icon">◎</div>
+        <p>Глубокий анализ ещё не запускался.</p>
+        <p class="muted">
+          Он считается отдельно и долго: Actions → «Глубокий анализ» → Run workflow.
+          Раз в неделю запускается сам.
+        </p>
+      </div>
+
+      <div id="analyticsBody" class="hidden">
+        <div class="panel" id="mcPanel">
+          <h2>Сколько из найденного — случайность</h2>
+          <p class="panel-sub">
+            Читать это надо первым. Если нарезать любые данные достаточным числом
+            способов, часть групп будет выглядеть выдающимися просто так. Здесь
+            написано, сколько таких групп даёт чистая случайность — и сколько
+            нашлось на самом деле.
+          </p>
+          <div id="mcBox"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Подбор настроек с проверкой на невиданных данных</h2>
+          <p class="panel-sub">
+            Настройки подбираются на первой части истории, а оцениваются на
+            последней, которую подбор не видел. Разница между двумя числами —
+            это и есть измеренный размер самообмана.
+          </p>
+          <div id="tuningBox"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Как далеко ходила цена</h2>
+          <p class="panel-sub">
+            Винрейт не отвечает на главный вопрос: убыточная сделка не пошла
+            никуда — или дошла почти до цели и развернулась? Это разные болезни
+            с разным лечением.
+          </p>
+          <div id="excursionBox"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Честность заявленной вероятности</h2>
+          <p class="panel-sub">
+            Из сигналов, которым сайт написал «60%», выиграли примерно 60%?
+            Если нет — число рядом с сигналом не заслужено.
+          </p>
+          <div id="calibrationBox"></div>
+        </div>
+
+        <div id="breakdowns"></div>
+
+        <p class="muted small" id="analyticsMeta"></p>
       </div>
     </section>
   </main>

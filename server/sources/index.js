@@ -30,6 +30,19 @@ export async function getCandles(symbol, timeframe, limit = config.candleLimit, 
   return candles;
 }
 
+/**
+ * A deep history for analysis. Deliberately not cached: it is fetched once per
+ * analytics run, and holding tens of thousands of candles in the scan cache
+ * would be pure waste.
+ */
+export async function getHistory(symbol, timeframe, bars, opts = {}) {
+  const src = activeSource();
+  if (!src.fetchCandlesRange) {
+    throw new Error(`Источник ${src.name} не умеет отдавать длинную историю`);
+  }
+  return src.fetchCandlesRange(symbol, timeframe, bars, opts);
+}
+
 export async function getPrice(symbol, timeframe = config.timeframe) {
   return activeSource().fetchPrice(symbol, timeframe);
 }
