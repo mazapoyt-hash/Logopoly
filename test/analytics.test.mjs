@@ -345,6 +345,20 @@ check('expected false positives scale with the number of buckets tested',
   check('the rotation null refuses to run on a tiny sample',
     rotationNull(trades.slice(0, 10), () => 0) === null);
 
+  /*
+   * The comparison must be re-priced on BOTH sides. Charging the strategy but
+   * not the random entries (or the reverse) would make the frictionless run a
+   * comparison of two different things and quietly invent an edge.
+   */
+  const gross = randomEntryBenchmark(data, trades, {
+    replicates: 40, costs: { feeRate: 0, slippageRate: 0 },
+  });
+  check('the benchmark can be run without costs', gross && Number.isFinite(gross.real.avgR));
+  check('removing costs improves the strategy side', gross.real.avgR >= re.real.avgR - 1e-9);
+  check('removing costs improves the random side too, not just the strategy',
+    gross.nullModel.p50 >= re.nullModel.p50 - 1e-9);
+  check('the frictionless run uses the same trade count', gross.real.trades === re.real.trades);
+
   const costs = costSensitivity(trades);
   check('cost sensitivity reports a frictionless result',
     Number.isFinite(costs.frictionlessTotalR));

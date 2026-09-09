@@ -565,6 +565,22 @@ export function analyse({
     randomEntry: dataBySymbol
       ? randomEntryBenchmark(dataBySymbol, trades, { replicates: nullReplicates })
       : null,
+    /*
+     * The same benchmark with fees and slippage switched off, and it answers a
+     * different question than the one above.
+     *
+     * Costs are a fixed fraction of price, so they consume a much larger share
+     * of a tight ATR-scaled stop than a wide one. That makes the with-costs
+     * comparison partly a test of position geometry. Running it frictionlessly
+     * isolates timing, and the gap between the two verdicts is the difference
+     * between "there is no signal" and "there is a signal too small to pay for
+     * itself" — which have completely different remedies.
+     */
+    randomEntryGross: dataBySymbol
+      ? randomEntryBenchmark(dataBySymbol, trades, {
+        replicates: nullReplicates, costs: { feeRate: 0, slippageRate: 0 },
+      })
+      : null,
     costs: costSensitivity(trades),
     minBucket: MIN_BUCKET,
   };
