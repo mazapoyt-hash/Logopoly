@@ -1,56 +1,29 @@
-/** Shared helpers for the end-to-end suites (cookie-session auth). */
+/** Shared test helpers. */
 
-export const SESSION_COOKIE = 'qdesk_session';
-
-/** Pull the session cookie out of a response, ready to send back as a header. */
-export function cookieFrom(res) {
-  const raw = typeof res.headers.getSetCookie === 'function'
-    ? res.headers.getSetCookie()
-    : [res.headers.get('set-cookie')].filter(Boolean);
-  for (const c of raw) {
-    const m = new RegExp(`${SESSION_COOKIE}=([^;]*)`).exec(c);
-    if (m && m[1]) return `${SESSION_COOKIE}=${m[1]}`;
-  }
-  return null;
+export function makeChecker(results) {
+  return (name, cond) => {
+    results.push([name, !!cond]);
+    console.log((cond ? '  ✅' : '  ❌') + ' ' + name);
+  };
 }
 
-/** fetch() with JSON body and an optional session cookie. */
-export function req(base, path, { method = 'GET', body, cookie, redirect } = {}) {
-  const headers = {};
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
-  if (cookie) headers.Cookie = cookie;
-  return fetch(base + path, {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-    redirect: redirect || 'follow',
-  });
-}
-
-/** First-run: create the team lead and return { operator, cookie }. */
-export async function setupLead(base, { name, email, password }) {
-  const res = await req(base, '/api/auth/setup', { method: 'POST', body: { name, email, password } });
-  const data = await res.json();
-  return { ...data, cookie: cookieFrom(res), status: res.status };
-}
-
-/** Sign in and return { operator, cookie, status }. */
-export async function login(base, email, password) {
-  const res = await req(base, '/api/auth/login', { method: 'POST', body: { email, password } });
-  const data = await res.json().catch(() => ({}));
-  return { ...data, cookie: cookieFrom(res), status: res.status };
-}
-
-/** Socket.IO connection options carrying the session cookie. */
-export function socketAuth(cookie) {
-  return { auth: { role: 'operator' }, extraHeaders: cookie ? { Cookie: cookie } : {} };
+export function close(a, b, eps = 1e-9) {
+  return typeof a === 'number' && Number.isFinite(a) && Math.abs(a - b) <= eps;
 }
 
 export const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export function makeChecker(results) {
-  return (name, cond) => {
-    results.push([name, cond]);
-    console.log((cond ? '  ✅' : '  ❌') + ' ' + name);
-  };
+/** Build a candle series from a list of closes, with sane highs/lows. */
+export function candlesFromCloses(closes, { start = 0, step = 3600_000, wick = 0.002 } = {}) {
+  return closes.map((c, i) => {
+    const open = i === 0 ? c : closes[i - 1];
+    return {
+      time: start + i * step,
+      open,
+      high: Math.max(open, c) * (1 + wick),
+      low: Math.min(open, c) * (1 - wick),
+      close: c,
+      volume: 1000,
+    };
+  });
 }
