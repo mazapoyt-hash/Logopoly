@@ -39,7 +39,12 @@ export function wilsonInterval(wins, n, z = 1.96) {
   };
 }
 
-function collect({ timeframe, symbol, direction, bucket }) {
+/**
+ * Default evidence source: the SQLite store. The static (GitHub Pages) build
+ * has no database, so it passes its own collector over JSON state — the
+ * estimation logic below stays exactly the same either way.
+ */
+function collectFromDb({ timeframe, symbol, direction, bucket }) {
   const bt = BacktestTrades.find({
     timeframe, symbol, direction, scoreMin: bucket.min, scoreMax: bucket.max,
   }).map((t) => ({ r: t.r, source: 'backtest' }));
@@ -70,7 +75,7 @@ function summarise(samples) {
  * Estimate the chance this signal reaches its target before its stop.
  * Widens the comparison set step by step until it has enough evidence.
  */
-export function estimateProbability({ symbol, direction, score, timeframe = config.timeframe }) {
+export function estimateProbability({ symbol, direction, score, timeframe = config.timeframe, collect = collectFromDb }) {
   const bucket = scoreBucket(score);
   const min = config.minSampleForProbability;
 

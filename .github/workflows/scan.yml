@@ -1,0 +1,72 @@
+name: Скан рынка
+
+# This is what makes the site work with no server: the scanner runs here on a
+# schedule, and commits its results as JSON that GitHub Pages serves.
+on:
+  schedule:
+    # Every 15 minutes. GitHub often delays scheduled runs under load, which is
+    # fine — signals are decided on closed hourly candles.
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - '.github/workflows/scan.yml'
+
+concurrency:
+  # Never let two runs commit to data/ at the same time.
+  group: coinscope-scan
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Прогнать скан
+        id: scan
+        env:
+          COINSCOPE_SOURCE: binance
+        run: node server/cli-scan.js | tee scan.log
+
+      - name: Закоммитить данные
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          if git diff --cached --quiet; then
+            echo "Изменений нет."
+            exit 0
+          fi
+          git commit -m "Данные скана: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          # Another scheduled run may have landed while this one worked.
+          for i in 1 2 3; do
+            git pull --rebase --autostash origin main && git push origin HEAD:main && exit 0
+            sleep 5
+          done
+          echo "::error::Не удалось запушить данные после трёх попыток"
+          exit 1
+
+      - name: Итог в сводку
+        if: always()
+        run: |
+          {
+            echo "# Скан рынка"
+            echo
+            echo '```'
+            cat scan.log 2>/dev/null || echo "лог отсутствует"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

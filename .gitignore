@@ -1,5 +1,8 @@
 node_modules/
-data/
+# The site's JSON in data/ is committed on purpose — it is the record the
+# static build serves. Only the local server's SQLite files are ignored.
+data/*.db
+data/*.db-*
 *.log
 .env
 .DS_Store

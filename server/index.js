@@ -1,7 +1,5 @@
 import express from 'express';
 import path from 'node:path';
-import fs from 'node:fs';
-import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 import { config } from './config.js';
@@ -11,27 +9,14 @@ import { Signals, Backtests, Reports } from './db.js';
 import { runValidation } from './validate.js';
 import * as tracker from './tracker.js';
 
-const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+// The dashboard lives at the repo root so GitHub Pages can serve the very
+// same files without a server.
+const PUBLIC_DIR = path.join(__dirname, '..');
 
 const app = express();
 app.use(express.json());
 app.use(express.static(PUBLIC_DIR));
-
-// Charting library, served straight out of node_modules (no build step).
-// The package's "exports" map does not expose ./dist, so resolve via its
-// package.json — which it does expose — and build the path from there.
-try {
-  const pkgJson = require.resolve('lightweight-charts/package.json');
-  const lwc = path.join(path.dirname(pkgJson), 'dist', 'lightweight-charts.standalone.production.js');
-  if (!fs.existsSync(lwc)) throw new Error(`not found at ${lwc}`);
-  app.get('/vendor/lightweight-charts.js', (_req, res) => res.sendFile(lwc));
-} catch (err) {
-  // Charts degrade to "unavailable" in the UI rather than breaking the server,
-  // but say so — a silent 404 here is hard to diagnose from the browser.
-  console.warn(`  ⚠ График недоступен: библиотека не найдена (${err.message})`);
-}
 
 /* ------------------------------- Status ------------------------------- */
 app.get('/api/status', async (_req, res) => {
