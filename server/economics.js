@@ -151,7 +151,14 @@ export function tollFromTrades(trades, costs = COSTS) {
  * re-running the whole strategy at each target — which the parameter grid does.
  */
 export function winRateCurve(trades, {
-  targets = [0.25, 0.5, 0.75, 1, 1.5, 2], costs = COSTS,
+  /*
+   * The near end of this range exists to answer the question people actually
+   * ask — "make 80–90% of signals win" — instead of stopping short of it and
+   * reporting "not achievable". At those targets the required break-even rate
+   * passes 100%, which is the clearest possible statement: the demand is not
+   * demanding, it is arithmetically impossible at this toll.
+   */
+  targets = [0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1, 1.5, 2], costs = COSTS,
 } = {}) {
   const usable = trades.filter((t) => Number.isFinite(t.mfeR) && Number.isFinite(t.entry));
   if (usable.length < 50) return null;
@@ -185,6 +192,12 @@ export function winRateCurve(trades, {
       avgR: totalR / usable.length,
       totalR,
       profitable: totalR > 0,
+      /*
+       * Once the target is close enough, break-even needs to win more often
+       * than always. No strategy, no filter and no amount of accuracy reaches
+       * it — the target itself has made the trade unwinnable.
+       */
+      impossible: required > 1,
     };
   });
 
@@ -198,6 +211,7 @@ export function winRateCurve(trades, {
 
   const high = forRate(0.8);
   const best = rows.reduce((a, b) => (a.avgR >= b.avgR ? a : b));
+  const impossibleFrom = rows.filter((r) => r.impossible).sort((a, b) => b.target - a.target)[0];
 
   const text = high
     ? `Цель ${high.target}R даёт ${(high.winRate * 100).toFixed(0)}% успешных сигналов — ` +
@@ -207,7 +221,13 @@ export function winRateCurve(trades, {
       (high.avgR > 0
         ? 'Здесь высокий винрейт действительно окупается.'
         : '**Высокий винрейт достигнут и убыточен.** Чем ближе цель, тем чаще выигрыш и тем ' +
-          'выше требуемый порог — требование растёт быстрее достижимого.')
+          'выше требуемый порог — требование растёт быстрее достижимого.') +
+      (impossibleFrom
+        ? ` А начиная с цели ${impossibleFrom.target}R безубыток требует ` +
+          `${(impossibleFrom.requiredWinRate * 100).toFixed(0)}% побед — больше, чем всегда. ` +
+          'Такую цель не спасёт никакая точность сигнала: она сделана невыигрышной ' +
+          'самой геометрией.'
+        : '')
     : 'Даже самая близкая из проверенных целей не даёт 80% успешных сигналов на этих данных.';
 
   return {
