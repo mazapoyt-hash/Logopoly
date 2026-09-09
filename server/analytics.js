@@ -29,7 +29,8 @@ import { config } from './config.js';
 import { summarize, backtestSymbol } from './backtest.js';
 import { wilsonInterval } from './probability.js';
 import { GRID } from './validate.js';
-import { randomEntryBenchmark, rotationNull, costSensitivity } from './nulls.js';
+import { randomEntryBenchmark, rotationNull } from './nulls.js';
+import { costSensitivity, tollFromTrades } from './economics.js';
 
 /** Below this a bucket is reported but never called an edge. */
 export const MIN_BUCKET = Number(process.env.COINSCOPE_MIN_BUCKET || 25);
@@ -582,6 +583,11 @@ export function analyse({
       })
       : null,
     costs: costSensitivity(trades),
+    /*
+     * The bar any future idea has to clear, stated before the idea exists.
+     * Fixed by the timeframe and the stop multiple; no threshold moves it.
+     */
+    toll: tollFromTrades(trades),
     minBucket: MIN_BUCKET,
   };
 }

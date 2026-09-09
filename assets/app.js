@@ -685,6 +685,39 @@
       </div>`;
   }
 
+  function tollHtml(toll, byTf) {
+    if (!toll && !byTf) return '<div class="low-sample">Пошлина не считалась.</div>';
+    const head = !toll ? '' : `
+      <div class="mc-row">
+        <div class="metric"><div class="k">Медианный стоп</div>
+          <div class="v">${fmtNum(toll.medianRiskPct)}%</div><div class="note">от цены</div></div>
+        <div class="metric"><div class="k">Круговые издержки</div>
+          <div class="v">${fmtNum(toll.roundTripPct)}%</div><div class="note">от цены</div></div>
+        <div class="metric"><div class="k">Пошлина</div>
+          <div class="v down">−${fmtNum(toll.costR)}R</div><div class="note">с этого стартует сделка</div></div>
+        <div class="metric"><div class="k">Порог безубытка</div>
+          <div class="v">${fmtNum(toll.breakEvenEdgeR)}R</div>
+          <div class="note">край должен быть выше</div></div>
+      </div>`;
+    if (!byTf) return head;
+    const rows = byTf.rows.map((r) => `
+      <tr${r.timeframe === byTf.base?.timeframe ? ' class="current"' : ''}>
+        <td>${esc(r.timeframe)}</td>
+        <td class="num">${fmtNum(r.medianAtrPct)}%</td>
+        <td class="num">${fmtNum(r.stopPct)}%</td>
+        <td class="num down">−${fmtNum(r.costR)}R</td>
+      </tr>`).join('');
+    return `${head}
+      <p class="analytics-note">${esc(byTf.text)}</p>
+      <div class="table-wrap">
+        <table class="grid mini">
+          <thead><tr><th>Таймфрейм</th><th class="num">Медианный ATR</th>
+            <th class="num">Стоп</th><th class="num">Пошлина</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
   function costsHtml(c) {
     if (!c) return '<div class="low-sample">Расчёт по издержкам не делался.</div>';
     const rows = c.rows.map((r) => `
@@ -904,6 +937,7 @@
     state.analytics = rep;
 
     $('#randomEntryBox').innerHTML = randomEntryHtml(rep.randomEntry);
+    $('#tollBox').innerHTML = tollHtml(rep.toll, rep.tollByTimeframe);
     $('#costsBox').innerHTML = costsHtml(rep.costs);
     $('#vaultBox').innerHTML = vaultHtml(rep.vault);
     $('#mcBox').innerHTML = mcHtml(rep.multipleComparisons);

@@ -22,6 +22,7 @@ import { getHistory, checkSource, referenceNow } from './sources/index.js';
 import { backtestSymbol } from './backtest.js';
 import { auditCandles, describeAudit } from './dataQuality.js';
 import { analyse, reserveVault, evaluateOnVault, VAULT_RATIO } from './analytics.js';
+import { tollByTimeframe } from './economics.js';
 import { DATA_DIR, loadState, writeJson } from './staticRun.js';
 
 const BARS = Number(process.env.COINSCOPE_HISTORY_BARS || 8000);
@@ -50,10 +51,19 @@ async function main() {
 
   const dataBySymbol = {};
   const quality = [];
+  // Kept per timeframe for the cost-toll comparison: the same fee is a very
+  // different share of risk depending on how wide an ATR-scaled stop is.
+  const byTimeframe = { [config.timeframe]: {}, [config.higherTimeframe]: {}, '1d': {} };
+
   for (const symbol of config.symbols) {
     const candles = await getHistory(symbol, config.timeframe, BARS);
     const htf = await getHistory(symbol, config.higherTimeframe, htfBars);
     dataBySymbol[symbol] = { candles, htf };
+    byTimeframe[config.timeframe][symbol] = candles;
+    byTimeframe[config.higherTimeframe][symbol] = htf;
+    try {
+      byTimeframe['1d'][symbol] = await getHistory(symbol, '1d', 500);
+    } catch { /* the daily series is only used for the comparison */ }
 
     const audit = auditCandles(candles, config.timeframe, {
       minBars: 300, now: referenceNow(config.timeframe),
@@ -93,6 +103,7 @@ async function main() {
     requested: BARS, timeframe: config.timeframe, quality, vaultRatio: VAULT_RATIO,
   };
   report.vault = openVaultIfAsked(vault);
+  report.tollByTimeframe = tollByTimeframe(byTimeframe);
 
   writeJson(DATA_DIR, 'analytics.json', report);
   console.log(`\nЗаписано: ${path.join(DATA_DIR, 'analytics.json')}`);
@@ -183,6 +194,24 @@ function printSummary(rep) {
           : '**Дело не в издержках.** Даже при нулевых входы не лучше случайных — значит, ' +
             'плюс без издержек создан не выбором момента, а чем-то ещё (дрейфом рынка, ' +
             'геометрией стопа и цели).\n');
+    }
+  }
+
+  if (rep.toll || rep.tollByTimeframe) {
+    out.push('## Пошлина: что должна перебить любая идея\n');
+    if (rep.toll) {
+      out.push(`Медианный стоп — ${rep.toll.medianRiskPct.toFixed(2)}% от цены, круговые издержки ` +
+        `${rep.toll.roundTripPct.toFixed(2)}%. Значит, каждая сделка стартует с ` +
+        `**−${r2(rep.toll.costR)}R**, и это тот порог, который надо превзойти просто ради нуля.\n`);
+    }
+    if (rep.tollByTimeframe) {
+      out.push(rep.tollByTimeframe.text + '\n');
+      out.push('| Таймфрейм | Медианный ATR | Стоп | Пошлина |', '|---|---:|---:|---:|');
+      for (const t of rep.tollByTimeframe.rows) {
+        out.push(`| ${t.timeframe} | ${t.medianAtrPct.toFixed(2)}% | ${t.stopPct.toFixed(2)}% | ` +
+          `−${r2(t.costR)}R |`);
+      }
+      out.push('');
     }
   }
 
