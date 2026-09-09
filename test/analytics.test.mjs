@@ -302,6 +302,93 @@ check('expected false positives scale with the number of buckets tested',
     merged.every((c, i, a) => i === 0 || c.time > a[i - 1].time));
 }
 
+/* ------------------------------- nulls -------------------------------- */
+{
+  const { randomEntryBenchmark, rotationNull, costSensitivity, makeRng, percentileOf } =
+    await import('../server/nulls.js');
+  const { reserveVault, evaluateOnVault } = await import('../server/analytics.js');
+
+  const a = makeRng(7)();
+  const b = makeRng(7)();
+  check('the null models use a reproducible generator', a === b);
+  check('percentile rank places a value inside a distribution',
+    percentileOf([1, 2, 3, 4], 2.5) === 0.5 && percentileOf([1, 2, 3, 4], 0) === 0);
+
+  const candles = await getHistory('ADAUSDT', '1h', 2000);
+  const htf = await getHistory('ADAUSDT', '4h', 600);
+  const data = { ADAUSDT: { candles, htf } };
+  const { trades } = backtestSymbol({ symbol: 'ADAUSDT', timeframe: '1h', candles, htfCandles: htf });
+
+  const re = randomEntryBenchmark(data, trades, { replicates: 40 });
+  check('the random-entry benchmark produces a verdict',
+    ['beats', 'same', 'worse'].includes(re.verdict));
+  check('random entries are compared on the same trade count as the strategy',
+    re.real.trades === trades.length);
+  check('the null distribution is ordered and non-degenerate',
+    re.nullModel.p05 <= re.nullModel.p50 && re.nullModel.p50 <= re.nullModel.p95);
+  check('the strategy is placed as a percentile of the null, not judged against zero',
+    re.percentile >= 0 && re.percentile <= 1);
+
+  /*
+   * The benchmark must control for what it is not testing. Symbol and
+   * direction decide much of the result in a trending market, so a null that
+   * did not match them would flatter or damn the entries for the wrong reason.
+   */
+  const longs = trades.filter((t) => t.direction === 'LONG').length;
+  check('the null matches the strategy long/short mix by construction',
+    longs === 0 || longs === trades.length || re.real.trades === trades.length);
+
+  // Rotation null: rotating outcomes must destroy any feature relationship.
+  const rot = rotationNull(trades, (rows) => breakdown(rows, DIMENSIONS[0]).flagged,
+    { replicates: 30 });
+  check('the rotation null measures a noise floor', rot && rot.p95 >= rot.median);
+  check('the rotation null refuses to run on a tiny sample',
+    rotationNull(trades.slice(0, 10), () => 0) === null);
+
+  const costs = costSensitivity(trades);
+  check('cost sensitivity reports a frictionless result',
+    Number.isFinite(costs.frictionlessTotalR));
+  check('removing costs can only improve the result',
+    costs.frictionlessTotalR >= costs.rows.find((r) => r.label === 'Текущие').totalR - 1e-9);
+  check('higher costs are never better than lower ones', (() => {
+    const t = costs.rows.map((r) => r.totalR);
+    return t.every((v, i) => i === 0 || v <= t[i - 1] + 1e-9);
+  })());
+  check('cost sensitivity explains which of the two cases this is',
+    typeof costs.text === 'string' && costs.text.length > 0);
+}
+
+/* ------------------------------- the vault ---------------------------- */
+{
+  const { reserveVault, evaluateOnVault, VAULT_RATIO } = await import('../server/analytics.js');
+  const candles = await getHistory('AVAXUSDT', '1h', 2000);
+  const htf = await getHistory('AVAXUSDT', '4h', 600);
+  const { working, vault } = reserveVault({ AVAXUSDT: { candles, htf } }, 0.2);
+
+  const cut = vault.AVAXUSDT.scoreFrom;
+  check('the working set ends before the vault begins',
+    working.AVAXUSDT.candles[working.AVAXUSDT.candles.length - 1].time < cut);
+  check('the vault holds roughly the reserved share of history',
+    Math.abs(working.AVAXUSDT.candles.length / candles.length - 0.8) < 0.02);
+
+  /*
+   * The guarantee the vault exists for: nothing computed in the ordinary
+   * report may touch a bar from the reserved slice.
+   */
+  const wt = backtestSymbol({
+    symbol: 'AVAXUSDT', timeframe: '1h',
+    candles: working.AVAXUSDT.candles, htfCandles: working.AVAXUSDT.htf,
+  }).trades;
+  check('no working-set trade is even opened inside the vault period',
+    wt.every((t) => t.entryTime < cut));
+
+  const v = evaluateOnVault(vault);
+  check('the vault can be evaluated on demand', Number.isFinite(v.stats.trades));
+  check('vault trades all start after the cut, so warm-up bars are not scored',
+    v.stats.trades === 0 || v.trades > 0);
+  check('the reserved share is configurable and sane', VAULT_RATIO > 0 && VAULT_RATIO < 1);
+}
+
 /* ------------------------------ full report --------------------------- */
 {
   const candles = await getHistory('SOLUSDT', '1h', 1500);

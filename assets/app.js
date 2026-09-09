@@ -563,20 +563,32 @@
     if (!mc || !mc.tested) {
       return '<div class="low-sample">Групп, набравших достаточную выборку, пока нет.</div>';
     }
-    // The whole point: a count of findings means nothing without the count of
-    // findings chance alone would produce.
-    const surplus = mc.surplus;
-    const cls = surplus > 2 ? 'ok' : surplus > 0.5 ? 'warn' : 'bad';
-    const label = surplus > 2 ? 'Есть что смотреть'
-      : surplus > 0.5 ? 'На грани' : 'Всё объясняется случайностью';
-    const verdict = surplus > 2
-      ? `Найдено заметно больше, чем даёт случайность — на ${fmtNum(surplus, 1)} группы. ` +
-        'Это повод изучить конкретные разрезы ниже, но всё ещё не основание торговать: ' +
-        'следующий шаг — проверить находку на данных, по которым её не искали.'
-      : surplus > 0.5
-        ? 'Превышение над случайностью есть, но маленькое. На таком не строят решений.'
-        : 'Найденное не превышает то, что даёт чистая случайность. Читать отдельные ' +
-          'группы ниже как открытия — значит обманывать себя.';
+    /*
+     * The measured floor beats the arithmetic one wherever they disagree, and
+     * they do: the 5% rule assumes independent trades, and consecutive trades
+     * share a market regime. So the verdict is decided by what the pipeline
+     * actually reports on data with no relationship in it.
+     */
+    const m = mc.measured;
+    const clears = m ? mc.flagged > m.p95 : mc.surplus > 2;
+    const cls = clears ? 'ok' : 'bad';
+    const label = clears ? 'Выше уровня шума' : 'В пределах шума';
+    const verdict = m
+      ? (clears
+        ? `Найдено ${mc.flagged} групп при измеренном потолке шума ${fmtNum(m.p95, 1)} ` +
+          `(95-й процентиль по ${m.replicates} прогонам на данных, где связи нет по построению). ` +
+          'Это повод изучить разрезы ниже — но не основание торговать: находку ещё нужно ' +
+          'проверить на данных, по которым её не искали.'
+        : `Найдено ${mc.flagged} групп, а тот же конвейер на данных без всякой связи выдаёт ` +
+          `до ${fmtNum(m.p95, 1)} (медиана ${fmtNum(m.median, 1)}, максимум ${fmtNum(m.max, 1)}). ` +
+          'Найденное не выходит за пределы шума. Читать отдельные группы ниже как открытия — ' +
+          'значит обманывать себя.')
+      : 'Уровень шума ещё не измерен — выборки не хватает.';
+    const arith = m
+      ? `<p class="muted small">Арифметическая оценка «5% от ${mc.tested} групп» дала бы
+         ${fmtNum(mc.expected, 1)}. Измеренная выше, потому что сделки не независимы:
+         соседние идут в одном рыночном режиме. Верить надо измеренной.</p>`
+      : '';
     /*
      * The control dimension is the sharpest reading available, and it is a
      * comparison of RATES, not counts: day of week cannot possibly drive
@@ -609,13 +621,91 @@
     return `
       <div class="mc-row">
         <div class="metric"><div class="k">Проверено групп</div><div class="v">${mc.tested}</div></div>
-        <div class="metric"><div class="k">Значимых</div><div class="v">${mc.flagged}</div></div>
-        <div class="metric"><div class="k">Дала бы случайность</div><div class="v">${fmtNum(mc.expected, 1)}</div></div>
-        <div class="metric"><div class="k">Превышение</div>
-          <div class="v ${signCls(surplus)}">${surplus >= 0 ? '+' : ''}${fmtNum(surplus, 1)}</div></div>
+        <div class="metric"><div class="k">Найдено</div><div class="v">${mc.flagged}</div></div>
+        <div class="metric"><div class="k">Потолок шума</div>
+          <div class="v">${m ? fmtNum(m.p95, 1) : '—'}</div>
+          <div class="note">измерено, 95-й процентиль</div></div>
+        <div class="metric"><div class="k">Медиана шума</div>
+          <div class="v">${m ? fmtNum(m.median, 1) : '—'}</div></div>
       </div>
       <div class="verdict-head"><span class="badge ${cls}">${label}</span></div>
-      <p class="analytics-note">${verdict}</p>${control}`;
+      <p class="analytics-note">${verdict}</p>${arith}${control}`;
+  }
+
+  function randomEntryHtml(re) {
+    if (!re) return '<div class="low-sample">Сравнение со случайными входами не считалось.</div>';
+    const V = { beats: ['ok', 'Входы лучше случайных'], same: ['bad', 'Входы неотличимы от случайных'],
+      worse: ['bad', 'Входы хуже случайных'] };
+    const [cls, label] = V[re.verdict] || ['neutral', '—'];
+    return `
+      <div class="verdict-head"><span class="badge ${cls}">${label}</span></div>
+      <div class="mc-row">
+        <div class="metric"><div class="k">Стратегия</div>
+          <div class="v ${signCls(re.real.avgR)}">${fmtR(re.real.avgR)}</div>
+          <div class="note">винрейт ${pctOf(re.real.winRate, 0)}</div></div>
+        <div class="metric"><div class="k">Случайные входы</div>
+          <div class="v ${signCls(re.nullModel.p50)}">${fmtR(re.nullModel.p50)}</div>
+          <div class="note">медиана; винрейт ${pctOf(re.nullModel.medianWinRate, 0)}</div></div>
+        <div class="metric"><div class="k">Разброс случайных</div>
+          <div class="v">${fmtNum(re.nullModel.p05)} … ${fmtNum(re.nullModel.p95)}</div>
+          <div class="note">5–95%, ${re.replicates} прогонов</div></div>
+        <div class="metric"><div class="k">Процентиль</div>
+          <div class="v">${(re.percentile * 100).toFixed(0)}</div>
+          <div class="note">место среди случайных</div></div>
+      </div>
+      <p class="analytics-note">${esc(re.text)}</p>`;
+  }
+
+  function costsHtml(c) {
+    if (!c) return '<div class="low-sample">Расчёт по издержкам не делался.</div>';
+    const rows = c.rows.map((r) => `
+      <tr${r.label === 'Текущие' ? ' class="current"' : ''}>
+        <td>${esc(r.label)}</td>
+        <td class="num ${signCls(r.avgR)}">${fmtR(r.avgR)}</td>
+        <td class="num ${signCls(r.totalR)}">${fmtNum(r.totalR, 1)}R</td>
+        <td class="num opt">${pctOf(r.winRate, 0)}</td>
+      </tr>`).join('');
+    return `
+      <p class="analytics-note">${esc(c.text || '')}</p>
+      <div class="table-wrap">
+        <table class="grid mini">
+          <thead><tr><th>Уровень издержек</th><th class="num">Средний R</th>
+            <th class="num">Сумма</th><th class="num opt">Винрейт</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  function vaultHtml(v) {
+    if (!v) return '<div class="low-sample">Сейф в этом отчёте не заведён.</div>';
+    const times = v.opened ? v.timesOpenedBefore + 1 : v.timesOpenedBefore;
+    // The count is the whole point: a vault opened once is a fair test, opened
+    // repeatedly it is a training set that still calls itself a holdout.
+    const cls = times === 0 ? 'ok' : times === 1 ? 'warn' : 'bad';
+    const label = times === 0 ? 'Запечатан'
+      : times === 1 ? 'Открыт один раз' : `Открыт ${times} раз(а) — израсходован`;
+    let body;
+    if (v.opened && v.result) {
+      const r = v.result;
+      body = `
+        <div class="mc-row">
+          <div class="metric"><div class="k">Сделок</div><div class="v">${r.trades}</div></div>
+          <div class="metric"><div class="k">Средний R</div>
+            <div class="v ${signCls(r.avgR)}">${fmtR(r.avgR)}</div></div>
+          <div class="metric"><div class="k">Сумма</div>
+            <div class="v ${signCls(r.totalR)}">${fmtNum(r.totalR, 1)}R</div></div>
+          <div class="metric"><div class="k">Винрейт</div><div class="v">${pctOf(r.winRate, 0)}</div></div>
+        </div>
+        <p class="analytics-note">${times > 1
+          ? 'Открывается не впервые. Как честная проверка «на невиданных данных» сейф уже израсходован: ' +
+            'решения принимались с оглядкой на прошлые открытия.'
+          : 'Открыт впервые — это и есть та единственная честная проверка, ради которой он лежал закрытым.'}</p>`;
+    } else {
+      body = `<p class="analytics-note">Последние 20% истории не участвуют ни в одном числе на этой
+        вкладке. ${times > 0 ? `Ранее сейф открывали ${times} раз(а), и это уже снизило его ценность.`
+          : 'Ни разу не открывался.'}</p>`;
+    }
+    return `<div class="verdict-head"><span class="badge ${cls}">${label}</span></div>${body}`;
   }
 
   function bucketRows(b) {
@@ -784,6 +874,9 @@
     // dimension out of the same report to say how loose the flagging is.
     state.analytics = rep;
 
+    $('#randomEntryBox').innerHTML = randomEntryHtml(rep.randomEntry);
+    $('#costsBox').innerHTML = costsHtml(rep.costs);
+    $('#vaultBox').innerHTML = vaultHtml(rep.vault);
     $('#mcBox').innerHTML = mcHtml(rep.multipleComparisons);
     $('#tuningBox').innerHTML = tuningHtml(rep.tuning);
     $('#excursionBox').innerHTML = excursionHtml(rep.excursions);

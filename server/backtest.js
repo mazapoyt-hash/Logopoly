@@ -26,11 +26,11 @@ export const COSTS = {
 };
 
 /** Net R multiple of a completed trade, after costs. */
-export function netR({ direction, entry, stop, exit }) {
+export function netR({ direction, entry, stop, exit }, costs = COSTS) {
   const riskFraction = Math.abs(entry - stop) / entry;
   if (!(riskFraction > 0)) return 0;
 
-  const { feeRate, slippageRate } = COSTS;
+  const { feeRate, slippageRate } = costs;
   // Slippage always works against you: worse entry, worse exit.
   const entryEff = direction === 'LONG' ? entry * (1 + slippageRate) : entry * (1 - slippageRate);
   const exitEff = direction === 'LONG' ? exit * (1 - slippageRate) : exit * (1 + slippageRate);
