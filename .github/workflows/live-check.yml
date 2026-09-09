@@ -29,6 +29,8 @@ jobs:
     name: Отчёт
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -39,7 +41,7 @@ jobs:
 
       - run: npm ci
 
-      - name: Собрать отчёт
+      - name: Собрать отчёт и проверку устойчивости
         id: report
         env:
           COINSCOPE_SOURCE: ${{ inputs.source || 'binance' }}
@@ -49,6 +51,8 @@ jobs:
         run: |
           set -o pipefail
           node server/cli-report.js | tee report.md
+          # Also refresh the robustness report the site shows.
+          node server/cli-validate.js || true
         continue-on-error: true
 
       - name: Показать отчёт
@@ -59,6 +63,19 @@ jobs:
           else
             echo "# Отчёт не собрался" >> "$GITHUB_STEP_SUMMARY"
             echo "Скрипт завершился до того, как что-либо вывел — смотрите лог шага выше." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Закоммитить проверку устойчивости
+        if: steps.report.outcome == 'success'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/validation.json 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "Изменений нет."
+          else
+            git commit -m "Проверка устойчивости: $(date -u '+%Y-%m-%d %H:%M UTC')"
+            git pull --rebase --autostash origin main && git push origin HEAD:main
           fi
 
       - name: Сохранить отчёт файлом

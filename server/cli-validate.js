@@ -5,6 +5,7 @@
 import { config } from './config.js';
 import { runValidation } from './validate.js';
 import { Reports } from './db.js';
+import { writeJson, DATA_DIR } from './staticRun.js';
 
 const pct = (v) => (v == null ? '  —  ' : (v * 100).toFixed(1).padStart(5) + '%');
 const num = (v, d = 2) => (v == null || !Number.isFinite(v) ? '  —  ' : v.toFixed(d).padStart(6));
@@ -18,6 +19,8 @@ const report = await runValidation({
   },
 });
 Reports.set('validation', report);
+// The static site reads this file directly; the weekly workflow commits it.
+writeJson(DATA_DIR, 'validation.json', report);
 
 console.log('БАЗОВЫЙ ПРОГОН (текущие настройки)');
 const b = report.baseline;
