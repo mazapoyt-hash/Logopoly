@@ -691,7 +691,8 @@
       <tr${r.profitable ? ' class="current"' : ''}>
         <td>${fmtNum(r.target, 2)}R</td>
         <td class="num">${pctOf(r.winRate, 0)}</td>
-        <td class="num">${pctOf(r.requiredWinRate, 0)}</td>
+        <td class="num${r.impossible ? ' down' : ''}">${pctOf(r.requiredWinRate, 0)}${
+          r.impossible ? ' <span class="ci">невозможно</span>' : ''}</td>
         <td class="num ${signCls(r.gap)}">${(r.gap * 100).toFixed(1)} п.п.</td>
         <td class="num ${signCls(r.avgR)}">${fmtR(r.avgR)}</td>
       </tr>`).join('');

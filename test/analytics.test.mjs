@@ -475,6 +475,19 @@ check('expected false positives scale with the number of buckets tested',
   check('the verdict text names the trap rather than the number',
     /убыточ/i.test(c.text) || near.avgR > 0);
 
+  /*
+   * The point the whole section builds to: past a certain nearness, break-even
+   * needs a win rate above 100%. No signal quality reaches that — the target
+   * itself has made the trade unwinnable, and the report must say so instead
+   * of printing a threshold nobody notices is impossible.
+   */
+  const near2 = winRateCurve(made, { targets: [0.1, 2] });
+  const tiny = near2.rows.find((x) => x.target === 0.1);
+  check('an impossibly near target is flagged as impossible',
+    tiny.impossible === true && tiny.requiredWinRate > 1);
+  check('a reachable target is not flagged impossible',
+    near2.rows.find((x) => x.target === 2).impossible === false);
+
   check('the curve refuses to run on too few trades', winRateCurve(made.slice(0, 10)) === null);
   check('targets beyond the measured excursion ceiling are dropped',
     winRateCurve(made, { targets: [1, 99] }).rows.every((r) => r.target !== 99));

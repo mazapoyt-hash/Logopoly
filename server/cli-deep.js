@@ -222,8 +222,8 @@ function printSummary(rep) {
     out.push('| Цель | Успешных | Нужно для нуля | Разрыв | Средний R |',
       '|---|---:|---:|---:|---:|');
     for (const row of w.rows) {
-      out.push(`| ${row.target}R | ${pct(row.winRate)} | ${pct(row.requiredWinRate)} | ` +
-        `${(row.gap * 100).toFixed(1)} п.п. | ${r2(row.avgR)} |`);
+      out.push(`| ${row.target}R | ${pct(row.winRate)} | ${pct(row.requiredWinRate)}` +
+        `${row.impossible ? ' ⛔' : ''} | ${(row.gap * 100).toFixed(1)} п.п. | ${r2(row.avgR)} |`);
     }
     out.push('');
     out.push(`_${w.note}_\n`);
