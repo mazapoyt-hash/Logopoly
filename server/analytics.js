@@ -31,6 +31,7 @@ import { wilsonInterval } from './probability.js';
 import { GRID } from './validate.js';
 import { randomEntryBenchmark, rotationNull } from './nulls.js';
 import { costSensitivity, tollFromTrades, winRateCurve } from './economics.js';
+import { walkForward, evidenceScale } from './learning.js';
 
 /** Below this a bucket is reported but never called an edge. */
 export const MIN_BUCKET = Number(process.env.COINSCOPE_MIN_BUCKET || 25);
@@ -509,6 +510,7 @@ const pick = (s) => (s ? {
  */
 export function analyse({
   trades, signals = [], dataBySymbol = null, ratio = 0.7, nullReplicates = 200,
+  walkForwardFolds = 5,
 }) {
   const breakdowns = DIMENSIONS.map((d) => breakdown(trades, d));
 
@@ -594,6 +596,12 @@ export function analyse({
      * the win rate AND the higher the win rate needed to break even.
      */
     winRateCurve: winRateCurve(trades),
+    /*
+     * The honest test of "the system should learn from each signal": re-fit on
+     * the past, trade the next window, compare against never adapting at all.
+     */
+    learning: dataBySymbol ? walkForward(dataBySymbol, { folds: walkForwardFolds }) : null,
+    evidenceScale: evidenceScale(),
     minBucket: MIN_BUCKET,
   };
 }

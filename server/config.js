@@ -25,9 +25,29 @@ export const config = {
     timeoutMs: Number(env.BINANCE_TIMEOUT_MS || 15000),
   },
 
-  /** Coins to scan. Order matters only for display. */
+  /**
+   * Coins to scan when the universe is not being chosen automatically.
+   * Order matters only for display.
+   */
   symbols: (env.COINSCOPE_SYMBOLS || 'BTCUSDT,ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,ADAUSDT,AVAXUSDT,LINKUSDT')
     .split(',').map((s) => s.trim().toUpperCase()).filter(Boolean),
+
+  universe: {
+    /**
+     * How many coins to take, ranked by 24h turnover. 0 keeps the hand-written
+     * list above. A wider universe multiplies the sample and is what makes a
+     * cross-sectional idea possible at all.
+     */
+    size: Number(env.COINSCOPE_UNIVERSE || 0),
+    /**
+     * Turnover floor, in quote currency per 24h. This is not a quality filter,
+     * it is a HONESTY filter: the cost model charges a flat 0.05% slippage,
+     * which is defensible on a pair trading hundreds of millions a day and
+     * fiction on a thin one. Including thin coins at a liquid coin's costs
+     * would inflate every result for free.
+     */
+    minQuoteVolume: Number(env.COINSCOPE_MIN_VOLUME || 50e6),
+  },
 
   /** Signal timeframe and the higher timeframe used as a trend filter. */
   timeframe: env.COINSCOPE_TIMEFRAME || '1h',

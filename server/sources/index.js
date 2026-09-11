@@ -56,6 +56,20 @@ export function referenceNow(timeframe = config.timeframe) {
   return src.referenceNow ? src.referenceNow(timeframe) : Date.now();
 }
 
+/**
+ * The coins to work with, chosen by liquidity rather than by hand.
+ *
+ * A wider universe is the cheapest way to multiply the sample — and the only
+ * way a cross-sectional idea (rank coins against each other) becomes testable
+ * at all. It does not, on its own, create an edge: it produces more evidence
+ * about whatever the strategy already is.
+ */
+export async function getUniverse(opts = {}) {
+  const src = activeSource();
+  if (!src.fetchUniverse) return config.symbols.map((symbol) => ({ symbol, quoteVolume: null }));
+  return src.fetchUniverse(opts);
+}
+
 /** Current price for many symbols in one call. */
 export async function getPrices(symbols, timeframe = config.timeframe) {
   return activeSource().fetchPrices(symbols, timeframe);
