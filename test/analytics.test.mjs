@@ -527,6 +527,156 @@ check('expected false positives scale with the number of buckets tested',
   })());
 }
 
+/* ------------------------- sizing and leverage ------------------------ */
+{
+  const { sizing, kellyFraction } = await import('../server/economics.js');
+
+  /*
+   * Leverage is arithmetic, not advice: position/equity = risk% / stop%.
+   * Pinned rather than eyeballed, because a wrong factor here is the kind of
+   * mistake that costs someone their account rather than their afternoon.
+   */
+  const wide = sizing({ entry: 100, stop: 98, riskPct: 1 });   // 2% stop
+  check('a stop twice the risk needs half the account, no leverage',
+    Math.abs(wide.leverage - 0.5) < 1e-9 && wide.needsLeverage === false);
+
+  const tight = sizing({ entry: 100, stop: 99.5, riskPct: 1 }); // 0.5% stop
+  check('a stop tighter than the accepted risk is what creates leverage',
+    Math.abs(tight.leverage - 2) < 1e-9 && tight.needsLeverage === true);
+  check('a nearer stop always means a bigger position, never smaller',
+    tight.positionFraction > wide.positionFraction);
+
+  /*
+   * The check that protects the account: liquidation must sit far enough
+   * beyond the stop that an ordinary wick cannot reach it first. If it can,
+   * the stop is decorative.
+   */
+  const risky = sizing({ entry: 100, stop: 99.9, riskPct: 5 }); // 0.1% stop, 50x
+  check('an extreme size is flagged as dangerous',
+    risky.leverage > 10 && risky.dangerous === true);
+  /*
+   * And flagged for the RIGHT reasons. The safety ratio alone calls this
+   * position fine — liquidation sits 15× further than the stop — which is
+   * exactly backwards: the danger is that a 0.1% stop cannot pay its own
+   * execution, and that at 50× an ordinary gap jumps the stop entirely.
+   */
+  check('the safety ratio alone would have called this position safe',
+    risky.safetyRatio > 3);
+  check('it is caught by the toll instead', risky.costR > 0.5 &&
+    risky.reasons.some((r) => /издержки/.test(r)));
+  check('and by gap risk at high leverage',
+    risky.reasons.some((r) => /гэп/.test(r)));
+  check('a modest size is not flagged',
+    wide.dangerous === false && wide.reasons.length === 0);
+  check('sizing refuses nonsense input',
+    sizing({ entry: 0, stop: 1 }) === null && sizing({ entry: 100, stop: 100 }) === null);
+
+  /*
+   * Kelly on a losing strategy must come out negative, and a negative Kelly
+   * has one meaning: no positive stake grows the account. This is the answer
+   * to "what leverage" when the edge is negative — not "less", but "none".
+   */
+  const losing = kellyFraction({
+    trades: 100, wins: 36, winRate: 0.36, grossWinR: 68, grossLossR: 80,
+  });
+  check('Kelly is negative when the edge is negative',
+    losing.fraction < 0 && losing.positive === false);
+  check('a negative Kelly is explained as "no size works", not "size down"',
+    /отрицательн/i.test(losing.text));
+
+  const winning = kellyFraction({
+    trades: 100, wins: 50, winRate: 0.5, grossWinR: 100, grossLossR: 40,
+  });
+  check('Kelly is positive when the edge is positive', winning.fraction > 0);
+  check('half Kelly is reported alongside full',
+    Math.abs(winning.half - winning.fraction / 2) < 1e-12);
+  check('Kelly needs both wins and losses to mean anything',
+    kellyFraction({ trades: 5, wins: 5, winRate: 1, grossWinR: 5, grossLossR: 0 }) === null);
+}
+
+/* --------------------- live record against backtest ------------------- */
+{
+  const { liveVsBacktest, binomialAtMost } = await import('../server/analytics.js');
+
+  check('the binomial tail is a probability', (() => {
+    const v = binomialAtMost(0, 6, 0.357);
+    return v > 0 && v < 1 && Math.abs(v - Math.pow(0.643, 6)) < 1e-6;
+  })());
+  check('more trials make a shutout less likely',
+    binomialAtMost(0, 20, 0.357) < binomialAtMost(0, 6, 0.357));
+
+  const loss = (n) => Array.from({ length: n }, () => ({ status: 'loss', r: -1.1 }));
+
+  /*
+   * The distinction the check exists for. Six losses at a 36% win rate happen
+   * 7% of the time — unlucky, ordinary, no bug. Twenty happen 0.01% of the
+   * time, which is no longer bad luck but live and historical execution having
+   * diverged: a code fault, and a different thing to go fix.
+   */
+  const six = liveVsBacktest(loss(6), { winRate: 0.357 });
+  check('a short losing streak is called consistent, not broken',
+    six.verdict === 'consistent' && six.probability > 0.05);
+  check('the verdict carries the actual probability, not a reassurance',
+    /7\.1%|7%/.test(six.text));
+
+  const twenty = liveVsBacktest(loss(20), { winRate: 0.357 });
+  check('a long losing streak is called a divergence worth debugging',
+    twenty.verdict === 'diverged');
+  check('the divergence text points at the code, not at the strategy',
+    /ошибка в коде/i.test(twenty.text));
+
+  check('too few trades is its own verdict, not a false all-clear',
+    liveVsBacktest(loss(2), { winRate: 0.357 }).verdict === 'tooFew');
+  check('no closed signals means no comparison',
+    liveVsBacktest([], { winRate: 0.357 }).verdict === 'unknown');
+  check('open signals never enter the live record',
+    liveVsBacktest([{ status: 'open', r: null }], { winRate: 0.357 }).trades === 0);
+}
+
+/* ---------------------- screening out the hopeless -------------------- */
+{
+  const { screenByToll } = await import('../server/economics.js');
+
+  /*
+   * The regression this screen exists for. RLUSD — Ripple's dollar — passed a
+   * name-based stablecoin filter, passed the $50M turnover floor, and produced
+   * −8.7R per trade: pegged to a dollar, its ATR-scaled stop is a fraction of
+   * a percent, so a flat 0.2% round trip is many multiples of the risk. One
+   * coin out of fifteen moved the portfolio from −0.12R to −0.41R.
+   *
+   * The fix cannot be a longer list of names. It has to be the mechanism: a
+   * stop too tight to pay its own execution, whatever the coin is called.
+   */
+  const series = (rangePct, n = 500) => Array.from({ length: n }, (_, i) => {
+    const close = 100;
+    const half = (close * rangePct) / 2;
+    return { time: i * 3600_000, open: close, close, high: close + half, low: close - half };
+  });
+
+  const { kept, dropped } = screenByToll({
+    NORMAL: { candles: series(0.02) },     // 2% bars: costs are a small share
+    PEGGED: { candles: series(0.0002) },   // a stablecoin in all but name
+    SHORT: { candles: series(0.02, 50) },  // not enough history to judge
+  });
+
+  check('a coin with normal volatility survives the screen', !!kept.NORMAL);
+  check('a stablecoin is dropped without ever naming stablecoins',
+    !kept.PEGGED && dropped.some((d) => d.symbol === 'PEGGED'));
+  check('the drop reason is the toll, stated with its number', (() => {
+    const d = dropped.find((x) => x.symbol === 'PEGGED');
+    return d && d.costR > 0.5 && Number.isFinite(d.atrPct);
+  })());
+  check('a coin with too little history is dropped separately',
+    !kept.SHORT && dropped.some((d) => d.symbol === 'SHORT' && d.reason === 'мало истории'));
+  check('drops are reported, never silent', dropped.length === 2);
+  check('a flat series with no range at all is dropped, not divided by zero', (() => {
+    const flat = Array.from({ length: 500 }, (_, i) => (
+      { time: i * 3600_000, open: 100, close: 100, high: 100, low: 100 }));
+    const r = screenByToll({ FLAT: { candles: flat } });
+    return !r.kept.FLAT && r.dropped[0].reason === 'нулевая волатильность';
+  })());
+}
+
 /* ------------------------- learning, walk-forward --------------------- */
 {
   const { walkForward, timeFolds, tradesNeeded, evidenceScale } =

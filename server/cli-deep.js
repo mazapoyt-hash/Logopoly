@@ -22,7 +22,7 @@ import { getHistory, checkSource, referenceNow, getUniverse } from './sources/in
 import { backtestSymbol } from './backtest.js';
 import { auditCandles, describeAudit } from './dataQuality.js';
 import { analyse, reserveVault, evaluateOnVault, VAULT_RATIO } from './analytics.js';
-import { tollByTimeframe } from './economics.js';
+import { tollByTimeframe, screenByToll } from './economics.js';
 import { DATA_DIR, loadState, writeJson } from './staticRun.js';
 
 const BARS = Number(process.env.COINSCOPE_HISTORY_BARS || 8000);
@@ -92,12 +92,28 @@ async function main() {
   }
 
   /*
+   * Disqualify by arithmetic before anything else runs. A coin whose stop is
+   * so tight that costs exceed half the risk per trade cannot be traded
+   * profitably by any strategy — see screenByToll for the stablecoin that
+   * taught this the expensive way.
+   */
+  const screen = screenByToll(dataBySymbol);
+  for (const d of screen.dropped) {
+    console.log(`  исключён ${d.symbol}: ${d.reason}` +
+      (d.costR ? ` (ATR ${d.atrPct.toFixed(3)}%, пошлина ${r2(d.costR)}R)` : ` (${d.bars} свечей)`));
+  }
+  const screened = screen.kept;
+  if (screen.dropped.length) {
+    console.log(`Осталось монет: ${Object.keys(screened).length} из ${symbols.length}.`);
+  }
+
+  /*
    * The most recent slice is locked away before anything is computed, so no
    * part of the ordinary report — not the breakdowns, not the parameter
    * search, not the nulls — can see it. See reserveVault for why a plain
    * 70/30 split stops being a holdout after a few iterations.
    */
-  const { working, vault } = reserveVault(dataBySymbol);
+  const { working, vault } = reserveVault(screened);
   console.log(`\nПоследние ${Math.round(VAULT_RATIO * 100)}% истории убраны в сейф ` +
     'и в отчёте не участвуют.');
 
@@ -117,8 +133,10 @@ async function main() {
     `${Math.round((1 - RATIO) * 100)})…`);
   const report = analyse({ trades, signals: closedSignals, dataBySymbol: working, ratio: RATIO });
   report.history = {
-    requested: BARS, timeframe: config.timeframe, quality, vaultRatio: VAULT_RATIO,
-    symbols: symbols.length,
+    requestedBars: BARS, timeframe: config.timeframe, quality, vaultRatio: VAULT_RATIO,
+    symbols: Object.keys(screened).length,
+    symbolsRequested: symbols.length,
+    screened: screen.dropped,
     universe: universe && {
       size: universe.length, minQuoteVolume: config.universe.minQuoteVolume,
       coins: universe.map((u) => ({ symbol: u.symbol, quoteVolume: u.quoteVolume })),
@@ -126,6 +144,7 @@ async function main() {
   };
   report.vault = openVaultIfAsked(vault);
   report.tollByTimeframe = tollByTimeframe(byTimeframe);
+  report.screen = { maxTollR: screen.maxTollR, dropped: screen.dropped };
 
   writeJson(DATA_DIR, 'analytics.json', report);
   console.log(`\nЗаписано: ${path.join(DATA_DIR, 'analytics.json')}`);
@@ -235,6 +254,18 @@ function printSummary(rep) {
       }
       out.push('');
     }
+  }
+
+  if (rep.screen?.dropped?.length) {
+    out.push('## Исключённые монеты\n');
+    out.push(`Порог: пошлина выше ${r2(rep.screen.maxTollR)}R на сделку — такую монету ` +
+      'не спасёт никакая стратегия, поэтому она не участвует ни в одном числе ниже.\n');
+    out.push('| Монета | Причина | ATR | Пошлина |', '|---|---|---:|---:|');
+    for (const d of rep.screen.dropped) {
+      out.push(`| ${d.symbol} | ${d.reason} | ${d.atrPct != null ? d.atrPct.toFixed(3) + '%' : '—'} | ` +
+        `${d.costR != null ? r2(d.costR) + 'R' : '—'} |`);
+    }
+    out.push('');
   }
 
   if (rep.learning) {
