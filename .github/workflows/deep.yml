@@ -20,6 +20,10 @@ on:
         description: 'Доля истории для подбора параметров; остальное — проверка'
         required: false
         default: '0.7'
+      universe:
+        description: 'Сколько монет брать по обороту (0 — список из настроек)'
+        required: false
+        default: '40'
 
 concurrency:
   group: coinscope-deep
@@ -31,9 +35,9 @@ permissions:
 jobs:
   analyse:
     runs-on: ubuntu-latest
-    # Paging ~8000 candles for 8 coins on two timeframes, then running a 96-cell
-    # grid twice. Slow, not stuck.
-    timeout-minutes: 45
+    # Paging ~8000 candles for up to 40 coins on three timeframes, then the
+    # parameter grid, the null models and the walk-forward folds. Slow, not stuck.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -49,6 +53,8 @@ jobs:
           COINSCOPE_SOURCE: binance
           COINSCOPE_HISTORY_BARS: ${{ github.event.inputs.bars || '8000' }}
           COINSCOPE_HOLDOUT_RATIO: ${{ github.event.inputs.ratio || '0.7' }}
+          COINSCOPE_UNIVERSE: ${{ github.event.inputs.universe || '40' }}
+          COINSCOPE_MIN_VOLUME: '50000000'
         run: node server/cli-deep.js | tee deep.log
 
       - name: Закоммитить отчёт

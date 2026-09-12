@@ -64,6 +64,11 @@ jobs:
         id: scan
         env:
           COINSCOPE_SOURCE: binance
+          # A signal needs a rare confluence, so how often one appears scales
+          # with how many coins are watched — not with how loose the thresholds
+          # are. Widening the universe raises the rate without lowering the bar.
+          COINSCOPE_UNIVERSE: '40'
+          COINSCOPE_MIN_VOLUME: '50000000'
         run: node server/cli-scan.js | tee scan.log
 
       - name: Закоммитить данные

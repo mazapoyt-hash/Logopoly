@@ -18,7 +18,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { config, timeframeMs } from './config.js';
-import { getHistory, checkSource, referenceNow } from './sources/index.js';
+import { getHistory, checkSource, referenceNow, getUniverse } from './sources/index.js';
 import { backtestSymbol } from './backtest.js';
 import { auditCandles, describeAudit } from './dataQuality.js';
 import { analyse, reserveVault, evaluateOnVault, VAULT_RATIO } from './analytics.js';
@@ -46,8 +46,25 @@ async function main() {
   // The higher timeframe has to cover the same span plus its own EMA200 warm-up.
   const htfBars = Math.ceil((BARS * tfMs) / htfMs) + 300;
 
+  /*
+   * A wider universe multiplies the sample, which is the cheapest real
+   * improvement available. Chosen by turnover, not by hand: see
+   * config.universe.minQuoteVolume for why the floor is an honesty filter
+   * rather than a quality one.
+   */
+  let symbols = config.symbols;
+  let universe = null;
+  if (config.universe.size > 0) {
+    universe = await getUniverse({
+      limit: config.universe.size, minQuoteVolume: config.universe.minQuoteVolume,
+    });
+    if (universe.length) symbols = universe.map((u) => u.symbol);
+    console.log(`Вселенная: ${symbols.length} монет с оборотом от ` +
+      `$${(config.universe.minQuoteVolume / 1e6).toFixed(0)}M за сутки.`);
+  }
+
   console.log(`Источник: ${config.source}. Запрашиваю ${BARS} свечей ${config.timeframe} ` +
-    `и ${htfBars} свечей ${config.higherTimeframe} по каждой из ${config.symbols.length} монет.`);
+    `и ${htfBars} свечей ${config.higherTimeframe} по каждой из ${symbols.length} монет.`);
 
   const dataBySymbol = {};
   const quality = [];
@@ -55,7 +72,7 @@ async function main() {
   // different share of risk depending on how wide an ATR-scaled stop is.
   const byTimeframe = { [config.timeframe]: {}, [config.higherTimeframe]: {}, '1d': {} };
 
-  for (const symbol of config.symbols) {
+  for (const symbol of symbols) {
     const candles = await getHistory(symbol, config.timeframe, BARS);
     const htf = await getHistory(symbol, config.higherTimeframe, htfBars);
     dataBySymbol[symbol] = { candles, htf };
@@ -101,6 +118,11 @@ async function main() {
   const report = analyse({ trades, signals: closedSignals, dataBySymbol: working, ratio: RATIO });
   report.history = {
     requested: BARS, timeframe: config.timeframe, quality, vaultRatio: VAULT_RATIO,
+    symbols: symbols.length,
+    universe: universe && {
+      size: universe.length, minQuoteVolume: config.universe.minQuoteVolume,
+      coins: universe.map((u) => ({ symbol: u.symbol, quoteVolume: u.quoteVolume })),
+    },
   };
   report.vault = openVaultIfAsked(vault);
   report.tollByTimeframe = tollByTimeframe(byTimeframe);
@@ -213,6 +235,31 @@ function printSummary(rep) {
       }
       out.push('');
     }
+  }
+
+  if (rep.learning) {
+    const l = rep.learning;
+    out.push('## Помогает ли переобучение по ходу\n');
+    out.push(l.text.replace(/\*\*/g, '**') + '\n');
+    out.push('| Окно | Выбрал | Обещал | Дал | Без адаптации |',
+      '|---|---|---:|---:|---:|');
+    for (const s of l.steps) {
+      const p = s.chose ? `score≥${s.chose.minScore}, ${s.chose.atrStopMult}×ATR, 1:${s.chose.rewardRisk}`
+        : 'нечего выбирать';
+      out.push(`| ${s.fold} | ${p} | ${r2(s.expectedAvgR)} | ${r2(s.adaptive.avgR)} | ` +
+        `${r2(s.fixed.avgR)} |`);
+    }
+    out.push('');
+  }
+
+  if (rep.evidenceScale) {
+    out.push('## Сколько сделок нужно, чтобы вообще увидеть край\n');
+    out.push('| Размер края | Нужно сделок |', '|---|---:|');
+    for (const e of rep.evidenceScale) out.push(`| ${e.edge}R | ${e.trades} |`);
+    out.push('');
+    out.push('_Разброс одной сделки около 1R. Отсюда n = (2 / край)². Система, которая ' +
+      'учится после каждого сигнала, реагирует на одну тысячную той выборки, по которой ' +
+      'вообще можно понять, было ли чему учиться._\n');
   }
 
   if (rep.winRateCurve) {

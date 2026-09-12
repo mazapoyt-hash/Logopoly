@@ -248,6 +248,47 @@ export async function fetchPrices(symbols) {
 }
 
 /** Sanity check used at startup so a misconfigured host fails loudly. */
+/**
+ * The tradable universe, ranked by how much money actually moves through it.
+ *
+ * Adding coins is the cheapest way to multiply the sample, but "more" is the
+ * wrong selection rule. The whole cost model assumes a fixed 0.05% slippage,
+ * and that assumption is defensible on a pair turning over hundreds of
+ * millions a day and fantasy on one turning over two. Ranking by 24h quote
+ * volume and cutting below a floor keeps the assumption honest — a universe
+ * chosen by "whatever exists" would quietly inflate every result by charging
+ * illiquid coins a liquid coin's costs.
+ *
+ * Excluded on sight: anything not quoted in USDT, leveraged tokens (UP/DOWN/
+ * BULL/BEAR — they track a derivative, not the coin), and stablecoin pairs,
+ * whose price barely moves and whose ATR-scaled stops would be absurd.
+ */
+export function selectUniverse(rows, { limit = 40, minQuoteVolume = 50e6 } = {}) {
+  if (!Array.isArray(rows)) throw new Error('Binance 24hr: expected an array');
+
+  const STABLE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDP|EUR|GBP|AEUR|USD1)USDT$/;
+  const LEVERAGED = /(UP|DOWN|BULL|BEAR)USDT$/;
+
+  return rows
+    .filter((r) => typeof r?.symbol === 'string' && r.symbol.endsWith('USDT'))
+    .filter((r) => !STABLE.test(r.symbol) && !LEVERAGED.test(r.symbol))
+    .map((r) => ({
+      symbol: r.symbol,
+      quoteVolume: Number(r.quoteVolume),
+      trades: Number(r.count),
+      changePct: Number(r.priceChangePercent),
+    }))
+    .filter((r) => Number.isFinite(r.quoteVolume) && r.quoteVolume >= minQuoteVolume)
+    .sort((a, b) => b.quoteVolume - a.quoteVolume)
+    .slice(0, limit);
+}
+
+/** Live universe from the exchange. Falls back to the configured list on error. */
+export async function fetchUniverse(opts = {}) {
+  const rows = await request('/api/v3/ticker/24hr', {});
+  return selectUniverse(rows, opts);
+}
+
 export async function ping() {
   await request('/api/v3/ping', {});
   return true;

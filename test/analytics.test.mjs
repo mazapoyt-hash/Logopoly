@@ -493,6 +493,93 @@ check('expected false positives scale with the number of buckets tested',
     winRateCurve(made, { targets: [1, 99] }).rows.every((r) => r.target !== 99));
 }
 
+/* ------------------------------ the universe -------------------------- */
+{
+  const { selectUniverse } = await import('../server/sources/binance.js');
+
+  const rows = [
+    { symbol: 'BTCUSDT', quoteVolume: '5e9', count: 1 },
+    { symbol: 'ETHUSDT', quoteVolume: '2e9', count: 1 },
+    { symbol: 'MIDUSDT', quoteVolume: '2e8', count: 1 },
+    { symbol: 'THINUSDT', quoteVolume: '1e6', count: 1 },   // below the floor
+    { symbol: 'USDCUSDT', quoteVolume: '9e9', count: 1 },   // stablecoin pair
+    { symbol: 'BTCUPUSDT', quoteVolume: '8e9', count: 1 },  // leveraged token
+    { symbol: 'ETHBTC', quoteVolume: '9e9', count: 1 },     // not quoted in USDT
+  ];
+  const u = selectUniverse(rows, { limit: 10, minQuoteVolume: 50e6 });
+  const names = u.map((x) => x.symbol);
+
+  check('the universe is ranked by turnover, biggest first',
+    names[0] === 'BTCUSDT' && names[1] === 'ETHUSDT');
+  /*
+   * The floor is an honesty filter, not a quality one: the cost model charges
+   * a flat 0.05% slippage, which is fiction on a thin pair. Letting thin coins
+   * in at a liquid coin's costs would inflate every result for free.
+   */
+  check('coins below the turnover floor are excluded', !names.includes('THINUSDT'));
+  check('stablecoin pairs are excluded', !names.includes('USDCUSDT'));
+  check('leveraged tokens are excluded', !names.includes('BTCUPUSDT'));
+  check('pairs not quoted in USDT are excluded', !names.includes('ETHBTC'));
+  check('the limit is respected',
+    selectUniverse(rows, { limit: 2, minQuoteVolume: 50e6 }).length === 2);
+  check('a malformed payload is rejected loudly', (() => {
+    try { selectUniverse(null); return false; } catch { return true; }
+  })());
+}
+
+/* ------------------------- learning, walk-forward --------------------- */
+{
+  const { walkForward, timeFolds, tradesNeeded, evidenceScale } =
+    await import('../server/learning.js');
+
+  /*
+   * The arithmetic that makes per-signal learning hopeless, pinned rather than
+   * argued: with a 1R per-trade spread, telling an 0.05R edge from zero at two
+   * standard errors takes 1600 trades. A rule that updates after every signal
+   * is reacting to one sixteen-hundredth of the needed evidence.
+   */
+  check('evidence needed scales with the inverse square of the edge',
+    tradesNeeded(0.05) === 1600 && tradesNeeded(0.1) === 400 && tradesNeeded(0.2) === 100);
+  check('a smaller edge always needs more trades, never fewer', (() => {
+    const s = evidenceScale();
+    return s.every((x, i) => i === 0 || x.trades <= s[i - 1].trades);
+  })());
+  check('a zero or negative edge has no sample size that finds it',
+    tradesNeeded(0) === null && tradesNeeded(-0.1) === null);
+
+  const data = {};
+  for (const s of ['BTCUSDT', 'ETHUSDT']) {
+    data[s] = { candles: await getHistory(s, '1h', 2600), htf: await getHistory(s, '4h', 800) };
+  }
+
+  const folds = timeFolds(data, 5);
+  check('folds cover the timeline in order without gaps',
+    folds.length === 5 && folds.every((f, i) => i === 0 || f.from === folds[i - 1].to));
+
+  const wf = walkForward(data, { folds: 5 });
+  check('walk-forward produces a verdict from the known set',
+    ['helps', 'hurts', 'noise'].includes(wf.verdict));
+  check('the first fold is training only, never graded', wf.steps.every((s) => s.fold >= 1));
+  check('every fold compares adapting against never adapting',
+    wf.steps.every((s) => s.adaptive && s.fixed));
+
+  /*
+   * The guarantee that makes this a fair test rather than a flattering one:
+   * a fold's parameters must be chosen from data strictly BEFORE that fold.
+   * Choosing on the fold itself would make adaptation win every time and mean
+   * nothing at all.
+   */
+  check('parameters for a fold are chosen only from earlier folds',
+    wf.steps.every((s) => s.chosenOnTrades === 0 || s.from >= folds[1].from));
+  check('the shortfall between promise and delivery is reported',
+    wf.steps.some((s) => Number.isFinite(s.shortfall)));
+  check('the verdict text states both numbers being compared',
+    wf.text.includes(wf.adaptiveAvgR.toFixed(3)) && wf.text.includes(wf.fixedAvgR.toFixed(3)));
+
+  check('walk-forward refuses to run with too few folds',
+    walkForward(data, { folds: 2 }) === null);
+}
+
 /* ------------------------------- the vault ---------------------------- */
 {
   const { reserveVault, evaluateOnVault, VAULT_RATIO } = await import('../server/analytics.js');

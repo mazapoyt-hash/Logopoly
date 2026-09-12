@@ -120,6 +120,19 @@ export function fetchCandlesRange(symbol, timeframe, bars) {
 }
 
 /**
+ * A deterministic stand-in universe, so the wider-universe pipeline can be
+ * exercised offline. Volumes are invented and deliberately ordered, which is
+ * all the selection logic needs; they say nothing about any real market.
+ */
+export async function fetchUniverse({ limit = 40 } = {}) {
+  const names = Object.keys(BASE_PRICE);
+  const extra = Array.from({ length: 60 }, (_, i) => `SYN${i}USDT`);
+  return [...names, ...extra].slice(0, limit).map((symbol, i) => ({
+    symbol, quoteVolume: 1e9 / (i + 1), trades: 100000 - i * 100, changePct: 0,
+  }));
+}
+
+/**
  * The clock this source runs on. Freshness must be judged against it, not
  * against the wall clock: with a pinned anchor the series is deliberately
  * historical, and calling that "stale" would be measuring the wrong thing.

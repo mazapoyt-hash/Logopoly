@@ -685,6 +685,64 @@
       </div>`;
   }
 
+  function learningHtml(l, scale) {
+    const evidence = !scale ? '' : `
+      <p class="analytics-note">
+        Разброс одной сделки около 1R, поэтому чтобы отличить край размера <i>e</i> от нуля,
+        нужно примерно (2/<i>e</i>)² сделок:
+      </p>
+      <div class="table-wrap">
+        <table class="grid mini">
+          <thead><tr><th>Размер края</th><th class="num">Нужно сделок</th></tr></thead>
+          <tbody>${scale.map((e) => `<tr><td>${e.edge}R</td>
+            <td class="num">${e.trades}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+      <p class="muted small">
+        Отсюда и вывод: система, которая подстраивается после каждого сигнала, реагирует на
+        сотую или тысячную долю той выборки, по которой вообще можно понять, было ли чему
+        учиться. Накопление опыта — да; пересмотр правил по каждой сделке — нет.
+      </p>`;
+
+    if (!l) {
+      return `<div class="low-sample">Проверка переобучения не запускалась.</div>${evidence}`;
+    }
+    const V = { helps: ['ok', 'Адаптация окупается'], hurts: ['bad', 'Адаптация делает хуже'],
+      noise: ['warn', 'Адаптация ничего не меняет'] };
+    const [cls, label] = V[l.verdict] || ['neutral', '—'];
+    const rows = l.steps.map((s) => `
+      <tr>
+        <td>${s.fold}</td>
+        <td class="small">${s.chose
+          ? `score≥${s.chose.minScore}, ${fmtNum(s.chose.atrStopMult, 2)}×ATR, 1:${s.chose.rewardRisk}`
+          : '<span class="muted">нечего выбирать</span>'}</td>
+        <td class="num opt">${fmtR(s.expectedAvgR)}</td>
+        <td class="num ${signCls(s.adaptive.avgR)}">${fmtR(s.adaptive.avgR)}</td>
+        <td class="num ${signCls(s.fixed.avgR)}">${fmtR(s.fixed.avgR)}</td>
+      </tr>`).join('');
+    return `
+      <div class="verdict-head"><span class="badge ${cls}">${label}</span></div>
+      <div class="mc-row">
+        <div class="metric"><div class="k">С адаптацией</div>
+          <div class="v ${signCls(l.adaptiveAvgR)}">${fmtR(l.adaptiveAvgR)}</div></div>
+        <div class="metric"><div class="k">Без адаптации</div>
+          <div class="v ${signCls(l.fixedAvgR)}">${fmtR(l.fixedAvgR)}</div></div>
+        <div class="metric"><div class="k">Разница</div>
+          <div class="v ${signCls(l.delta)}">${fmtR(l.delta)}</div></div>
+        <div class="metric"><div class="k">Окон выиграно</div>
+          <div class="v">${l.foldsWonByAdaptive} из ${l.folds}</div></div>
+      </div>
+      <p class="analytics-note">${l.text.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')}</p>
+      <div class="table-wrap">
+        <table class="grid mini">
+          <thead><tr><th>Окно</th><th>Что выбрал по прошлому</th>
+            <th class="num opt">Обещал</th><th class="num">Дал</th>
+            <th class="num">Без адаптации</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>${evidence}`;
+  }
+
   function winRateHtml(w) {
     if (!w) return '<div class="low-sample">Кривая винрейта не считалась.</div>';
     const rows = w.rows.map((r) => `
@@ -965,6 +1023,7 @@
     state.analytics = rep;
 
     $('#randomEntryBox').innerHTML = randomEntryHtml(rep.randomEntry);
+    $('#learningBox').innerHTML = learningHtml(rep.learning, rep.evidenceScale);
     $('#winRateBox').innerHTML = winRateHtml(rep.winRateCurve);
     $('#tollBox').innerHTML = tollHtml(rep.toll, rep.tollByTimeframe);
     $('#costsBox').innerHTML = costsHtml(rep.costs);

@@ -18,7 +18,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { config, timeframeMs } from './config.js';
-import { getCandles, getPrices, referenceNow, checkSource } from './sources/index.js';
+import { getCandles, getPrices, referenceNow, checkSource, getUniverse } from './sources/index.js';
 import { computeIndicators, htfTrendAt, scanLatest, PARAMS } from './strategy.js';
 import { resolveOnBar, netR, backtestSymbol, summarize } from './backtest.js';
 import { estimateProbability, scoreBucket } from './probability.js';
@@ -80,13 +80,37 @@ export async function runStatic({ dir = DATA_DIR, now = Date.now() } = {}) {
   const collect = makeCollector(state);
   const log = [];
 
+  /*
+   * The coins to scan. A wider universe is the only way to raise how often a
+   * signal appears at all: the strategy fires on a confluence that is rare per
+   * coin, so the rate scales with how many coins are watched, not with how
+   * loose the thresholds are. Loosening thresholds instead would buy frequency
+   * by lowering the bar, which is the opposite of what is wanted.
+   *
+   * The turnover floor stays: a coin thin enough to break the cost assumption
+   * does not belong here however much it would add to the count.
+   */
+  let symbols = config.symbols;
+  let universe = null;
+  if (config.universe.size > 0) {
+    try {
+      universe = await getUniverse({
+        limit: config.universe.size, minQuoteVolume: config.universe.minQuoteVolume,
+      });
+      if (universe.length) symbols = universe.map((u) => u.symbol);
+    } catch (err) {
+      // A universe we cannot fetch is not a reason to skip the scan entirely.
+      log.push(`вселенная недоступна (${err.message}), работаю по списку из настроек`);
+    }
+  }
+
   const health = await checkSource();
   if (!health.ok) {
     // Write a status file so the site can say what is wrong instead of
     // silently showing yesterday's data as if it were current.
     writeJson(dir, 'status.json', {
       updatedAt: now, source: config.source, ok: false, error: health.error,
-      timeframe: config.timeframe, symbols: config.symbols,
+      timeframe: config.timeframe, symbols,
     });
     throw new Error(`источник недоступен: ${health.error}`);
   }
@@ -98,11 +122,11 @@ export async function runStatic({ dir = DATA_DIR, now = Date.now() } = {}) {
 
   // Live prices settle anything that already hit its level between runs.
   let prices = {};
-  try { prices = await getPrices(config.symbols); } catch { /* candles still work */ }
+  try { prices = await getPrices(symbols); } catch { /* candles still work */ }
 
   // Fetch once, use for everything below.
   const data = {};
-  for (const symbol of config.symbols) {
+  for (const symbol of symbols) {
     data[symbol] = {
       candles: await getCandles(symbol, config.timeframe, config.candleLimit, { fresh: true }),
       htf: await getCandles(symbol, config.higherTimeframe, config.candleLimit, { fresh: true }),
@@ -117,7 +141,7 @@ export async function runStatic({ dir = DATA_DIR, now = Date.now() } = {}) {
    */
   const btPerSymbol = [];
   const allTrades = [];
-  for (const symbol of config.symbols) {
+  for (const symbol of symbols) {
     const { candles, htf } = data[symbol];
     if (!candles.length) continue;
     const { trades, stats } = backtestSymbol({ symbol, timeframe: config.timeframe, candles, htfCandles: htf });
@@ -129,7 +153,7 @@ export async function runStatic({ dir = DATA_DIR, now = Date.now() } = {}) {
     score: Math.round(t.score ?? 0), r: t.r, entryTime: t.entryTime,
   }));
 
-  for (const symbol of config.symbols) {
+  for (const symbol of symbols) {
     const { candles, htf } = data[symbol];
     if (!candles.length) continue;
 
@@ -238,7 +262,8 @@ export async function runStatic({ dir = DATA_DIR, now = Date.now() } = {}) {
   writeJson(dir, 'status.json', {
     updatedAt: now, source: config.source, ok: true,
     timeframe: config.timeframe, higherTimeframe: config.higherTimeframe,
-    symbols: config.symbols, strategy: config.strategy,
+    symbols, strategy: config.strategy,
+    universe: universe && { size: universe.length, minQuoteVolume: config.universe.minQuoteVolume },
     minSampleForStats: config.minSampleForStats,
     dataQuality: quality,
     counts: { open: state.signals.filter((s) => s.status === 'open').length, closed: closed.length },
