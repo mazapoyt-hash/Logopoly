@@ -1,0 +1,37 @@
+name: Зонд доступности
+
+# Cheap and diagnostic: asks every candidate market-data host once and prints
+# what came back. It exists because three funding runs were spent discovering,
+# one host at a time, that the derivatives APIs are geo-blocked from GitHub's
+# runners while Binance spot answers fine. One minute here replaces a merge, a
+# run and a report per guess.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # No npm install: the probe uses only built-in fetch, so it runs even when
+      # dependencies are broken or the lockfile is mid-change.
+      - name: Опросить хосты
+        shell: bash
+        run: node server/cli-probe.js | tee probe.log
+
+      - name: Сохранить лог
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-log
+          path: probe.log
+          if-no-files-found: ignore

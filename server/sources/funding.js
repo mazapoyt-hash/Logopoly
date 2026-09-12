@@ -488,31 +488,50 @@ export async function resolveVenue(opts = {}) {
   const failures = [];
 
   for (const venue of VENUES) {
+    /*
+     * A venue qualifies only if it can serve FUNDING, not merely a symbol list.
+     * The previous version checked the ticker alone, and when every ticker was
+     * gated it fell back to a spot-ranked universe while still pointing the
+     * funding fetch at the blocked host — so the run asked a closed door for
+     * sixteen symbols in a row before giving up. Which list we have is useless
+     * if the rates behind it are unreachable, so the rates are what decides.
+     */
+    let universe = null;
     try {
-      const universe = await venue.universe(opts);
-      chosen = { ...venue, universe, route: 'tickers' };
+      universe = await venue.universe(opts);
+    } catch (err) {
+      failures.push(`${venue.label}, список: ${err.message}`);
+      /*
+       * The list is gated but the rates might not be. Rank by SPOT turnover —
+       * a host these runners do reach — and let the funding probe below decide
+       * whether this venue is usable at all.
+       */
+      try {
+        universe = await spotRankedUniverse(opts);
+      } catch (spotErr) {
+        failures.push(`${venue.label}, спот-ранжирование: ${spotErr.message}`);
+        continue;
+      }
+    }
+
+    if (!universe?.length) { failures.push(`${venue.label}: пустой список`); continue; }
+
+    // One cheap funding request decides it. Cheaper than sixteen hopeful ones.
+    try {
+      const probe = await venue.funding(universe[0].symbol, 10);
+      if (!probe.length) throw new Error('история фандинга пуста');
+      chosen = {
+        ...venue, universe,
+        route: universe[0].volumeFrom === 'spot' ? 'spot-ranked' : 'tickers',
+      };
       return chosen;
     } catch (err) {
-      failures.push(`${venue.label}: ${err.message}`);
+      failures.push(`${venue.label}, фандинг ${universe[0].symbol}: ${err.message}`);
     }
   }
 
-  /*
-   * Every venue's ticker is gated. One more try: rank by spot turnover and let
-   * the funding fetch decide what exists. If even that yields nothing, fail with
-   * the full attempt log — a run that cannot measure should at least explain
-   * itself well enough that the next attempt is not another guess.
-   */
-  try {
-    const universe = await spotRankedUniverse(opts);
-    chosen = { ...VENUES[0], universe, route: 'spot-ranked' };
-    return chosen;
-  } catch (err) {
-    failures.push(`спот-ранжирование: ${err.message}`);
-  }
-
   throw new Error(
-    'Ни одна площадка не отдала список перпетуалов.\n' +
+    'Ни одна площадка не отдала историю фандинга.\n' +
     failures.map((f) => `  — ${f}`).join('\n') +
     '\nВсе запросы:\n' + describeAttempts(),
   );
