@@ -16,6 +16,8 @@ import {
   parseFunding, mergeByTime, medianIntervalMs, selectPerpUniverse, syntheticFunding,
   parsePerpSymbols, parseBybitFunding, parseBybitTickers, parseBybitPerps,
   describeAttempts, clearHttpLog, httpLog, resetVenue,
+  parseOkxFunding, parseOkxTickers, parseOkxPerps, parseOkxCandles,
+  okxPerpId, okxSpotId, symbolFromOkx,
 } from '../server/sources/funding.js';
 
 const results = [];
@@ -721,6 +723,100 @@ const series = (rates, { intervalMs = 8 * HOUR, start = 1_700_000_000_000 } = {}
     /шлагбаум/.test(reason({ status: 202, bytes: 0, snippet: '' })));
   check('an answering host is simply answering',
     reason({ ok: true }) === 'отвечает');
+}
+
+/* ------------------------------ okx parsing --------------------------- */
+{
+  /*
+   * OKX was chosen by measurement, not preference: the reachability probe found
+   * Binance (spot AND futures) answering 451 and Bybit 403 from CI, while OKX
+   * answers — and OKX lists both spot and perpetual markets for the same coin,
+   * so the basis stays inside one venue instead of becoming a spread between two.
+   *
+   * Three things differ from Binance and all three are silent when wrong, which
+   * is why each gets a test: symbol shape, the string `code` envelope, and the
+   * fact that turnover has to be BUILT rather than read.
+   */
+  check('a perpetual instrument id is built from our symbol',
+    okxPerpId('BTCUSDT') === 'BTC-USDT-SWAP');
+  check('a spot instrument id is the same coin without the swap suffix',
+    okxSpotId('BTCUSDT') === 'BTC-USDT');
+  check('both instrument shapes map back to our symbol',
+    symbolFromOkx('BTC-USDT-SWAP') === 'BTCUSDT' && symbolFromOkx('BTC-USDT') === 'BTCUSDT');
+
+  const funding = parseOkxFunding([
+    { instId: 'BTC-USDT-SWAP', fundingRate: '0.0002', realizedRate: '0.00011', fundingTime: '2000' },
+    { instId: 'BTC-USDT-SWAP', fundingRate: '0.0002', realizedRate: '-0.00004', fundingTime: '1000' },
+  ]);
+  check('okx funding is parsed and sorted ascending',
+    funding.length === 2 && funding[0].time === 1000);
+  /*
+   * The realized rate is what was actually charged; the predicted one can differ.
+   * This measurement is about money that moved, so preferring `fundingRate` here
+   * would quietly measure a forecast instead of a payment.
+   */
+  check('the realized rate is used, not the predicted one',
+    funding[0].rate === -0.00004 && funding[1].rate === 0.00011);
+  check('a row with no usable rate is rejected rather than read as NaN', (() => {
+    try { parseOkxFunding([{ fundingTime: '1', realizedRate: 'x', fundingRate: 'y' }]); return false; }
+    catch { return true; }
+  })());
+
+  /*
+   * The trap in OKX tickers: `volCcy24h` is in the BASE currency, so it is a
+   * different quantity for every coin. Ranking the universe by it directly would
+   * put a cheap coin with huge unit volume above a liquid one.
+   */
+  const tickers = parseOkxTickers([
+    { instId: 'BTC-USDT-SWAP', volCcy24h: '1000', last: '60000' },
+    { instId: 'DOGE-USDT-SWAP', volCcy24h: '1000000000', last: '0.0001' },
+    { instId: 'BTC-USD-SWAP', volCcy24h: '500', last: '60000' },
+  ]);
+  check('quote turnover is built from base volume times price',
+    tickers.find((t) => t.symbol === 'BTCUSDT').quoteVolume === 60e6);
+  check('a coin with huge unit volume but a tiny price does not outrank it',
+    tickers.find((t) => t.symbol === 'DOGEUSDT').quoteVolume === 100000);
+  check('coin-margined instruments are not mistaken for USDT ones',
+    !tickers.some((t) => t.symbol === 'BTCUSD'));
+
+  const perps = parseOkxPerps([
+    { instId: 'BTC-USDT-SWAP', state: 'live' },
+    { instId: 'ETH-USDT-SWAP', state: 'suspend' },
+    { instId: 'BTC-USD-SWAP', state: 'live' },
+  ]);
+  check('only live USDT swaps are kept', perps.length === 1 && perps[0] === 'BTCUSDT');
+
+  // OKX candles arrive newest-first; every series downstream assumes ascending.
+  const candles = parseOkxCandles([
+    ['2000', '2', '3', '1', '2.5', '10', '20', '30', '1'],
+    ['1000', '1', '2', '0.5', '1.5', '10', '20', '30', '1'],
+  ]);
+  check('okx candles come back in ascending time order',
+    candles[0].time === 1000 && candles[1].time === 2000);
+  check('okx candle prices are numbers', candles[0].close === 1.5 && candles[1].high === 3);
+}
+
+/* -------------------- which venue each leg sits on -------------------- */
+{
+  /*
+   * The flag that decides how the basis panel must be read. OKX serves both
+   * legs, so its basis is intra-venue — the tighter, truer risk. A perp on one
+   * exchange against spot on another is a working position whose basis is a
+   * spread BETWEEN venues, and reporting one as the other understates exactly
+   * what the panel exists to show.
+   *
+   * An earlier version derived this from the perp venue alone and so called an
+   * OKX pair cross-venue even when OKX served both legs.
+   */
+  const crossVenue = (perpVenue, spotVenues) => spotVenues.some((v) => v && v !== perpVenue &&
+    !(v === 'binance' && perpVenue === 'binance-futures'));
+
+  check('okx perp with okx spot is NOT cross-venue', !crossVenue('okx', ['okx']));
+  check('okx perp with binance spot IS cross-venue', crossVenue('okx', ['binance']));
+  check('binance futures with binance spot is not cross-venue',
+    !crossVenue('binance-futures', ['binance']));
+  check('a mix of spot sources counts as cross-venue',
+    crossVenue('okx', ['okx', 'binance']));
 }
 
 /* ------------------------- the workflow that lied --------------------- */
