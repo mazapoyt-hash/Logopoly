@@ -134,6 +134,13 @@ export function describeFunding(points, { intervalMs = null, leverage = LEVERAGE
      */
     breakEvenPeriods: m > 0 ? trip / m : Infinity,
     breakEvenDays: m > 0 ? (trip / m) * (interval / DAY_MS) : Infinity,
+    /*
+     * Infinity does not survive JSON — it serialises to null, and a null reads
+     * downstream as "not computed" rather than "never pays for itself". The site
+     * and the summary both need that distinction, so it is stated as a boolean
+     * instead of inferred from a missing number.
+     */
+    breakEvenReachable: m > 0,
     roundTripPct: trip * 100,
   };
 }
@@ -146,6 +153,75 @@ const medianGap = (points) => {
   }
   return median(gaps);
 };
+
+/**
+ * Is the portfolio average a fact about the market, or about one coin?
+ *
+ * THE READING ERROR THIS EXISTS TO PREVENT
+ *
+ * The first live OKX run produced a mean of −0.0096% per settlement and the
+ * report called the harvest unprofitable. Both true. But the MEDIAN settlement
+ * was +0.0042%, nineteen of twenty-four coins paid positively, and one coin —
+ * LABUSDT at −0.172% per 8 hours — contributed −0.0150% to that mean, more than
+ * the entire negative total. Drop it and the same data reads +0.0060% per
+ * settlement, about +4.9% a year on capital.
+ *
+ * So "funding harvesting does not pay" was not what the data said. What it said
+ * was "an equal-weight basket containing a coin that charges 0.17% every eight
+ * hours does not pay", which nobody would trade and which is a statement about
+ * portfolio construction, not about funding.
+ *
+ * This is the same mistake RLUSD caused on the strategy side, where one pegged
+ * coin produced −1233R of a −1514R total. The lesson there was that the guard
+ * has to be a MECHANISM rather than a list of names — and the mechanism here is
+ * not a filter (filtering on the outcome would be choosing the answer) but a
+ * concentration check: say out loud when the aggregate rests on one symbol, and
+ * report what the rest of the universe did without it.
+ */
+export function meanConcentration(perSymbol) {
+  const rows = (perSymbol || []).filter((r) => Number.isFinite(r.meanRate) && r.periods > 0);
+  if (rows.length < 3) return null;
+
+  const totalPeriods = rows.reduce((s, r) => s + r.periods, 0);
+  if (!(totalPeriods > 0)) return null;
+
+  const pooled = rows.reduce((s, r) => s + r.meanRate * r.periods, 0) / totalPeriods;
+
+  const contributions = rows.map((r) => ({
+    symbol: r.symbol,
+    periods: r.periods,
+    meanRate: r.meanRate,
+    /** How much of the pooled mean this one symbol accounts for. */
+    contribution: (r.meanRate * r.periods) / totalPeriods,
+  })).sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution));
+
+  const top = contributions[0];
+  const withoutTop = rows.filter((r) => r.symbol !== top.symbol);
+  const restPeriods = withoutTop.reduce((s, r) => s + r.periods, 0);
+  const pooledWithoutTop = restPeriods > 0
+    ? withoutTop.reduce((s, r) => s + r.meanRate * r.periods, 0) / restPeriods
+    : null;
+
+  /*
+   * Dominated when one symbol's contribution is larger in magnitude than the
+   * whole pooled mean: removing it then moves the aggregate by more than the
+   * aggregate itself, and in practice flips its sign.
+   */
+  const dominated = Math.abs(top.contribution) > Math.abs(pooled);
+  const flipsSign = pooledWithoutTop != null && Math.sign(pooledWithoutTop) !== Math.sign(pooled);
+
+  return {
+    pooled,
+    medianOfSymbols: median(rows.map((r) => r.meanRate)),
+    positiveSymbols: rows.filter((r) => r.meanRate > 0).length,
+    symbols: rows.length,
+    top,
+    pooledWithoutTop,
+    dominated,
+    flipsSign,
+    contributions: contributions.slice(0, 5),
+  };
+}
 
 /**
  * The worst stretch, which is what decides whether the position is holdable.
@@ -582,14 +658,21 @@ export function analyseFunding({
 
   const curve = harvestCurve(portfolio, { leverage, costs });
   const persistence = persistenceTest(working, { topK, leverage });
+  const concentration = meanConcentration(perSymbol);
 
   /*
-   * Compounding is quoted on the selected basket when a selection rule survived,
-   * and on the universe average when it did not. Quoting the picked basket's
-   * yield after the null said the picks were indistinguishable from random
-   * would be reporting the best slice of noise as a plan.
+   * Compounding is quoted on the selected basket ONLY when the selection rule
+   * actually survived — `persists`, nothing weaker.
+   *
+   * The first live run showed why the earlier threshold was wrong. Persistence
+   * came back `weak` (rho 0.34, p = 0.087 — not significant at 5%), and because
+   * `weak` was accepted here the report quoted the picked basket's 7.3% a year
+   * and printed "doubling in 9.8 years". That is the best slice of noise
+   * presented as a plan, which is precisely what the comment above claims to
+   * prevent. A rule that cannot clear p < 0.05 does not get to name the rate.
    */
-  const annualForCompounding = persistence && (persistence.verdict === 'persists' || persistence.verdict === 'weak')
+  const ruleSurvived = persistence?.verdict === 'persists';
+  const annualForCompounding = ruleSurvived
     ? persistence.pickedAnnualPct
     : (persistence?.universeAnnualPct ?? (portfolio ? portfolio.annualOnCapital * 100 : null));
 
@@ -608,6 +691,21 @@ export function analyseFunding({
     : null;
 
   const compound = compounding(annualForCompounding);
+  if (compound) {
+    /*
+     * Say which basket the rate came from. "Doubling in N years" reads as a plan
+     * either way, and the difference between "the whole universe paid this" and
+     * "five coins a ranking picked paid this" is the difference between a
+     * measurement and a hope.
+     */
+    compound.basis = ruleSurvived ? 'picked' : 'universe';
+    compound.basisText = ruleSurvived
+      ? `Ставка взята по отобранной корзине (топ-${persistence.topK}): отбор подтвердился ` +
+        `вне выборки (ρ=${persistence.rank.rho?.toFixed(2)}, p=${persistence.rank.p?.toFixed(3)}).`
+      : 'Ставка взята по **всей вселенной**, а не по отобранной корзине: отбор вне выборки ' +
+        'не подтвердился, и цитировать доходность пяти выбранных монет значило бы показать ' +
+        'лучший срез шума как план.';
+  }
 
   return {
     generatedAt: Date.now(),
@@ -625,8 +723,9 @@ export function analyseFunding({
     compound,
     intendedHoldDays: intendedHold,
     shortLegRisk: shortRisk ? { ...shortRisk, symbol: riskSymbol } : null,
+    concentration,
     vault: reserved.info,
-    verdict: verdictOf({ portfolio, curve, persistence, shortRisk, measured: fromMarket }),
+    verdict: verdictOf({ portfolio, curve, persistence, shortRisk, concentration, measured: fromMarket }),
   };
 }
 
@@ -636,7 +735,7 @@ export function analyseFunding({
  * to be able to end the same way rather than being graded on having been my own
  * suggestion.
  */
-export function verdictOf({ portfolio, curve, persistence, shortRisk, measured = true }) {
+export function verdictOf({ portfolio, curve, persistence, shortRisk, concentration, measured = true }) {
   if (!portfolio) return { code: 'unknown', text: 'Данных не хватает для вывода.' };
 
   if (!measured) {
@@ -653,6 +752,33 @@ export function verdictOf({ portfolio, curve, persistence, shortRisk, measured =
   const breakEven = portfolio.breakEvenDays;
 
   if (!(portfolio.meanRate > 0)) {
+    /*
+     * A negative mean made by ONE symbol is not a verdict about funding, and
+     * saying otherwise is the error LABUSDT produced on the first live run:
+     * mean −0.0096%, median +0.0042%, nineteen of twenty-four coins positive,
+     * and one coin contributing more than the whole negative total. The honest
+     * answer names both numbers and says what the aggregate actually describes.
+     */
+    if (concentration?.dominated && concentration.flipsSign) {
+      const c = concentration;
+      return {
+        code: 'dominated',
+        text: `Среднее по выборке отрицательное (${(portfolio.meanRate * 100).toFixed(4)}% за ` +
+          `${portfolio.intervalHours.toFixed(0)} ч), **но его делает одна монета**: ` +
+          `${c.top.symbol} со ставкой ${(c.top.meanRate * 100).toFixed(4)}% даёт вклад ` +
+          `${(c.top.contribution * 100).toFixed(4)}% — больше, чем весь отрицательный итог. ` +
+          `Без неё те же данные дают ${(c.pooledWithoutTop * 100).toFixed(4)}% за период. ` +
+          `Медианная монета платит ${(c.medianOfSymbols * 100).toFixed(4)}%, положительных — ` +
+          `${c.positiveSymbols} из ${c.symbols}. ` +
+          'Значит, это утверждение не про сбор фандинга, а про равновзвешенную корзину, в которую ' +
+          'попала монета, берущая свою ставку каждые несколько часов. Такую корзину никто не держит, ' +
+          'и вывод «фандинг не платит» этими данными **не подтверждается**. Что подтверждается — ' +
+          'что состав портфеля здесь важнее самой ставки.',
+        annualPct: portfolio.annualOnCapital * 100,
+        dominatedBy: c.top.symbol,
+      };
+    }
+
     return {
       code: 'negative',
       text: `Средний фандинг на этой выборке отрицательный (${(portfolio.meanRate * 100).toFixed(4)}% за ` +
