@@ -543,10 +543,15 @@ const series = (rates, { intervalMs = 8 * HOUR, start = 1_700_000_000_000 } = {}
   // Binance futures gated with 202/empty; bybit healthy.
   resetVenue(); clearHttpLog();
   const hosts = [];
+  const bybitFundingPage = JSON.stringify({
+    retCode: 0, retMsg: 'OK',
+    result: { list: [{ symbol: 'BTCUSDT', fundingRate: '0.0001', fundingRateTimestamp: '1700000000000' }] },
+  });
   globalThis.fetch = async (url) => {
     const u = new URL(String(url));
     hosts.push(u.host);
     if (u.host.startsWith('fapi')) return reply('', 202);
+    if (u.pathname === '/v5/market/funding/history') return reply(bybitFundingPage);
     return reply(bybitTickers);
   };
   const uni = await mod.getPerpUniverse({ limit: 10, minQuoteVolume: 50e6 });
@@ -581,13 +586,52 @@ const series = (rates, { intervalMs = 8 * HOUR, start = 1_700_000_000_000 } = {}
     }
     return reply('', 202);
   };
+  let gatedErr = null;
+  try { await mod.getPerpUniverse({ limit: 10, minQuoteVolume: 50e6 }); } catch (e) { gatedErr = e; }
+  globalThis.fetch = realFetch;
+
+  /*
+   * The flaw the third live run exposed. The old code chose a venue on its
+   * TICKER alone, so with every ticker gated it fell back to a spot-ranked list
+   * while still pointing the funding fetch at the blocked host — and then asked
+   * that closed door for sixteen symbols in a row. A list is worthless if the
+   * rates behind it are unreachable, so the rates decide.
+   */
+  check('a venue whose funding is gated is rejected, not used with a spot list',
+    gatedErr != null && /историю фандинга/.test(gatedErr.message));
+  const fundingCalls = paths.filter((p) => p.includes('/fapi/v1/fundingRate')).length;
+  check('and it is rejected after one probe, not after one request per symbol',
+    fundingCalls > 0 && fundingCalls <= 6);
+  check('the last-resort route never asks a gated futures host for the list',
+    !paths.some((p) => p.includes('/fapi/v1/exchangeInfo')));
+
+  /*
+   * The same spot-ranked route, now with funding that actually answers: the
+   * route must still be taken, and still be NAMED, so spot turnover is never
+   * passed off as perpetual turnover.
+   */
+  resetVenue(); clearHttpLog();
+  globalThis.fetch = async (url) => {
+    const u = new URL(String(url));
+    if (u.pathname === '/fapi/v1/ticker/24hr') return reply('', 202);
+    if (u.pathname === '/fapi/v1/fundingRate') {
+      return reply(JSON.stringify([
+        { symbol: 'BTCUSDT', fundingTime: 1700000000000, fundingRate: '0.0001', markPrice: '60000' },
+      ]));
+    }
+    if (u.pathname === '/api/v3/ticker/24hr') {
+      return reply(JSON.stringify([
+        { symbol: 'BTCUSDT', quoteVolume: '9000000000', count: 1, priceChangePercent: '1' },
+        { symbol: 'ETHUSDT', quoteVolume: '4000000000', count: 1, priceChangePercent: '1' },
+      ]));
+    }
+    return reply('', 202);
+  };
   const spotRanked = await mod.getPerpUniverse({ limit: 10, minQuoteVolume: 50e6 });
   globalThis.fetch = realFetch;
 
-  check('with every venue gated the universe still comes from spot turnover',
-    spotRanked.length === 2 && spotRanked.every((r) => r.volumeFrom === 'spot'));
-  check('the last-resort route never asks a gated futures host for the list',
-    !paths.some((p) => p.includes('/fapi/v1/exchangeInfo')));
+  check('a gated LIST with working funding still yields a universe from spot turnover',
+    spotRanked.length > 0 && spotRanked.every((r) => r.volumeFrom === 'spot'));
   check('the route is named, so spot turnover is not passed off as perp turnover',
     mod.activeVenue()?.route === 'spot-ranked' && /оборот спота/.test(mod.sourceLabel()));
 
@@ -601,6 +645,8 @@ const series = (rates, { intervalMs = 8 * HOUR, start = 1_700_000_000_000 } = {}
 
   check('when nothing answers, the error lists every venue tried',
     err && /binance futures/.test(err.message) && /bybit/.test(err.message));
+  check('and says the missing thing was funding history, not a symbol list',
+    err && /историю фандинга/.test(err.message));
   check('and every HTTP attempt with its status and body size',
     err && /202/.test(err.message) && /пустое тело/.test(err.message));
   check('the attempt log is renderable on its own',
@@ -635,6 +681,46 @@ const series = (rates, { intervalMs = 8 * HOUR, start = 1_700_000_000_000 } = {}
   ] });
   check('bybit dated futures are not counted as perpetuals',
     perps.length === 1 && perps[0] === 'BTCUSDT');
+}
+
+/* --------------------- the probe must not guess causes ----------------- */
+{
+  /*
+   * The probe exists to report, and its first version broke that by asserting
+   * every 403 was "a geo-block, usually CloudFront by country". Run in the
+   * development sandbox, every 403 was in fact the environment's own egress
+   * allowlist — the probe stated the wrong cause with total confidence, inside
+   * the one tool built to stop exactly that.
+   */
+  // Any request at import time would be visible here.
+  let probeRan = false;
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => { probeRan = true; return { ok: false, status: 0, text: async () => '' }; };
+  const { reason } = await import('../server/cli-probe.js');
+  await new Promise((r) => setTimeout(r, 50));
+  globalThis.fetch = realFetch;
+
+  /*
+   * And the guard that makes this import safe at all. Without it, importing the
+   * probe FIRED it — ten live requests from inside `npm test`, in a suite that
+   * runs with COINSCOPE_SOURCE=synthetic precisely so it cannot reach an
+   * exchange. A module doing its work at import time voids that silently.
+   */
+  check('importing the probe does not run it',
+    !probeRan);
+
+  check('an egress block is named as the environment, not as the venue',
+    /egress/.test(reason({ status: 403, bytes: 102, snippet: 'Host not in allowlist: api.binance.com. Add this host to your network egress settings.' })));
+  check('a real geo-restriction is named as the venue',
+    /локации/.test(reason({ status: 451, bytes: 224, snippet: '{"code":0,"msg":"Service unavailable from a restricted location according to..."}' })));
+  check('a CloudFront country block is named as such',
+    /CloudFront/.test(reason({ status: 403, bytes: 96, snippet: 'error: The Amazon CloudFront distribution is configured to block access from your country' })));
+  check('an unexplained 403 does not get a cause invented for it',
+    !/гео|CloudFront|egress/.test(reason({ status: 403, bytes: 12, snippet: 'nope' })));
+  check('a 2xx with an empty body is reported as a gate, not as reachable',
+    /шлагбаум/.test(reason({ status: 202, bytes: 0, snippet: '' })));
+  check('an answering host is simply answering',
+    reason({ ok: true }) === 'отвечает');
 }
 
 /* ------------------------- the workflow that lied --------------------- */
