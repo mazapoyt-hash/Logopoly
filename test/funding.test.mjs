@@ -14,7 +14,8 @@ import {
 } from '../server/funding.js';
 import {
   parseFunding, mergeByTime, medianIntervalMs, selectPerpUniverse, syntheticFunding,
-  parsePerpSymbols,
+  parsePerpSymbols, parseBybitFunding, parseBybitTickers, parseBybitPerps,
+  describeAttempts, clearHttpLog, httpLog, resetVenue,
 } from '../server/sources/funding.js';
 
 const results = [];
@@ -499,6 +500,141 @@ const series = (rates, { intervalMs = 8 * HOUR, start = 1_700_000_000_000 } = {}
   const ok = await mod.fetchFundingRange('BTCUSDT', 10);
   globalThis.fetch = realFetch;
   check('a valid body still comes back parsed', ok.length === 1 && ok[0].rate === 0.0001);
+}
+
+/* ---------------- the gate, and venue failover around it --------------- */
+{
+  /*
+   * The second live run, reproduced. Binance futures answered **202 with an
+   * empty body** from all three hosts — a gate, not an API error — and the run
+   * ended with no measurement at all. Two things must hold: a gated venue is
+   * abandoned for the next one rather than ending the run, and the failure (when
+   * everything is gated) names every attempt instead of a bare stack trace.
+   */
+  const realFetch = globalThis.fetch;
+  const reply = (body, status = 200) => ({
+    ok: status >= 200 && status < 300, status,
+    text: async () => body,
+    json: async () => JSON.parse(body),
+  });
+
+  const mod = await import('../server/sources/funding.js');
+
+  /*
+   * The suite runs with COINSCOPE_SOURCE=synthetic so no test can touch an
+   * exchange — but these tests are ABOUT the live path, and with the offline
+   * branch taken they would pass while exercising nothing. Flip the source for
+   * this block only; every request is served by the mock above, so nothing
+   * leaves the machine.
+   */
+  const { config } = await import('../server/config.js');
+  const realSource = config.source;
+  config.source = 'binance';
+
+  const bybitTickers = JSON.stringify({
+    retCode: 0, retMsg: 'OK',
+    result: { list: [
+      { symbol: 'BTCUSDT', turnover24h: '9000000000' },
+      { symbol: 'ETHUSDT', turnover24h: '4000000000' },
+      { symbol: 'THINUSDT', turnover24h: '1000000' },
+    ] },
+  });
+
+  // Binance futures gated with 202/empty; bybit healthy.
+  resetVenue(); clearHttpLog();
+  const hosts = [];
+  globalThis.fetch = async (url) => {
+    const u = new URL(String(url));
+    hosts.push(u.host);
+    if (u.host.startsWith('fapi')) return reply('', 202);
+    return reply(bybitTickers);
+  };
+  const uni = await mod.getPerpUniverse({ limit: 10, minQuoteVolume: 50e6 });
+  globalThis.fetch = realFetch;
+
+  check('a gated venue does not end the run — the next one is tried',
+    uni.length === 2 && uni[0].symbol === 'BTCUSDT');
+  check('the fallback venue is actually a different host',
+    hosts.some((h) => h.startsWith('fapi')) && hosts.some((h) => h.includes('bybit')));
+  check('the report can say which venue answered',
+    mod.activeVenue()?.id === 'bybit' && /bybit/.test(mod.sourceLabel()));
+  check('the gate is visible in the attempt log',
+    httpLog().some((a) => a.status === 202 && a.bodyLength === 0));
+
+  /*
+   * And the flaw in my own first fallback: it began with /fapi/v1/exchangeInfo,
+   * so it failed wherever the primary path failed. A fallback that needs the
+   * gate to open is not a fallback. With every venue ticker gated, the last
+   * route must reach only the SPOT host — which these runners do reach.
+   */
+  resetVenue(); clearHttpLog();
+  const paths = [];
+  globalThis.fetch = async (url) => {
+    const u = new URL(String(url));
+    paths.push(u.host + u.pathname);
+    if (u.host.startsWith('fapi') || u.host.includes('bybit')) return reply('', 202);
+    if (u.pathname === '/api/v3/ticker/24hr') {
+      return reply(JSON.stringify([
+        { symbol: 'BTCUSDT', quoteVolume: '9000000000', count: 1, priceChangePercent: '1' },
+        { symbol: 'ETHUSDT', quoteVolume: '4000000000', count: 1, priceChangePercent: '1' },
+      ]));
+    }
+    return reply('', 202);
+  };
+  const spotRanked = await mod.getPerpUniverse({ limit: 10, minQuoteVolume: 50e6 });
+  globalThis.fetch = realFetch;
+
+  check('with every venue gated the universe still comes from spot turnover',
+    spotRanked.length === 2 && spotRanked.every((r) => r.volumeFrom === 'spot'));
+  check('the last-resort route never asks a gated futures host for the list',
+    !paths.some((p) => p.includes('/fapi/v1/exchangeInfo')));
+  check('the route is named, so spot turnover is not passed off as perp turnover',
+    mod.activeVenue()?.route === 'spot-ranked' && /оборот спота/.test(mod.sourceLabel()));
+
+  // Everything closed, including spot: the error must teach, not just fail.
+  resetVenue(); clearHttpLog();
+  globalThis.fetch = async () => reply('', 202);
+  let err = null;
+  try { await mod.getPerpUniverse({ limit: 10 }); } catch (e) { err = e; }
+  globalThis.fetch = realFetch;
+  resetVenue();
+
+  check('when nothing answers, the error lists every venue tried',
+    err && /binance futures/.test(err.message) && /bybit/.test(err.message));
+  check('and every HTTP attempt with its status and body size',
+    err && /202/.test(err.message) && /пустое тело/.test(err.message));
+  check('the attempt log is renderable on its own',
+    /202/.test(describeAttempts()));
+
+  config.source = realSource;
+  check('the offline guard is restored, so no later test can reach an exchange',
+    config.source === realSource);
+}
+
+/* ----------------------------- bybit parsing -------------------------- */
+{
+  const funding = parseBybitFunding({ list: [
+    { symbol: 'BTCUSDT', fundingRate: '0.0001', fundingRateTimestamp: '2000' },
+    { symbol: 'BTCUSDT', fundingRate: '-0.00005', fundingRateTimestamp: '1000' },
+  ] });
+  check('bybit funding is parsed and sorted ascending',
+    funding.length === 2 && funding[0].time === 1000 && funding[0].rate === -0.00005);
+  check('bybit rates keep their sign', funding.some((p) => p.rate < 0));
+  let threw = false;
+  try { parseBybitFunding({ list: [{ fundingRate: 'x', fundingRateTimestamp: '1' }] }); } catch { threw = true; }
+  check('a bybit row with a bad rate is rejected, not read as NaN', threw);
+
+  const tickers = parseBybitTickers({ list: [{ symbol: 'BTCUSDT', turnover24h: '9000000000' }] });
+  check('bybit turnover is already in the quote currency, so it maps straight across',
+    tickers[0].quoteVolume === 9e9);
+
+  const perps = parseBybitPerps({ list: [
+    { symbol: 'BTCUSDT', contractType: 'LinearPerpetual', status: 'Trading', quoteCoin: 'USDT' },
+    { symbol: 'BTCUSDT-28MAR25', contractType: 'LinearFutures', status: 'Trading', quoteCoin: 'USDT' },
+    { symbol: 'OLDUSDT', contractType: 'LinearPerpetual', status: 'Closed', quoteCoin: 'USDT' },
+  ] });
+  check('bybit dated futures are not counted as perpetuals',
+    perps.length === 1 && perps[0] === 'BTCUSDT');
 }
 
 /* ------------------------- the workflow that lied --------------------- */
