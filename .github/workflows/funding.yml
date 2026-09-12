@@ -65,6 +65,10 @@ jobs:
           COINSCOPE_FUNDING_LEVERAGE: ${{ github.event.inputs.leverage || '3' }}
           COINSCOPE_MIN_VOLUME: '50000000'
           COINSCOPE_OPEN_VAULT: ${{ github.event.inputs.open_vault == 'да' && '1' || '0' }}
+        # `shell: bash` adds -o pipefail. Without it the pipe returns tee's exit
+        # code, so a crashed measurement reported SUCCESS here and surfaced two
+        # steps later as "pathspec 'funding.json' did not match any files".
+        shell: bash
         run: node server/cli-funding.js | tee funding.log
 
       - name: Закоммитить отчёт

@@ -52,22 +52,56 @@ async function request(path, params, { attempts = 3 } = {}) {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), config.binance.timeoutMs);
       let status = null;
+      let emptyBody = false;
       try {
-        const res = await fetch(url, { signal: ctrl.signal });
+        const res = await fetch(url, {
+          signal: ctrl.signal,
+          // Without these the futures host has been observed answering 200 with
+          // an empty body, which is what broke the first live run.
+          headers: { accept: 'application/json', 'user-agent': 'coinscope/0.1' },
+        });
         status = res.status;
+
+        /*
+         * Never `res.json()` straight off a 200. The first live run died exactly
+         * there: the futures ticker answered 200 with an EMPTY body, and
+         * `Unexpected end of JSON input` came out of undici's internals with no
+         * hint of which host, which path, or that the body was empty at all.
+         * An ok status is a claim about the transport, not about the payload —
+         * so the body is read as text and parsed here, where a failure can say
+         * what actually arrived and be retried like any other bad answer.
+         */
+        const text = await res.text();
         if (res.ok) {
-          preferredHost = (preferredHost + hostTry) % hosts.length;
-          return await res.json();
+          if (!text.trim()) {
+            emptyBody = true;
+            lastError = new Error(
+              `Binance futures ${res.status} on ${path} (${host}): пустое тело ответа`);
+          } else {
+            try {
+              const data = JSON.parse(text);
+              preferredHost = (preferredHost + hostTry) % hosts.length;
+              return data;
+            } catch {
+              emptyBody = true;     // not JSON: same treatment, retry then fail over
+              lastError = new Error(
+                `Binance futures ${res.status} on ${path} (${host}): тело не JSON — ` +
+                `${text.slice(0, 160)}`);
+            }
+          }
+        } else {
+          lastError = new Error(
+            `Binance futures ${res.status} on ${path} (${host}): ${text.slice(0, 160)}`);
         }
-        const body = await res.text().catch(() => '');
-        lastError = new Error(`Binance futures ${res.status} on ${path} (${host}): ${body.slice(0, 160)}`);
       } catch (err) {
         lastError = err;
       } finally {
         clearTimeout(timer);
       }
 
-      const action = classifyStatus(status);
+      // A 200 carrying nothing is not a success and not a permanent failure:
+      // retry here, then let the loop try a mirror.
+      const action = emptyBody ? 'retry' : classifyStatus(status);
       if (action === 'fatal') throw lastError;
       if (action === 'nextHost') { abandonHost = true; break; }
       if (attempt < attempts - 1) {
@@ -203,9 +237,62 @@ export function selectPerpUniverse(rows, { limit = 40, minQuoteVolume = 50e6 } =
     .slice(0, limit);
 }
 
+/**
+ * Perpetual symbols straight from the contract catalogue.
+ *
+ * Used as the fallback universe, and it is stricter than the ticker in one way
+ * that matters: it states the contract type, so quarterly deliveries cannot
+ * sneak in. They have funding of their own shape and a fixed expiry, and mixing
+ * them into a perpetual harvest would measure two different instruments as one.
+ */
+export function parsePerpSymbols(info) {
+  const symbols = info?.symbols;
+  if (!Array.isArray(symbols)) throw new Error('Binance futures exchangeInfo: expected symbols[]');
+  return symbols
+    .filter((s) => s?.contractType === 'PERPETUAL' && s?.status === 'TRADING' && s?.quoteAsset === 'USDT')
+    .map((s) => s.symbol);
+}
+
+/**
+ * The universe, with a fallback that does not depend on one heavy endpoint.
+ *
+ * The first live run died on `/fapi/v1/ticker/24hr` answering 200 with an empty
+ * body — a single request, with no volume data, no universe, and therefore no
+ * measurement at all. Ranking by turnover is worth keeping (it is what makes the
+ * flat cost assumption defensible), but it should not be the only way in. So:
+ * the futures ticker first; failing that, the contract catalogue for WHICH
+ * perpetuals exist, ranked by their SPOT turnover from `api.binance.com` — a
+ * different host, and the one this project already fetches candles from every
+ * hour. Spot turnover is not perp turnover, but as a liquidity ordering it is
+ * close enough to choose twenty-five coins by, and the report says which route
+ * produced the list.
+ */
 export async function fetchPerpUniverse(opts = {}) {
-  const rows = await request('/fapi/v1/ticker/24hr', {});
-  return selectPerpUniverse(rows, opts);
+  try {
+    const rows = await request('/fapi/v1/ticker/24hr', {});
+    const uni = selectPerpUniverse(rows, opts);
+    if (uni.length) return uni;
+    throw new Error('Фьючерсный тикер вернул пустой список');
+  } catch (err) {
+    const info = await request('/fapi/v1/exchangeInfo', {});
+    const perps = new Set(parsePerpSymbols(info));
+
+    const spot = await import('./binance.js');
+    const byVolume = await spot.fetchUniverse({
+      limit: Math.max((opts.limit || 40) * 4, 100),
+      minQuoteVolume: opts.minQuoteVolume ?? 50e6,
+    });
+
+    const uni = byVolume
+      .filter((r) => perps.has(r.symbol))
+      .slice(0, opts.limit || 40)
+      .map((r) => ({ ...r, volumeFrom: 'spot' }));
+
+    if (!uni.length) throw err;    // both routes failed: report the first cause
+    console.log(`Фьючерсный тикер недоступен (${err.message}); вселенная собрана из ` +
+      `каталога контрактов и оборота спота.`);
+    return uni;
+  }
 }
 
 export async function ping() {

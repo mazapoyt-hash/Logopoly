@@ -14,6 +14,7 @@ import {
 } from '../server/funding.js';
 import {
   parseFunding, mergeByTime, medianIntervalMs, selectPerpUniverse, syntheticFunding,
+  parsePerpSymbols,
 } from '../server/sources/funding.js';
 
 const results = [];
@@ -418,6 +419,104 @@ const series = (rates, { intervalMs = 8 * HOUR, start = 1_700_000_000_000 } = {}
     !uni.some((u) => u.symbol === 'THINUSDT'));
   check('only USDT-quoted perpetuals are kept', uni.every((u) => u.symbol.endsWith('USDT')));
   check('the universe is ranked by turnover', uni[0].symbol === 'BTCUSDT');
+
+  /*
+   * The fallback route, and the one thing it does better than the ticker: it
+   * states the contract type, so a quarterly delivery cannot slip in. Those have
+   * a fixed expiry and funding of a different shape; measuring them alongside
+   * perpetuals would pool two instruments into one number.
+   */
+  const info = {
+    symbols: [
+      { symbol: 'BTCUSDT', contractType: 'PERPETUAL', status: 'TRADING', quoteAsset: 'USDT' },
+      { symbol: 'BTCUSDT_251226', contractType: 'CURRENT_QUARTER', status: 'TRADING', quoteAsset: 'USDT' },
+      { symbol: 'OLDUSDT', contractType: 'PERPETUAL', status: 'SETTLING', quoteAsset: 'USDT' },
+      { symbol: 'ETHUSDC', contractType: 'PERPETUAL', status: 'TRADING', quoteAsset: 'USDC' },
+      { symbol: 'ETHUSDT', contractType: 'PERPETUAL', status: 'TRADING', quoteAsset: 'USDT' },
+    ],
+  };
+  const perps = parsePerpSymbols(info);
+  check('the contract catalogue yields only live USDT perpetuals',
+    perps.length === 2 && perps.includes('BTCUSDT') && perps.includes('ETHUSDT'));
+  check('a quarterly delivery contract is not treated as a perpetual',
+    !perps.includes('BTCUSDT_251226'));
+  check('a contract that is no longer trading is dropped', !perps.includes('OLDUSDT'));
+  let threwInfo = false;
+  try { parsePerpSymbols({}); } catch { threwInfo = true; }
+  check('a malformed catalogue fails loudly rather than yielding an empty universe', threwInfo);
+}
+
+/* ------------------- the failure that killed the first run ------------- */
+{
+  /*
+   * The first live run died on `SyntaxError: Unexpected end of JSON input` from
+   * inside undici, because `request()` called res.json() straight off a 200 and
+   * the futures ticker answered 200 with an EMPTY body. The stack named no host,
+   * no path, and did not say the body was empty.
+   *
+   * This replaces global fetch to reproduce that exact answer and assert two
+   * things: the run does not crash on it, and whatever comes out names the
+   * problem. An ok status is a claim about the transport, never about the payload.
+   */
+  const realFetch = globalThis.fetch;
+  const seen = [];
+  const reply = (body, status = 200) => ({
+    ok: status >= 200 && status < 300,
+    status,
+    text: async () => body,
+    json: async () => JSON.parse(body),
+  });
+
+  const mod = await import('../server/sources/funding.js');
+
+  globalThis.fetch = async (url) => { seen.push(String(url)); return reply(''); };
+  let err = null;
+  try {
+    await mod.fetchFundingRange('BTCUSDT', 100);
+  } catch (e) { err = e; }
+  globalThis.fetch = realFetch;
+
+  check('a 200 with an empty body does not surface as a JSON parse error',
+    err && !/Unexpected end of JSON input/.test(err.message));
+  check('the error says the body was empty', err && /пустое тело/.test(err.message));
+  check('the error names the path and the host',
+    err && /fundingRate/.test(err.message) && /fapi/.test(err.message));
+  check('an empty body is retried and then failed over to a mirror, not given up on',
+    new Set(seen.map((u) => new URL(u).host)).size > 1);
+
+  // Valid status, body that is not JSON at all — same treatment, clearer message.
+  globalThis.fetch = async () => reply('<html>blocked</html>');
+  let err2 = null;
+  try { await mod.fetchFundingRange('BTCUSDT', 100); } catch (e) { err2 = e; }
+  globalThis.fetch = realFetch;
+  check('a non-JSON 200 is reported as such, with what arrived',
+    err2 && /не JSON/.test(err2.message) && /blocked/.test(err2.message));
+
+  // And the happy path still parses normally through the same code.
+  globalThis.fetch = async () => reply(JSON.stringify([
+    { symbol: 'BTCUSDT', fundingTime: 1000, fundingRate: '0.0001', markPrice: '60000' },
+  ]));
+  const ok = await mod.fetchFundingRange('BTCUSDT', 10);
+  globalThis.fetch = realFetch;
+  check('a valid body still comes back parsed', ok.length === 1 && ok[0].rate === 0.0001);
+}
+
+/* ------------------------- the workflow that lied --------------------- */
+{
+  /*
+   * The second half of the same incident. `node cli-funding.js | tee funding.log`
+   * returns TEE's exit code, so the crashed measurement reported success and the
+   * failure only surfaced two steps later as "pathspec 'data/funding.json' did
+   * not match any files" — a message that points at git rather than at the bug.
+   * Both long-running workflows pipe into tee, so both need pipefail.
+   */
+  const { readFileSync } = await import('node:fs');
+  for (const wf of ['funding.yml', 'deep.yml']) {
+    const text = readFileSync(new URL(`../.github/workflows/${wf}`, import.meta.url), 'utf8');
+    const pipes = text.includes('| tee ');
+    check(`${wf} pipes into tee, so it must not swallow the exit code`,
+      !pipes || /shell: bash/.test(text));
+  }
 }
 
 /* ----------------------------- page wiring ---------------------------- */
