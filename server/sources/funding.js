@@ -1,46 +1,80 @@
 /**
- * Funding-rate history from Binance USDⓈ-M futures (public, read-only).
+ * Funding-rate history for perpetual futures — from whichever venue will serve it.
  *
- * Why a separate source module at all: this lives on a different host from spot
- * market data (`fapi.binance.com`, not `api.binance.com`), the payload has
- * nothing in common with a candle, and the sampling grid is the funding interval
- * rather than a timeframe. Bolting it onto the kline fetcher would have meant
- * two unrelated shapes behind one name.
+ * WHY THIS IS NOT JUST ONE ADAPTER
  *
- * The funding interval is NOT assumed. Most perpetuals settle every 8 hours,
- * but Binance runs some on 4h and a few on 1h, and the interval is changed from
- * time to time. Everything downstream is annualised from the interval measured
- * out of the timestamps themselves, so a 4h symbol is not silently reported at
- * half its real yield.
+ * The first two live runs both died before reading a single rate, and the second
+ * one said why precisely:
+ *
+ *     Binance futures 202 on /fapi/v1/exchangeInfo (https://fapi2.binance.com):
+ *     пустое тело ответа
+ *
+ * A 202 with an empty body, from all three futures hosts, is not an API error —
+ * it is a gate. Binance's SPOT host answers these same runners perfectly (this
+ * project pages thousands of klines off it every hour); only `fapi.*` behaves
+ * that way. So "fetch funding from Binance" is not a reliable plan from a data
+ * centre, and the measurement must not be hostage to one venue's gate.
+ *
+ * The question being measured is what THE MARKET pays for holding the unpopular
+ * side of a perpetual. That is not a question about Binance. So this module
+ * tries venues in order and records which one answered; the report says so, and
+ * every HTTP attempt is logged with its status and body length, so a run that
+ * fails anyway still teaches us something instead of just ending.
+ *
+ * The funding interval is never assumed — most perpetuals settle every 8 hours,
+ * some every 4 or 1, and schedules change. It is measured from the timestamps.
  */
 import { config } from '../config.js';
 import { classifyStatus } from './binance.js';
 
 export const name = 'funding';
 
-/** Futures market-data hosts, in order. Overridable for blocked regions. */
-export function fapiHosts() {
-  const extra = (process.env.BINANCE_FAPI_URLS || '').split(',').map((s) => s.trim()).filter(Boolean);
-  return [...new Set([
-    ...extra,
-    process.env.BINANCE_FAPI_URL || 'https://fapi.binance.com',
-    'https://fapi1.binance.com',
-    'https://fapi2.binance.com',
-  ])];
-}
-
-let preferredHost = 0;
-export const activeHost = () => fapiHosts()[preferredHost] || null;
-
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** One public GET with retries and host failover. Same policy as spot. */
-async function request(path, params, { attempts = 3 } = {}) {
-  const hosts = fapiHosts();
+/* --------------------------- request diagnostics ---------------------- */
+
+/**
+ * Every HTTP attempt, with what came back.
+ *
+ * Two failed runs were spent learning what a plain stack trace refused to say:
+ * which host, which path, what status, and whether a body arrived at all. That
+ * is cheap to record and is the difference between a run that fails and a run
+ * that fails informatively.
+ */
+const log = [];
+export const httpLog = () => [...log];
+export const clearHttpLog = () => { log.length = 0; };
+
+const note = (entry) => {
+  log.push(entry);
+  if (log.length > 200) log.shift();
+  return entry;
+};
+
+/** One line per attempt, for the report and for the error message. */
+export function describeAttempts(entries = log) {
+  if (!entries.length) return 'ни одного запроса не сделано';
+  return entries.map((a) => (
+    `${a.venue} ${a.path} (${a.host}): ${a.status ?? 'нет ответа'}` +
+    (a.bodyLength === 0 ? ', пустое тело' : a.bodyLength == null ? '' : `, ${a.bodyLength} байт`) +
+    (a.detail ? ` — ${a.detail}` : '')
+  )).join('\n');
+}
+
+/* ------------------------------ HTTP plumbing ------------------------- */
+
+/**
+ * One public GET, with retries and host failover, against any venue.
+ *
+ * Never `res.json()` straight off an ok status: the first live run died exactly
+ * there, because an ok status is a claim about the transport and says nothing
+ * about the payload. The body is read as text and parsed here, where a failure
+ * can name the host, the path, and what actually arrived.
+ */
+async function get(venue, hosts, path, params, { attempts = 2 } = {}) {
   let lastError = null;
 
-  for (let hostTry = 0; hostTry < hosts.length; hostTry++) {
-    const host = hosts[(preferredHost + hostTry) % hosts.length];
+  for (const host of hosts) {
     let abandonHost = false;
 
     for (let attempt = 0; attempt < attempts && !abandonHost; attempt++) {
@@ -52,56 +86,49 @@ async function request(path, params, { attempts = 3 } = {}) {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), config.binance.timeoutMs);
       let status = null;
-      let emptyBody = false;
+      let softFail = false;
       try {
         const res = await fetch(url, {
           signal: ctrl.signal,
-          // Without these the futures host has been observed answering 200 with
-          // an empty body, which is what broke the first live run.
-          headers: { accept: 'application/json', 'user-agent': 'coinscope/0.1' },
+          headers: { accept: 'application/json' },
         });
         status = res.status;
-
-        /*
-         * Never `res.json()` straight off a 200. The first live run died exactly
-         * there: the futures ticker answered 200 with an EMPTY body, and
-         * `Unexpected end of JSON input` came out of undici's internals with no
-         * hint of which host, which path, or that the body was empty at all.
-         * An ok status is a claim about the transport, not about the payload —
-         * so the body is read as text and parsed here, where a failure can say
-         * what actually arrived and be retried like any other bad answer.
-         */
         const text = await res.text();
+
         if (res.ok) {
           if (!text.trim()) {
-            emptyBody = true;
-            lastError = new Error(
-              `Binance futures ${res.status} on ${path} (${host}): пустое тело ответа`);
+            /*
+             * The gate that stopped both earlier runs. A 2xx carrying nothing is
+             * neither success nor a permanent error: retry, then try a mirror,
+             * then let the caller move to another venue.
+             */
+            softFail = true;
+            note({ venue, host, path, status, bodyLength: 0 });
+            lastError = new Error(`${venue} ${status} on ${path} (${host}): пустое тело ответа`);
           } else {
             try {
               const data = JSON.parse(text);
-              preferredHost = (preferredHost + hostTry) % hosts.length;
-              return data;
+              note({ venue, host, path, status, bodyLength: text.length, detail: 'ok' });
+              return { data, host };
             } catch {
-              emptyBody = true;     // not JSON: same treatment, retry then fail over
+              softFail = true;
+              note({ venue, host, path, status, bodyLength: text.length, detail: 'не JSON' });
               lastError = new Error(
-                `Binance futures ${res.status} on ${path} (${host}): тело не JSON — ` +
-                `${text.slice(0, 160)}`);
+                `${venue} ${status} on ${path} (${host}): тело не JSON — ${text.slice(0, 120)}`);
             }
           }
         } else {
-          lastError = new Error(
-            `Binance futures ${res.status} on ${path} (${host}): ${text.slice(0, 160)}`);
+          note({ venue, host, path, status, bodyLength: text.length, detail: text.slice(0, 80) });
+          lastError = new Error(`${venue} ${status} on ${path} (${host}): ${text.slice(0, 120)}`);
         }
       } catch (err) {
+        note({ venue, host, path, status, bodyLength: null, detail: err.message.slice(0, 80) });
         lastError = err;
       } finally {
         clearTimeout(timer);
       }
 
-      // A 200 carrying nothing is not a success and not a permanent failure:
-      // retry here, then let the loop try a mirror.
-      const action = emptyBody ? 'retry' : classifyStatus(status);
+      const action = softFail ? 'retry' : classifyStatus(status);
       if (action === 'fatal') throw lastError;
       if (action === 'nextHost') { abandonHost = true; break; }
       if (attempt < attempts - 1) {
@@ -109,13 +136,14 @@ async function request(path, params, { attempts = 3 } = {}) {
       }
     }
   }
-  throw lastError || new Error(`Binance futures: ни один хост не ответил на ${path}`);
+
+  throw lastError || new Error(`${venue}: ни один хост не ответил на ${path}`);
 }
 
-/* ------------------------------- parsing ------------------------------ */
+/* ---------------------------- shared helpers -------------------------- */
 
 /**
- * Funding rows → our shape. A rate is a fraction PER FUNDING INTERVAL
+ * Funding rows → our shape. A rate is a fraction PER SETTLEMENT INTERVAL
  * (0.0001 = 0.01% every 8 hours), which is why it must never be printed
  * without saying per what.
  */
@@ -141,13 +169,20 @@ export function mergeByTime(pages) {
   return [...byTime.values()].sort((a, b) => a.time - b.time);
 }
 
+const median = (xs) => {
+  if (!xs.length) return null;
+  const s = [...xs].sort((a, b) => a - b);
+  const m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+
 /**
  * The settlement interval, measured rather than assumed.
  *
- * The median gap is used, not the mean: a symbol whose schedule was changed
- * mid-history, or one with a missing settlement, would drag a mean far off the
- * grid the series actually sits on, and the annualisation factor would be wrong
- * for the whole sample instead of for a few points.
+ * The median gap, not the mean: a symbol whose schedule changed mid-history, or
+ * one with a missing settlement, would drag a mean off the grid the series
+ * actually sits on, and the annualisation factor would then be wrong for the
+ * whole sample instead of for a few points.
  */
 export function medianIntervalMs(points) {
   if (points.length < 3) return null;
@@ -156,13 +191,39 @@ export function medianIntervalMs(points) {
     const g = points[i].time - points[i - 1].time;
     if (g > 0) gaps.push(g);
   }
-  if (!gaps.length) return null;
-  gaps.sort((a, b) => a - b);
-  const m = gaps.length >> 1;
-  return gaps.length % 2 ? gaps[m] : (gaps[m - 1] + gaps[m]) / 2;
+  return gaps.length ? median(gaps) : null;
 }
 
-/* ------------------------------- fetching ----------------------------- */
+/**
+ * Perpetuals worth harvesting, ranked by turnover.
+ *
+ * The liquidity floor is the same honesty filter as on spot, and here it bites
+ * twice: a thin perpetual pays the widest funding precisely because nobody will
+ * take the other side, and the spread you cross to get delta-neutral eats the
+ * yield that attracted you.
+ */
+export function selectPerpUniverse(rows, { limit = 40, minQuoteVolume = 50e6 } = {}) {
+  if (!Array.isArray(rows)) throw new Error('Perp tickers: expected an array');
+  return rows
+    .filter((r) => typeof r?.symbol === 'string' && r.symbol.endsWith('USDT'))
+    .map((r) => ({ symbol: r.symbol, quoteVolume: Number(r.quoteVolume) }))
+    .filter((r) => Number.isFinite(r.quoteVolume) && r.quoteVolume >= minQuoteVolume)
+    .sort((a, b) => b.quoteVolume - a.quoteVolume)
+    .slice(0, limit);
+}
+
+/* ============================ venue: Binance ========================== */
+
+/** Futures market-data hosts, in order. Overridable for blocked regions. */
+export function fapiHosts() {
+  const extra = (process.env.BINANCE_FAPI_URLS || '').split(',').map((s) => s.trim()).filter(Boolean);
+  return [...new Set([
+    ...extra,
+    process.env.BINANCE_FAPI_URL || 'https://fapi.binance.com',
+    'https://fapi1.binance.com',
+    'https://fapi2.binance.com',
+  ])];
+}
 
 const PAGE = 1000;
 
@@ -174,8 +235,9 @@ export async function fetchFundingRange(symbol, periods, { onPage } = {}) {
 
   const maxPages = Math.ceil(periods / PAGE) + 4;
   for (let p = 0; p < maxPages && have < periods; p++) {
-    const rows = await request('/fapi/v1/fundingRate', { symbol, limit: PAGE, endTime });
-    const page = parseFunding(rows);
+    const { data } = await get('binance-futures', fapiHosts(), '/fapi/v1/fundingRate',
+      { symbol, limit: PAGE, endTime });
+    const page = parseFunding(data);
     if (!page.length) break;
 
     pages.push(page);
@@ -185,23 +247,24 @@ export async function fetchFundingRange(symbol, periods, { onPage } = {}) {
     const nextEnd = page[0].time - 1;
     if (nextEnd >= endTime) break;
     endTime = nextEnd;
-    if (page.length < PAGE) break;     // history starts here
+    if (page.length < PAGE) break;
     await sleep(120);
   }
 
   return mergeByTime(pages).slice(-periods);
 }
 
-/** Perpetual klines, used for basis and for the up-move risk on the short leg. */
+/** Perpetual klines, for basis and for the up-move risk on the short leg. */
 export async function fetchPerpKlines(symbol, interval, bars) {
   const out = [];
   let endTime = Date.now();
   const maxPages = Math.ceil(bars / PAGE) + 2;
 
   for (let p = 0; p < maxPages && out.length < bars; p++) {
-    const rows = await request('/fapi/v1/klines', { symbol, interval, limit: PAGE, endTime });
-    if (!Array.isArray(rows) || !rows.length) break;
-    const page = rows.map((r) => ({
+    const { data } = await get('binance-futures', fapiHosts(), '/fapi/v1/klines',
+      { symbol, interval, limit: PAGE, endTime });
+    if (!Array.isArray(data) || !data.length) break;
+    const page = data.map((r) => ({
       time: Number(r[0]), open: Number(r[1]), high: Number(r[2]),
       low: Number(r[3]), close: Number(r[4]), closeTime: Number(r[6]),
     }));
@@ -219,31 +282,12 @@ export async function fetchPerpKlines(symbol, interval, bars) {
 }
 
 /**
- * Perpetuals worth harvesting, ranked by turnover.
+ * Perpetual symbols from the contract catalogue.
  *
- * The liquidity floor is the same honesty filter as on spot, and here it bites
- * twice: a thin perpetual pays the widest funding precisely because nobody will
- * take the other side, and the spread you cross to get delta-neutral eats the
- * yield that attracted you. Ranking by turnover keeps the flat cost assumption
- * defensible.
- */
-export function selectPerpUniverse(rows, { limit = 40, minQuoteVolume = 50e6 } = {}) {
-  if (!Array.isArray(rows)) throw new Error('Binance futures 24hr: expected an array');
-  return rows
-    .filter((r) => typeof r?.symbol === 'string' && r.symbol.endsWith('USDT'))
-    .map((r) => ({ symbol: r.symbol, quoteVolume: Number(r.quoteVolume) }))
-    .filter((r) => Number.isFinite(r.quoteVolume) && r.quoteVolume >= minQuoteVolume)
-    .sort((a, b) => b.quoteVolume - a.quoteVolume)
-    .slice(0, limit);
-}
-
-/**
- * Perpetual symbols straight from the contract catalogue.
- *
- * Used as the fallback universe, and it is stricter than the ticker in one way
- * that matters: it states the contract type, so quarterly deliveries cannot
- * sneak in. They have funding of their own shape and a fixed expiry, and mixing
- * them into a perpetual harvest would measure two different instruments as one.
+ * Stricter than a ticker list in one way that matters: it states the contract
+ * type, so quarterly deliveries cannot slip in. Those have a fixed expiry and
+ * funding of a different shape, and pooling them with perpetuals would measure
+ * two instruments as one.
  */
 export function parsePerpSymbols(info) {
   const symbols = info?.symbols;
@@ -253,51 +297,225 @@ export function parsePerpSymbols(info) {
     .map((s) => s.symbol);
 }
 
-/**
- * The universe, with a fallback that does not depend on one heavy endpoint.
- *
- * The first live run died on `/fapi/v1/ticker/24hr` answering 200 with an empty
- * body — a single request, with no volume data, no universe, and therefore no
- * measurement at all. Ranking by turnover is worth keeping (it is what makes the
- * flat cost assumption defensible), but it should not be the only way in. So:
- * the futures ticker first; failing that, the contract catalogue for WHICH
- * perpetuals exist, ranked by their SPOT turnover from `api.binance.com` — a
- * different host, and the one this project already fetches candles from every
- * hour. Spot turnover is not perp turnover, but as a liquidity ordering it is
- * close enough to choose twenty-five coins by, and the report says which route
- * produced the list.
- */
-export async function fetchPerpUniverse(opts = {}) {
-  try {
-    const rows = await request('/fapi/v1/ticker/24hr', {});
-    const uni = selectPerpUniverse(rows, opts);
-    if (uni.length) return uni;
-    throw new Error('Фьючерсный тикер вернул пустой список');
-  } catch (err) {
-    const info = await request('/fapi/v1/exchangeInfo', {});
-    const perps = new Set(parsePerpSymbols(info));
-
-    const spot = await import('./binance.js');
-    const byVolume = await spot.fetchUniverse({
-      limit: Math.max((opts.limit || 40) * 4, 100),
-      minQuoteVolume: opts.minQuoteVolume ?? 50e6,
-    });
-
-    const uni = byVolume
-      .filter((r) => perps.has(r.symbol))
-      .slice(0, opts.limit || 40)
-      .map((r) => ({ ...r, volumeFrom: 'spot' }));
-
-    if (!uni.length) throw err;    // both routes failed: report the first cause
-    console.log(`Фьючерсный тикер недоступен (${err.message}); вселенная собрана из ` +
-      `каталога контрактов и оборота спота.`);
-    return uni;
-  }
+async function binanceUniverse(opts) {
+  const { data } = await get('binance-futures', fapiHosts(), '/fapi/v1/ticker/24hr', {});
+  const uni = selectPerpUniverse(data, opts);
+  if (!uni.length) throw new Error('Фьючерсный тикер вернул пустой список');
+  return uni;
 }
 
-export async function ping() {
-  await request('/fapi/v1/ping', {});
-  return true;
+/* ============================= venue: Bybit =========================== */
+
+export function bybitHosts() {
+  const extra = (process.env.BYBIT_URLS || '').split(',').map((s) => s.trim()).filter(Boolean);
+  return [...new Set([...extra, process.env.BYBIT_URL || 'https://api.bybit.com'])];
+}
+
+/**
+ * Bybit wraps every answer in a return code, and a non-zero code arrives with
+ * HTTP 200. Unwrapping it here means the rest of the module never has to know,
+ * and a venue-level rejection is not mistaken for data.
+ */
+function bybitResult(data, path) {
+  if (data?.retCode !== 0 && data?.retCode !== undefined && Number(data.retCode) !== 0) {
+    throw new Error(`bybit ${path}: retCode ${data.retCode} — ${data.retMsg || 'без сообщения'}`);
+  }
+  const result = data?.result;
+  if (!result) throw new Error(`bybit ${path}: нет result в ответе`);
+  return result;
+}
+
+/** Bybit funding rows → our shape. */
+export function parseBybitFunding(result) {
+  const list = result?.list;
+  if (!Array.isArray(list)) throw new Error('bybit funding: expected result.list[]');
+  return list.map((r) => {
+    const point = {
+      time: Number(r.fundingRateTimestamp),
+      rate: Number(r.fundingRate),
+      markPrice: null,
+    };
+    if (!Number.isFinite(point.time)) throw new Error('bybit funding: bad fundingRateTimestamp');
+    if (!Number.isFinite(point.rate)) throw new Error('bybit funding: bad fundingRate');
+    return point;
+  }).sort((a, b) => a.time - b.time);
+}
+
+/** Bybit linear tickers → the shape selectPerpUniverse expects. */
+export function parseBybitTickers(result) {
+  const list = result?.list;
+  if (!Array.isArray(list)) throw new Error('bybit tickers: expected result.list[]');
+  return list.map((r) => ({ symbol: r.symbol, quoteVolume: Number(r.turnover24h) }));
+}
+
+/**
+ * Bybit linear instruments → live USDT perpetuals only.
+ * `contractType: 'LinearPerpetual'` is the perpetual; `LinearFutures` is dated.
+ */
+export function parseBybitPerps(result) {
+  const list = result?.list;
+  if (!Array.isArray(list)) throw new Error('bybit instruments: expected result.list[]');
+  return list
+    .filter((s) => s?.contractType === 'LinearPerpetual' && s?.status === 'Trading' && s?.quoteCoin === 'USDT')
+    .map((s) => s.symbol);
+}
+
+const BYBIT_PAGE = 200;
+
+export async function bybitFundingRange(symbol, periods, { onPage } = {}) {
+  const pages = [];
+  let endTime = Date.now();
+  let have = 0;
+
+  const maxPages = Math.ceil(periods / BYBIT_PAGE) + 4;
+  for (let p = 0; p < maxPages && have < periods; p++) {
+    const { data } = await get('bybit', bybitHosts(), '/v5/market/funding/history',
+      { category: 'linear', symbol, limit: BYBIT_PAGE, endTime });
+    const page = parseBybitFunding(bybitResult(data, '/v5/market/funding/history'));
+    if (!page.length) break;
+
+    pages.push(page);
+    have += page.length;
+    onPage?.({ symbol, fetched: have, want: periods });
+
+    const nextEnd = page[0].time - 1;
+    if (nextEnd >= endTime) break;
+    endTime = nextEnd;
+    if (page.length < BYBIT_PAGE) break;
+    await sleep(120);
+  }
+
+  return mergeByTime(pages).slice(-periods);
+}
+
+/** Bybit intervals are minutes as strings; '60' is an hour, 'D' a day. */
+const BYBIT_INTERVAL = { '1m': '1', '5m': '5', '15m': '15', '30m': '30', '1h': '60', '4h': '240', '1d': 'D' };
+
+export async function bybitKlines(symbol, interval, bars) {
+  const iv = BYBIT_INTERVAL[interval];
+  if (!iv) throw new Error(`bybit: неподдерживаемый интервал ${interval}`);
+
+  const out = [];
+  let end = Date.now();
+  const maxPages = Math.ceil(bars / BYBIT_PAGE) + 2;
+
+  for (let p = 0; p < maxPages && out.length < bars; p++) {
+    const { data } = await get('bybit', bybitHosts(), '/v5/market/kline',
+      { category: 'linear', symbol, interval: iv, limit: BYBIT_PAGE, end });
+    const list = bybitResult(data, '/v5/market/kline')?.list;
+    if (!Array.isArray(list) || !list.length) break;
+
+    // Bybit returns newest first; our series is ascending everywhere else.
+    const page = list.map((r) => ({
+      time: Number(r[0]), open: Number(r[1]), high: Number(r[2]),
+      low: Number(r[3]), close: Number(r[4]),
+    })).sort((a, b) => a.time - b.time);
+
+    out.push(...page);
+    const nextEnd = page[0].time - 1;
+    if (nextEnd >= end) break;
+    end = nextEnd;
+    if (page.length < BYBIT_PAGE) break;
+    await sleep(120);
+  }
+
+  const byTime = new Map();
+  for (const c of out) byTime.set(c.time, c);
+  return [...byTime.values()].sort((a, b) => a.time - b.time).slice(-bars);
+}
+
+async function bybitUniverse(opts) {
+  const { data } = await get('bybit', bybitHosts(), '/v5/market/tickers', { category: 'linear' });
+  const rows = parseBybitTickers(bybitResult(data, '/v5/market/tickers'));
+  const uni = selectPerpUniverse(rows, opts);
+  if (!uni.length) throw new Error('Тикеры bybit вернули пустой список');
+  return uni;
+}
+
+/* ======================= venue selection and routing ================== */
+
+/**
+ * Last resort, and the one route that depends on no futures host at all.
+ *
+ * My own fallback in the previous attempt was broken in exactly this way: it
+ * began with `/fapi/v1/exchangeInfo`, so it failed wherever the primary path
+ * failed. A fallback that needs the gate to open is not a fallback. This one
+ * ranks by SPOT turnover from `api.binance.com` — a host these runners reach
+ * every hour — and lets the funding fetch itself decide which of those symbols
+ * actually has a perpetual: one without history simply drops out.
+ */
+async function spotRankedUniverse(opts) {
+  const spot = await import('./binance.js');
+  const rows = await spot.fetchUniverse({
+    limit: Math.max((opts.limit || 40) * 3, 60),
+    minQuoteVolume: opts.minQuoteVolume ?? 50e6,
+  });
+  return rows.slice(0, (opts.limit || 40) * 2).map((r) => ({ ...r, volumeFrom: 'spot' }));
+}
+
+const VENUES = [
+  {
+    id: 'binance-futures',
+    label: 'binance futures',
+    universe: binanceUniverse,
+    funding: fetchFundingRange,
+    klines: fetchPerpKlines,
+  },
+  {
+    id: 'bybit',
+    label: 'bybit linear',
+    universe: bybitUniverse,
+    funding: bybitFundingRange,
+    klines: bybitKlines,
+  },
+];
+
+/** Which venue answered. Sticky for the whole run so numbers stay comparable. */
+let chosen = null;
+export const activeVenue = () => chosen;
+export const resetVenue = () => { chosen = null; };
+
+/**
+ * Pick a venue by trying them, and say what happened when none works.
+ *
+ * Order is deliberate: Binance first because the rest of the project measures
+ * Binance spot, and a same-venue basis is the cleaner thing to report. Bybit
+ * second because its funding history is public, its symbols are named the same
+ * way, and its ticker reports turnover directly in the quote currency.
+ */
+export async function resolveVenue(opts = {}) {
+  if (chosen) return chosen;
+  const failures = [];
+
+  for (const venue of VENUES) {
+    try {
+      const universe = await venue.universe(opts);
+      chosen = { ...venue, universe, route: 'tickers' };
+      return chosen;
+    } catch (err) {
+      failures.push(`${venue.label}: ${err.message}`);
+    }
+  }
+
+  /*
+   * Every venue's ticker is gated. One more try: rank by spot turnover and let
+   * the funding fetch decide what exists. If even that yields nothing, fail with
+   * the full attempt log — a run that cannot measure should at least explain
+   * itself well enough that the next attempt is not another guess.
+   */
+  try {
+    const universe = await spotRankedUniverse(opts);
+    chosen = { ...VENUES[0], universe, route: 'spot-ranked' };
+    return chosen;
+  } catch (err) {
+    failures.push(`спот-ранжирование: ${err.message}`);
+  }
+
+  throw new Error(
+    'Ни одна площадка не отдала список перпетуалов.\n' +
+    failures.map((f) => `  — ${f}`).join('\n') +
+    '\nВсе запросы:\n' + describeAttempts(),
+  );
 }
 
 /* ------------------------------ offline mode -------------------------- */
@@ -307,10 +525,9 @@ const HOUR = 3600_000;
 /**
  * Deterministic stand-in so the suite runs with no network.
  *
- * It is built to be boring on purpose: a small positive mean for most symbols,
- * a negative mean for one, fat-ish noise around it. It must never be mistaken
- * for evidence — the real numbers come from the exchange, and the report says
- * which source produced them.
+ * Boring on purpose: a small positive mean for most symbols, a negative mean for
+ * one, fat-ish noise around it. It must never be mistaken for evidence — the
+ * report refuses to draw a market conclusion from it at all.
  */
 export function syntheticFunding(symbol, periods, { intervalMs = 8 * HOUR } = {}) {
   let h = 2166136261;
@@ -318,8 +535,6 @@ export function syntheticFunding(symbol, periods, { intervalMs = 8 * HOUR } = {}
   let s = (h >>> 0) || 1;
   const rnd = () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
 
-  // One symbol in roughly five carries a negative mean, so the selection test
-  // has something to select against.
   const mean = (h % 5 === 0 ? -1 : 1) * (0.00004 + (h % 7) * 0.00002);
   const noise = 0.00025;
 
@@ -336,7 +551,6 @@ export function syntheticFunding(symbol, periods, { intervalMs = 8 * HOUR } = {}
   return out;
 }
 
-/** Perp klines for the offline mode: reuse the spot generator. */
 async function syntheticPerpKlines(symbol, interval, bars) {
   const synthetic = await import('./synthetic.js');
   return synthetic.fetchCandlesRange(symbol, interval, bars);
@@ -344,23 +558,40 @@ async function syntheticPerpKlines(symbol, interval, bars) {
 
 const offline = () => config.source === 'synthetic';
 
-/* The two entry points everything else uses; they pick live or offline once. */
-
-export async function getFunding(symbol, periods, opts = {}) {
-  return offline() ? syntheticFunding(symbol, periods) : fetchFundingRange(symbol, periods, opts);
-}
-
-export async function getPerpKlines(symbol, interval, bars) {
-  return offline() ? syntheticPerpKlines(symbol, interval, bars) : fetchPerpKlines(symbol, interval, bars);
-}
+/* -------------------- the entry points everything uses ---------------- */
 
 export async function getPerpUniverse(opts = {}) {
   if (offline()) {
     return config.symbols.map((symbol, i) => ({ symbol, quoteVolume: 1e9 - i * 1e6 }));
   }
-  return fetchPerpUniverse(opts);
+  return (await resolveVenue(opts)).universe;
 }
 
+export async function getFunding(symbol, periods, opts = {}) {
+  if (offline()) return syntheticFunding(symbol, periods);
+  const venue = await resolveVenue();
+  return venue.funding(symbol, periods, opts);
+}
+
+export async function getPerpKlines(symbol, interval, bars) {
+  if (offline()) return syntheticPerpKlines(symbol, interval, bars);
+  const venue = await resolveVenue();
+  return venue.klines(symbol, interval, bars);
+}
+
+/**
+ * What produced the numbers — named in the report, because it changes how they
+ * should be read. A Bybit perpetual against a Binance spot leg is a real
+ * position, but its basis is the spread BETWEEN two venues, which is a wider
+ * risk than the same-venue version and has to be labelled as such.
+ */
 export function sourceLabel() {
-  return offline() ? 'synthetic (генератор, не рынок)' : `binance futures (${activeHost()})`;
+  if (offline()) return 'synthetic (генератор, не рынок)';
+  if (!chosen) return 'площадка ещё не выбрана';
+  return `${chosen.label} (список: ${chosen.route === 'spot-ranked' ? 'оборот спота' : 'тикеры площадки'})`;
+}
+
+export async function ping() {
+  await resolveVenue({ limit: 5 });
+  return true;
 }

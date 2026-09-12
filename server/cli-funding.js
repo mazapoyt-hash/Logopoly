@@ -33,13 +33,27 @@ const n2 = (v) => (v == null || !Number.isFinite(v) ? '—' : v.toFixed(2));
 const day = (ms) => (ms ? new Date(ms).toISOString().slice(0, 10) : '—');
 
 async function main() {
+  /*
+   * The venue is resolved first and reported, because two live runs were lost to
+   * a gate (Binance futures answering 202 with an empty body from CI) and the
+   * logs did not say which host, path or status. If every venue is closed, the
+   * failure prints the full attempt log: a run that cannot measure should at
+   * least explain itself well enough that the next attempt is not a guess.
+   */
+  let universe;
+  try {
+    universe = await funding.getPerpUniverse({ limit: UNIVERSE, minQuoteVolume: MIN_VOLUME });
+  } catch (err) {
+    console.error(err.message);
+    process.exit(1);
+  }
   const label = funding.sourceLabel();
   console.log(`Источник: ${label}`);
 
-  const universe = await funding.getPerpUniverse({ limit: UNIVERSE, minQuoteVolume: MIN_VOLUME });
   const symbols = universe.map((u) => u.symbol);
   if (!symbols.length) {
     console.error('Вселенная перпетуалов пуста — нечего измерять.');
+    console.error(funding.describeAttempts());
     process.exit(1);
   }
   console.log(`Перпетуалов: ${symbols.length} (${symbols.slice(0, 6).join(', ')}…)`);
@@ -61,7 +75,8 @@ async function main() {
   const got = Object.keys(fundingBySymbol);
   console.log(`История фандинга собрана по ${got.length} монетам.`);
   if (!got.length) {
-    console.error('Ни одной истории фандинга — прекращаю.');
+    console.error('Ни одной истории фандинга — прекращаю. Все запросы:');
+    console.error(funding.describeAttempts());
     process.exit(1);
   }
 
@@ -90,8 +105,22 @@ async function main() {
     fundingBySymbol, spotBySymbol, perpBySymbol,
     topK: TOP_K, source: label, vaultRatio: VAULT_RATIO,
   });
-  report.universe = { requested: UNIVERSE, measured: got.length, minQuoteVolume: MIN_VOLUME };
+  report.universe = {
+    requested: UNIVERSE, measured: got.length, minQuoteVolume: MIN_VOLUME,
+    route: funding.activeVenue()?.route ?? null,
+  };
   report.periodsRequested = PERIODS;
+  report.venue = funding.activeVenue()?.id ?? null;
+  /*
+   * Where the two legs live. A Bybit perpetual against a Binance spot leg is a
+   * real position, but its basis is the spread BETWEEN venues — a wider risk
+   * than the same-venue version, and the report has to say so rather than let
+   * the number pass for the tighter thing.
+   */
+  report.legs = {
+    perp: report.venue, spot: 'binance',
+    crossVenue: report.venue != null && report.venue !== 'binance-futures',
+  };
 
   /*
    * The vault, opened only on demand and logged when it is. Opening it is the
@@ -227,6 +256,12 @@ function summary(rep) {
   if (withBasis.length) {
     out.push('### Базис: насколько «нейтральная» позиция нейтральна');
     out.push('');
+    if (rep.legs?.crossVenue) {
+      out.push(`Ноги лежат на разных площадках: шорт на \`${rep.legs.perp}\`, спот на ` +
+        `\`${rep.legs.spot}\`. Это рабочая конструкция, но базис здесь — спред **между** ` +
+        'площадками, а он шире внутриплощадочного. Читать эти числа как базис одной биржи нельзя.');
+      out.push('');
+    }
     if (withBasis.every((r) => r.basis.degenerate)) {
       out.push('Базис вышел ровно нулевым на всех парах. На рынке так не бывает: перпетуал и спот ' +
         'расходятся постоянно — именно за это расхождение и платят фандинг. Значит, источник не ' +

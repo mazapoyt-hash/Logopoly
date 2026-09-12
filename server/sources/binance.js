@@ -79,22 +79,46 @@ async function request(path, params, { attempts = 3 } = {}) {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), config.binance.timeoutMs);
       let status = null;
+      let softFail = false;
       try {
         const res = await fetch(url, { signal: ctrl.signal });
         status = res.status;
+        const body = await res.text();
+
         if (res.ok) {
-          preferredHost = (preferredHost + hostTry) % hosts.length;
-          return await res.json();
+          /*
+           * Never res.json() straight off an ok status. An ok status is a claim
+           * about the transport and says nothing about the payload: the funding
+           * adapter lost two CI runs to a 2xx carrying an empty body, where the
+           * failure surfaced as `Unexpected end of JSON input` from inside
+           * undici, naming neither host nor path. The spot host has not done
+           * this, but the flaw was identical, and the same gate could land here.
+           */
+          if (!body.trim()) {
+            softFail = true;
+            lastError = new Error(`Binance ${status} on ${path} (${host}): пустое тело ответа`);
+          } else {
+            try {
+              const data = JSON.parse(body);
+              preferredHost = (preferredHost + hostTry) % hosts.length;
+              return data;
+            } catch {
+              softFail = true;
+              lastError = new Error(
+                `Binance ${status} on ${path} (${host}): тело не JSON — ${body.slice(0, 160)}`);
+            }
+          }
+        } else {
+          lastError = new Error(`Binance ${res.status} on ${path} (${host}): ${body.slice(0, 160)}`);
         }
-        const body = await res.text().catch(() => '');
-        lastError = new Error(`Binance ${res.status} on ${path} (${host}): ${body.slice(0, 160)}`);
       } catch (err) {
         lastError = err;
       } finally {
         clearTimeout(timer);
       }
 
-      const action = classifyStatus(status);
+      // A 2xx carrying nothing is neither success nor permanent failure.
+      const action = softFail ? 'retry' : classifyStatus(status);
       if (action === 'fatal') throw lastError;
       if (action === 'nextHost') { abandonHost = true; break; }
 
