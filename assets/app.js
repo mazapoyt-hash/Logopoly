@@ -588,6 +588,8 @@
     }
 
     renderEdgeWarning(portfolio, s.live, minSample);
+    // The money view lives on the signals tab and comes from the deep report.
+    API.analytics().then((rep) => renderMoney(rep?.money)).catch(() => {});
   }
 
   /**
@@ -596,6 +598,52 @@
    * result of this same logic is negative, that has to be visible there — not
    * buried on the statistics tab behind a click nobody makes.
    */
+  /**
+   * The result in money, because that is the unit the question is asked in.
+   *
+   * The row that matters is the probability of being in profit after N
+   * signals. With a positive edge it rises with N; with a negative one it
+   * falls — which is the precise opposite of the intuition that more trades
+   * even things out, and the single most useful thing this page can say.
+   */
+  function renderMoney(m) {
+    const box = $('#moneyBox');
+    if (!box) return;
+    if (!m) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+
+    const rows = m.rows.map((r) => `
+      <tr>
+        <td>${r.trades}</td>
+        <td class="num ${r.probability >= 0.5 ? 'up' : 'down'}">${pctOf(r.probability, 0)}</td>
+        <td class="num ${signCls(r.expected.position)}">$${fmtNum(r.expected.position, 0)}</td>
+        <td class="num opt ${signCls(r.expected.risk)}">$${fmtNum(r.expected.risk, 0)}</td>
+      </tr>`).join('');
+
+    box.innerHTML = `
+      <div class="money-head">Если ставить $${m.stake} на каждый сигнал</div>
+      <p class="analytics-note">${m.text.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')}</p>
+      <div class="table-wrap">
+        <table class="grid mini">
+          <thead><tr>
+            <th>Сигналов</th><th class="num">Шанс быть в плюсе</th>
+            <th class="num">Итог ($${m.stake} — позиция)</th>
+            <th class="num opt">Итог ($${m.stake} — риск)</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      ${m.goalText ? `<p class="analytics-note">${
+        m.goalText.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')}</p>` : ''}
+      <p class="muted small">
+        «Позиция» — вы покупаете на $${m.stake}, и на кону расстояние до стопа
+        (${fmtNum(m.stopPct, 2)}% ≈ $${fmtNum(m.riskPerTrade.position, 2)}).
+        «Риск» — вы теряете $${m.stake}, если стоп сработал; позиция за этим стоит
+        примерно $${fmtNum(m.stake / (m.stopPct / 100), 0)}. Разница между этими
+        прочтениями — в ${fmtNum(100 / m.stopPct, 0)} раз, поэтому показаны обе.
+      </p>`;
+    box.classList.remove('hidden');
+  }
+
   function renderEdgeWarning(backtest, live, minSample) {
     const box = $('#edgeWarning');
     if (!box) return;

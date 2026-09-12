@@ -32,9 +32,13 @@ import { GRID } from './validate.js';
 import { randomEntryBenchmark, rotationNull } from './nulls.js';
 import { costSensitivity, tollFromTrades, winRateCurve, kellyFraction } from './economics.js';
 import { walkForward, evidenceScale } from './learning.js';
+import { moneyView } from './money.js';
 
 /** Below this a bucket is reported but never called an edge. */
 export const MIN_BUCKET = Number(process.env.COINSCOPE_MIN_BUCKET || 25);
+
+/** The stake the money view speaks in. Money is the unit people think in. */
+export const STAKE = Number(process.env.COINSCOPE_STAKE || 100);
 
 /* ------------------------------ Statistics ---------------------------- */
 
@@ -650,6 +654,18 @@ export function analyse({
     liveCheck: liveVsBacktest(signals, summarize(trades)),
     /* What size the measured edge justifies. With a negative edge: none. */
     kelly: kellyFraction(summarize(trades)),
+    /*
+     * The same result in the units the question is actually asked in. The row
+     * that matters is the probability of being in profit after N signals: with
+     * a negative edge it FALLS as N grows, which is the precise opposite of
+     * the intuition that more trades even things out.
+     */
+    money: (() => {
+      const toll = tollFromTrades(trades);
+      return toll ? moneyView({
+        stats: summarize(trades), trades, stopPct: toll.medianRiskPct, stake: STAKE,
+      }) : null;
+    })(),
     tuning: dataBySymbol ? outOfSampleTuning(dataBySymbol, { ratio }) : null,
     /*
      * The question every other section is downstream of: does the entry logic
