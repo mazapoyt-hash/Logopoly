@@ -527,6 +527,50 @@ check('expected false positives scale with the number of buckets tested',
   })());
 }
 
+/* ---------------------- screening out the hopeless -------------------- */
+{
+  const { screenByToll } = await import('../server/economics.js');
+
+  /*
+   * The regression this screen exists for. RLUSD — Ripple's dollar — passed a
+   * name-based stablecoin filter, passed the $50M turnover floor, and produced
+   * −8.7R per trade: pegged to a dollar, its ATR-scaled stop is a fraction of
+   * a percent, so a flat 0.2% round trip is many multiples of the risk. One
+   * coin out of fifteen moved the portfolio from −0.12R to −0.41R.
+   *
+   * The fix cannot be a longer list of names. It has to be the mechanism: a
+   * stop too tight to pay its own execution, whatever the coin is called.
+   */
+  const series = (rangePct, n = 500) => Array.from({ length: n }, (_, i) => {
+    const close = 100;
+    const half = (close * rangePct) / 2;
+    return { time: i * 3600_000, open: close, close, high: close + half, low: close - half };
+  });
+
+  const { kept, dropped } = screenByToll({
+    NORMAL: { candles: series(0.02) },     // 2% bars: costs are a small share
+    PEGGED: { candles: series(0.0002) },   // a stablecoin in all but name
+    SHORT: { candles: series(0.02, 50) },  // not enough history to judge
+  });
+
+  check('a coin with normal volatility survives the screen', !!kept.NORMAL);
+  check('a stablecoin is dropped without ever naming stablecoins',
+    !kept.PEGGED && dropped.some((d) => d.symbol === 'PEGGED'));
+  check('the drop reason is the toll, stated with its number', (() => {
+    const d = dropped.find((x) => x.symbol === 'PEGGED');
+    return d && d.costR > 0.5 && Number.isFinite(d.atrPct);
+  })());
+  check('a coin with too little history is dropped separately',
+    !kept.SHORT && dropped.some((d) => d.symbol === 'SHORT' && d.reason === 'мало истории'));
+  check('drops are reported, never silent', dropped.length === 2);
+  check('a flat series with no range at all is dropped, not divided by zero', (() => {
+    const flat = Array.from({ length: 500 }, (_, i) => (
+      { time: i * 3600_000, open: 100, close: 100, high: 100, low: 100 }));
+    const r = screenByToll({ FLAT: { candles: flat } });
+    return !r.kept.FLAT && r.dropped[0].reason === 'нулевая волатильность';
+  })());
+}
+
 /* ------------------------- learning, walk-forward --------------------- */
 {
   const { walkForward, timeFolds, tradesNeeded, evidenceScale } =

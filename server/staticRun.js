@@ -24,6 +24,7 @@ import { resolveOnBar, netR, backtestSymbol, summarize } from './backtest.js';
 import { estimateProbability, scoreBucket } from './probability.js';
 import { auditCandles, describeAudit } from './dataQuality.js';
 import { segmentTrades, judgeConsistency } from './validate.js';
+import { screenByToll } from './economics.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const DATA_DIR = process.env.COINSCOPE_SITE_DATA || path.join(__dirname, '..', 'data');
@@ -132,6 +133,19 @@ export async function runStatic({ dir = DATA_DIR, now = Date.now() } = {}) {
       htf: await getCandles(symbol, config.higherTimeframe, config.candleLimit, { fresh: true }),
     };
   }
+
+  /*
+   * Disqualify by arithmetic before a single signal is considered. A coin
+   * whose ATR-scaled stop is so tight that costs exceed half the risk cannot
+   * be traded profitably by any strategy — a stablecoin that slipped past the
+   * name-based filter produced −8.7R per trade before this existed.
+   */
+  const screen = screenByToll(data, { minBars: PARAMS.emaSlow + 5 });
+  for (const d of screen.dropped) {
+    log.push(`${d.symbol}: исключён — ${d.reason}` +
+      (d.costR ? ` (ATR ${d.atrPct.toFixed(3)}%, пошлина ${d.costR.toFixed(2)}R)` : ''));
+  }
+  symbols = symbols.filter((s) => screen.kept[s]);
 
   /*
    * Backtest FIRST. A signal's success estimate is frozen when it is
@@ -263,6 +277,7 @@ export async function runStatic({ dir = DATA_DIR, now = Date.now() } = {}) {
     updatedAt: now, source: config.source, ok: true,
     timeframe: config.timeframe, higherTimeframe: config.higherTimeframe,
     symbols, strategy: config.strategy,
+    screened: screen.dropped,
     universe: universe && { size: universe.length, minQuoteVolume: config.universe.minQuoteVolume },
     minSampleForStats: config.minSampleForStats,
     dataQuality: quality,

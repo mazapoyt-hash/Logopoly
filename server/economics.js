@@ -119,6 +119,73 @@ export function tollFromTrades(trades, costs = COSTS) {
   };
 }
 
+/* ------------------------------ Screening ----------------------------- */
+
+/** Above this, the toll alone makes a coin unwinnable whatever the signal. */
+export const MAX_TOLL_R = Number(process.env.COINSCOPE_MAX_TOLL || 0.5);
+
+/**
+ * Throw out coins the arithmetic has already disqualified.
+ *
+ * This exists because a name-based stablecoin filter failed in exactly the way
+ * name-based filters do. RLUSD — Ripple's dollar — was not on the list, passed
+ * the turnover floor comfortably, and produced −8.7R per trade: a coin pegged
+ * to a dollar barely moves, so an ATR-scaled stop is a fraction of a percent,
+ * and a flat 0.2% round trip becomes many multiples of the risk. One such coin
+ * out of fifteen moved the portfolio average from −0.12R to −0.41R and
+ * contributed −1233R of a −1514R total.
+ *
+ * The lesson is not "add RLUSD to the list". It is that the screen has to be
+ * the mechanism itself: whatever its name, a coin whose stop is so tight that
+ * costs exceed `maxTollR` per trade cannot be traded profitably by any
+ * strategy, so including it generates noise and nothing else. That catches
+ * every present and future stablecoin, every pegged asset, and anything else
+ * too quiet to pay its own execution.
+ *
+ * Deliberately NOT silent: dropped coins are returned with their numbers, so a
+ * universe that quietly shrinks is visible rather than mysterious.
+ */
+export function screenByToll(dataBySymbol, {
+  atrMult = config.strategy.atrStopMult, costs = COSTS,
+  maxTollR = MAX_TOLL_R, minBars = 300, period = 14,
+} = {}) {
+  const trip = roundTripCost(costs);
+  const kept = {};
+  const dropped = [];
+
+  for (const [symbol, entry] of Object.entries(dataBySymbol)) {
+    const candles = entry?.candles || [];
+    if (candles.length < minBars) {
+      dropped.push({ symbol, reason: 'мало истории', bars: candles.length });
+      continue;
+    }
+
+    const a = atr(candles.map((c) => c.high), candles.map((c) => c.low),
+      candles.map((c) => c.close), period);
+    const pcts = [];
+    for (let i = 0; i < candles.length; i++) {
+      if (Number.isFinite(a[i]) && candles[i].close > 0) pcts.push(a[i] / candles[i].close);
+    }
+    const atrPct = median(pcts);
+    if (!(atrPct > 0)) {
+      dropped.push({ symbol, reason: 'нулевая волатильность', bars: candles.length });
+      continue;
+    }
+
+    const costR = trip / (atrPct * atrMult);
+    if (costR > maxTollR) {
+      dropped.push({
+        symbol, reason: 'издержки съедают риск', bars: candles.length,
+        atrPct: atrPct * 100, costR,
+      });
+      continue;
+    }
+    kept[symbol] = entry;
+  }
+
+  return { kept, dropped, maxTollR };
+}
+
 /* --------------------------- Win rate vs money ------------------------ */
 
 /**
