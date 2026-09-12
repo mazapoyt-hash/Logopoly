@@ -94,6 +94,7 @@
     // The deep report is produced by a scheduled job and committed as a file;
     // the server build reads the same file rather than recomputing it.
     analytics: () => getJson('data/analytics.json').catch(() => null),
+    funding: () => getJson('data/funding.json').catch(() => null),
     prices: async () => getJson('/api/prices'),
     candles: (symbol, tf, limit) => getJson(`/api/candles/${symbol}?limit=${limit}&tf=${encodeURIComponent(tf)}`),
   };
@@ -116,6 +117,7 @@
     },
     validation: () => getJson('data/validation.json').catch(() => null),
     analytics: () => getJson('data/analytics.json').catch(() => null),
+    funding: () => getJson('data/funding.json').catch(() => null),
 
     /**
      * Prices straight from Binance. Its public market-data endpoints allow
@@ -187,6 +189,7 @@
       // unpacks from stats.json, so it must run after it.
       if (tab.dataset.view === 'stats') loadStats().then(loadValidation);
       if (tab.dataset.view === 'analytics') loadAnalytics();
+      if (tab.dataset.view === 'funding') loadFunding();
     });
   });
 
@@ -1157,6 +1160,255 @@
       `Отчёт от ${fmtTime(rep.generatedAt)} · период ${fmtTime(s.from)} — ${fmtTime(s.to)} · ` +
       `${s.trades} сделок на ${(rep.history?.quality || []).length || '—'} монетах ` +
       `по ${(rep.history?.quality?.[0]?.bars ?? '—')} свечей.`;
+  }
+
+  /* ------------------------------ Funding ----------------------------- */
+  /**
+   * The funding harvest, rendered from the report the scheduled job commits.
+   *
+   * Its job on the page is to stay comparable with the strategy tab rather than
+   * to sell: the same break-even arithmetic, the same out-of-sample split, the
+   * same random benchmark, and the risks given their own panel instead of a
+   * footnote. A yield quoted without the minimum hold and the liquidation
+   * distance is not an answer, it is an advertisement.
+   */
+  const pct4 = (v) => (v == null || !Number.isFinite(v) ? '—' : `${(v * 100).toFixed(4)}%`);
+  const pctNum = (v, d = 1) => (v == null || !Number.isFinite(v) ? '—' : `${v.toFixed(d)}%`);
+
+  function fundingVerdictHtml(rep) {
+    const v = rep.verdict || {};
+    const cls = v.code === 'positive' ? 'ok-banner'
+      : v.code === 'thin' ? 'warn-banner' : 'edge-warning';
+    const md = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`(.+?)`/g, '<code>$1</code>');
+    const head = !rep.measured
+      ? '<div class="edge-warning"><b>Это не рынок.</b> Отчёт посчитан на генераторе: ' +
+        'он строит каждую монету вокруг фиксированной средней ставки, поэтому отбор тут ' +
+        'работает по построению, а базис выходит ровно нулевым. Нужен запуск по бирже.</div>'
+      : '';
+    return head + `<div class="${cls}">${md(v.text || '')}</div>`;
+  }
+
+  function fundingIncomeHtml(rep) {
+    const p = rep.portfolio;
+    if (!p) return '<div class="low-sample">Доход не считался.</div>';
+    const be = Number.isFinite(p.breakEvenDays) ? `${fmtNum(p.breakEvenDays, 1)} дн` : 'никогда';
+    return `
+      <div class="mc-row">
+        <div class="metric"><div class="k">Выплата</div>
+          <div class="v ${p.meanRate >= 0 ? 'up' : 'down'}">${pct4(p.meanRate)}</div>
+          <div class="note">в среднем раз в ${fmtNum(p.intervalHours, 0)} ч</div></div>
+        <div class="metric"><div class="k">Платим мы</div>
+          <div class="v">${pctNum(p.negativeShare * 100)}</div>
+          <div class="note">доля выплат в минус</div></div>
+        <div class="metric"><div class="k">Круговые издержки</div>
+          <div class="v down">${pctNum(rep.roundTripPct, 2)}</div>
+          <div class="note">4 пересечения, 2 ноги</div></div>
+        <div class="metric"><div class="k">Окупаемость</div>
+          <div class="v">${be}</div>
+          <div class="note">минимальный срок удержания</div></div>
+        <div class="metric"><div class="k">Годовых на номинал</div>
+          <div class="v">${pctNum(p.annualGross * 100)}</div>
+          <div class="note">без издержек</div></div>
+        <div class="metric"><div class="k">Годовых на капитал</div>
+          <div class="v ${p.annualOnCapital >= 0 ? 'up' : 'down'}">${pctNum(p.annualOnCapital * 100)}</div>
+          <div class="note">спот оплачен целиком</div></div>
+      </div>
+      <p class="analytics-note">Капитал на единицу номинала — ${fmtNum(rep.capitalPerNotional)}×
+        при плече ${esc(String(rep.leverage))}× на шорте: спот оплачивается полностью, шорт идёт
+        на марже. Поэтому «фандинг × число выплат в году» завышает доходность ровно на эту
+        величину — это самая частая ошибка в таких расчётах, и разница между двумя последними
+        числами выше и есть она.</p>`;
+  }
+
+  function fundingCurveHtml(rep) {
+    const c = rep.curve;
+    if (!c) return '<div class="low-sample">Кривая удержания не считалась.</div>';
+    const rows = c.rows.map((r) => `
+      <tr${c.firstProfitable && r.days === c.firstProfitable.days ? ' class="current"' : ''}>
+        <td class="num">${r.days}</td>
+        <td class="num">${fmtNum(r.periods, 0)}</td>
+        <td class="num">${pctNum(r.grossPct, 2)}</td>
+        <td class="num down">−${fmtNum(r.costPct, 2)}%</td>
+        <td class="num ${r.netPct >= 0 ? 'up' : 'down'}">${r.netPct >= 0 ? '+' : '−'}${fmtNum(Math.abs(r.netPct), 2)}%</td>
+        <td class="num ${r.profitable ? 'up' : ''}">${r.profitable ? pctNum(r.annualPct) : '—'}</td>
+      </tr>`).join('');
+    return `
+      <div class="table-wrap">
+        <table class="grid mini">
+          <thead><tr><th class="num">Дней</th><th class="num">Выплат</th><th class="num">Собрано</th>
+            <th class="num">Издержки</th><th class="num">Итого на капитал</th><th class="num">Годовых</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <p class="analytics-note">Потолок при бесконечном удержании — ${pctNum(c.ceilingAnnualPct)} годовых,
+        и приблизиться к нему значит принять на себя все риски из следующего блока целиком.
+        ${c.firstProfitable ? `Короче ${c.firstProfitable.days} дней позиция окупает только
+        собственное исполнение.` : 'На этих ставках прибыльного срока удержания нет вообще.'}</p>`;
+  }
+
+  const SELECT_VERDICT = {
+    persists: { cls: 'ok', label: 'Отбор работает' },
+    weak: { cls: 'warn', label: 'Отбор на границе шума' },
+    unclear: { cls: 'neutral', label: 'Неясно' },
+    none: { cls: 'bad', label: 'Отбор не работает' },
+  };
+
+  function fundingSelectionHtml(rep) {
+    const q = rep.persistence;
+    if (!q) return '<div class="low-sample">Монет не хватает, чтобы проверить отбор.</div>';
+    const v = SELECT_VERDICT[q.verdict] || SELECT_VERDICT.unclear;
+    return `
+      <p class="verdict-head"><span class="badge ${v.cls}">${v.label}</span></p>
+      <div class="mc-row">
+        <div class="metric"><div class="k">Корреляция половин</div>
+          <div class="v">${fmtNum(q.rank.rho)}</div>
+          <div class="note">Спирмен, p=${fmtNum(q.rank.p, 3)}</div></div>
+        <div class="metric"><div class="k">Топ-${q.topK}</div>
+          <div class="v">${pctNum(q.pickedAnnualPct)}</div>
+          <div class="note">годовых на второй половине</div></div>
+        <div class="metric"><div class="k">Вся вселенная</div>
+          <div class="v">${pctNum(q.universeAnnualPct)}</div>
+          <div class="note">там же, для сравнения</div></div>
+        <div class="metric"><div class="k">Против случайных</div>
+          <div class="v ${q.nullPercentile >= 90 ? 'up' : 'down'}">${pctNum(q.nullPercentile, 0)}</div>
+          <div class="note">доля случайных наборов хуже нашего</div></div>
+      </div>
+      <p class="analytics-note">Случайный бенчмарк здесь не формальность. Когда почти все монеты
+        платят положительный фандинг, любой набор выглядит прибыльным вне выборки, и «топ-5
+        заработал больше вселенной» не означает, что ранжирование что-то знало. Значение имеет
+        только последняя метрика: отбор должен обыгрывать случайный выбор такого же размера.
+        Выбраны: ${esc((q.picked || []).join(', ')) || '—'}.</p>`;
+  }
+
+  function fundingRiskHtml(rep) {
+    const s = rep.shortLegRisk;
+    const basis = (rep.perSymbol || []).filter((r) => r.basis);
+    const worstDd = (rep.perSymbol || []).reduce((a, r) => (
+      (r.drawdown?.maxDrawdownPct ?? 0) > (a?.drawdown?.maxDrawdownPct ?? 0) ? r : a), null);
+
+    const liq = !s ? '<div class="low-sample">Риск ликвидации не измерялся — нет свечей перпетуала.</div>' : `
+      <div class="mc-row">
+        <div class="metric"><div class="k">Ликвидация шорта</div>
+          <div class="v">+${pctNum(s.liquidationPct)}</div>
+          <div class="note">при плече ${s.leverage}×</div></div>
+        <div class="metric"><div class="k">Доходило до неё</div>
+          <div class="v ${s.breachShare > 0.01 ? 'down' : 'up'}">${pctNum(s.breachShare * 100)}</div>
+          <div class="note">окон удержания в истории</div></div>
+        <div class="metric"><div class="k">Максимальный рост</div>
+          <div class="v">${pctNum(s.maxRisePct)}</div>
+          <div class="note">за ${rep.intendedHoldDays} дней, ${esc(s.symbol || '')}</div></div>
+        <div class="metric"><div class="k">Безопасное плечо</div>
+          <div class="v">${fmtNum(s.safeLeverage, 1)}×</div>
+          <div class="note">ни одно окно не дотянулось бы</div></div>
+      </div>`;
+
+    const basisBlock = !basis.length
+      ? '<p class="analytics-note">Базис не измерялся.</p>'
+      : basis.every((r) => r.basis.degenerate)
+        ? `<p class="analytics-note"><b>Базис вышел ровно нулевым</b> — на рынке так не бывает:
+            перпетуал и спот расходятся постоянно, именно за это расхождение и платят фандинг.
+            Значит, источник не различает перп и спот, и единственный нехеджированный риск
+            сделки здесь просто не измерен. Показать ноль было бы хуже всего: он выглядит
+            как идеальная нейтральность.</p>`
+        : `<div class="table-wrap"><table class="grid mini">
+            <thead><tr><th>Монета</th><th class="num">Базис</th><th class="num">σ</th>
+              <th class="num">5%</th><th class="num">95%</th><th class="num">Размах / издержки</th></tr></thead>
+            <tbody>${basis.map((r) => `
+              <tr><td>${esc(r.symbol)}</td>
+                <td class="num">${fmtNum(r.basis.meanPct)}%</td>
+                <td class="num">${fmtNum(r.basis.sdPct)}%</td>
+                <td class="num">${fmtNum(r.basis.p5Pct)}%</td>
+                <td class="num">${fmtNum(r.basis.p95Pct)}%</td>
+                <td class="num ${r.basis.swingVsTripCost > 1 ? 'down' : ''}">${r.basis.degenerate ? 'не измерен' : fmtNum(r.basis.swingVsTripCost) + '×'}</td>
+              </tr>`).join('')}</tbody></table></div>
+          <p class="analytics-note">Последняя колонка главная: размах базиса против круговых
+            издержек. Больше 1 — момент входа и выхода влияет на итог сильнее, чем комиссия.</p>`;
+
+    const ddBlock = worstDd?.drawdown ? `
+      <p class="analytics-note">Худшая просадка фандинга в выборке — ${esc(worstDd.symbol)}:
+        накопленный доход терял ${fmtNum(worstDd.drawdown.maxDrawdownPct)}% номинала, подряд
+        ${worstDd.drawdown.longestNegativeRun} выплат в минус. Сравнивать это надо именно с
+        круговыми издержками ${pctNum(rep.roundTripPct, 2)}: просадка глубже них значит, что
+        пересидеть плохой период дороже, чем закрыться и зайти заново.</p>` : '';
+
+    return liq + basisBlock + ddBlock;
+  }
+
+  function fundingCompoundHtml(rep) {
+    const c = rep.compound;
+    if (!c) return '<div class="low-sample">Сложный процент не считался.</div>';
+    const rows = c.rows.map((r) => `
+      <tr><td class="num">${r.years}</td><td class="num">${fmtNum(r.factor)}×</td>
+        <td class="num ${r.factor >= 1 ? 'up' : 'down'}">$${fmtNum(r.value, 0)}</td></tr>`).join('');
+    return `
+      <div class="mc-row">
+        <div class="metric"><div class="k">Ставка</div>
+          <div class="v ${c.annualPct >= 0 ? 'up' : 'down'}">${pctNum(c.annualPct)}</div>
+          <div class="note">годовых на капитал</div></div>
+        <div class="metric"><div class="k">Удвоение счёта</div>
+          <div class="v">${c.doublingYears ? fmtNum(c.doublingYears, 1) + ' года' : 'никогда'}</div>
+          <div class="note">при этой ставке</div></div>
+      </div>
+      <div class="table-wrap">
+        <table class="grid mini">
+          <thead><tr><th class="num">Лет</th><th class="num">Множитель</th><th class="num">Из $100</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  function fundingSymbolsHtml(rep) {
+    const rows = (rep.perSymbol || []).map((r) => `
+      <tr>
+        <td>${esc(r.symbol)}</td>
+        <td class="num">${r.periods}</td>
+        <td class="num ${r.meanRate >= 0 ? 'up' : 'down'}">${pct4(r.meanRate)}</td>
+        <td class="num">${pctNum(r.negativeShare * 100, 0)}</td>
+        <td class="num ${r.annualOnCapital >= 0 ? 'up' : 'down'}">${pctNum(r.annualOnCapital * 100)}</td>
+        <td class="num">${Number.isFinite(r.breakEvenDays) ? fmtNum(r.breakEvenDays, 0) + ' дн' : 'никогда'}</td>
+        <td class="num down">−${fmtNum(r.drawdown?.maxDrawdownPct)}%</td>
+      </tr>`).join('');
+    return `
+      <div class="table-wrap">
+        <table class="grid mini">
+          <thead><tr><th>Монета</th><th class="num">Выплат</th><th class="num">Средняя</th>
+            <th class="num">В минус</th><th class="num">Годовых на капитал</th>
+            <th class="num">Окупаемость</th><th class="num">Просадка фандинга</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  async function loadFunding() {
+    const box = $('#fundingBody');
+    const empty = $('#fundingEmpty');
+    let rep = null;
+    try { rep = await API.funding(); } catch { rep = null; }
+
+    if (!rep || !rep.portfolio) {
+      box.classList.add('hidden');
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+    box.classList.remove('hidden');
+    state.funding = rep;
+
+    $('#fundingVerdict').innerHTML = fundingVerdictHtml(rep);
+    $('#fundingIncomeBox').innerHTML = fundingIncomeHtml(rep);
+    $('#fundingCurveBox').innerHTML = fundingCurveHtml(rep);
+    $('#fundingSelectionBox').innerHTML = fundingSelectionHtml(rep);
+    $('#fundingRiskBox').innerHTML = fundingRiskHtml(rep);
+    $('#fundingCompoundBox').innerHTML = fundingCompoundHtml(rep);
+    $('#fundingSymbolsBox').innerHTML = fundingSymbolsHtml(rep);
+
+    const p = rep.portfolio;
+    const vault = rep.vault || {};
+    $('#fundingMeta').textContent =
+      `Отчёт от ${fmtTime(rep.generatedAt)} · источник ${rep.source || '—'} · ` +
+      `${rep.universe?.measured ?? rep.perSymbol.length} перпетуалов · ` +
+      `период ${fmtTime(p.from)} — ${fmtTime(p.to)} · ${p.periods} выплат · ` +
+      `отложено и не использовано: ${vault.periods ?? 0} выплат.`;
   }
 
   /* ----------------------------- Validation --------------------------- */
