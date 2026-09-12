@@ -11,6 +11,7 @@ import {
   pairRoundTrip, capitalPerNotional, describeFunding, fundingDrawdown,
   harvestCurve, compounding, basisRisk, shortLegRisk, spearman,
   splitFunding, persistenceTest, reserveFundingVault, analyseFunding, verdictOf,
+  meanConcentration,
 } from '../server/funding.js';
 import {
   parseFunding, mergeByTime, medianIntervalMs, selectPerpUniverse, syntheticFunding,
@@ -723,6 +724,116 @@ const series = (rates, { intervalMs = 8 * HOUR, start = 1_700_000_000_000 } = {}
     /шлагбаум/.test(reason({ status: 202, bytes: 0, snippet: '' })));
   check('an answering host is simply answering',
     reason({ ok: true }) === 'отвечает');
+}
+
+/* ------------- is the average about the market or one coin? ------------ */
+{
+  /*
+   * Rebuilt from the first live OKX run, because that run produced exactly the
+   * reading error this check exists to stop. Pooled mean −0.0096% per 8h, so the
+   * report called funding harvesting unprofitable — while the median coin paid
+   * +0.0038%, nineteen of twenty-four were positive, and LABUSDT at −0.172%
+   * contributed −0.0150%, more than the whole negative total.
+   */
+  const live = [
+    { symbol: 'SKHYNIXUSDT', meanRate: 0.0006825, periods: 229 },
+    { symbol: 'SOXLUSDT', meanRate: 0.0001539, periods: 231 },
+    { symbol: 'BTCUSDT', meanRate: 0.0000380, periods: 231 },
+    { symbol: 'ETHUSDT', meanRate: 0.0000223, periods: 231 },
+    { symbol: 'TRUMPUSDT', meanRate: -0.0000477, periods: 461 },
+    { symbol: 'LABUSDT', meanRate: -0.0017233, periods: 587 },
+  ];
+  const c = meanConcentration(live);
+
+  check('the pooled mean is weighted by how many settlements each coin has',
+    c.pooled < 0);
+  check('the single biggest contributor is identified', c.top.symbol === 'LABUSDT');
+  check('one coin is flagged as deciding the whole aggregate', c.dominated === true);
+  check('and removing it flips the sign', c.flipsSign === true && c.pooledWithoutTop > 0);
+  check('the median coin is reported next to the mean, because they disagree',
+    c.medianOfSymbols > 0 && c.pooled < 0);
+  check('how many coins actually pay is reported', c.positiveSymbols === 4 && c.symbols === 6);
+  check('contributions are ranked by magnitude, not by sign',
+    Math.abs(c.contributions[0].contribution) >= Math.abs(c.contributions[1].contribution));
+
+  /*
+   * And the case that must NOT be flagged: a universe that loses broadly. There
+   * the negative verdict is the honest one, and crying "one coin" would excuse a
+   * real loss.
+   */
+  const broad = [
+    { symbol: 'A', meanRate: -0.0001, periods: 300 },
+    { symbol: 'B', meanRate: -0.00011, periods: 300 },
+    { symbol: 'C', meanRate: -0.00009, periods: 300 },
+    { symbol: 'D', meanRate: -0.00012, periods: 300 },
+  ];
+  const bc = meanConcentration(broad);
+  check('a universe that loses broadly is NOT blamed on one coin', bc.dominated === false);
+  check('and no sign flip is claimed for it', bc.flipsSign === false);
+  check('too few symbols to decompose gives nothing rather than a guess',
+    meanConcentration([{ symbol: 'A', meanRate: 1, periods: 1 }]) === null);
+}
+
+/* ---------------- the verdict must not overstate a loss --------------- */
+{
+  const dominatedUniverse = [
+    { symbol: 'GOOD1', meanRate: 0.00006, periods: 231 },
+    { symbol: 'GOOD2', meanRate: 0.00005, periods: 231 },
+    { symbol: 'GOOD3', meanRate: 0.00004, periods: 231 },
+    { symbol: 'BAD', meanRate: -0.0017, periods: 587 },
+  ];
+  const conc = meanConcentration(dominatedUniverse);
+  const portfolio = describeFunding(series(new Array(200).fill(-0.0001)));
+
+  const v = verdictOf({ portfolio, concentration: conc });
+  check('a loss made by one coin is not reported as a verdict about funding',
+    v.code === 'dominated');
+  check('the verdict names the coin and what the data reads without it',
+    /BAD/.test(v.text) && /без неё/i.test(v.text));
+  check('it says plainly that the conclusion is not supported',
+    /не подтверждается/.test(v.text));
+  check('it still shows the negative number rather than hiding it',
+    /-0\.0100%|−0\.0100%|-0\.01/.test(v.text) || v.annualPct < 0);
+
+  // A broad loss keeps the blunt verdict: the guard must not launder real losses.
+  const broad = meanConcentration([
+    { symbol: 'A', meanRate: -0.0001, periods: 300 },
+    { symbol: 'B', meanRate: -0.00011, periods: 300 },
+    { symbol: 'C', meanRate: -0.00009, periods: 300 },
+  ]);
+  const blunt = verdictOf({ portfolio, concentration: broad });
+  check('a broad loss is still called a loss', blunt.code === 'negative');
+  check('and still says the mirror trade does not save it', /занимать монету/.test(blunt.text));
+  check('with no concentration data the verdict stays blunt',
+    verdictOf({ portfolio }).code === 'negative');
+}
+
+/* ------------- the compounding rate must name its basket -------------- */
+{
+  /*
+   * The first live run quoted 7.3% a year and "doubling in 9.8 years" off a
+   * persistence verdict of `weak` — rho 0.34, p = 0.087, not significant. That is
+   * the best slice of noise presented as a plan, and the old threshold allowed it.
+   */
+  const by = {};
+  for (let i = 0; i < 8; i++) {
+    const rates = [];
+    for (let j = 0; j < 120; j++) rates.push(0.0001 + ((i * 29 + j * 13) % 19 - 9) * 0.00002);
+    by[`N${i}USDT`] = series(rates);
+  }
+  const rep = analyseFunding({ fundingBySymbol: by, source: 'okx swap', topK: 3 });
+  check('a report always says which basket the compounding rate came from',
+    rep.compound?.basis === 'universe' || rep.compound?.basis === 'picked');
+  check('an unproven selection rule quotes the universe, not the picks',
+    rep.persistence?.verdict === 'persists' || rep.compound.basis === 'universe');
+  check('and says so in words', /вселенной|отобранной корзине/.test(rep.compound.basisText));
+  check('break-even reachability is explicit, because Infinity becomes null in JSON',
+    typeof rep.portfolio.breakEvenReachable === 'boolean');
+  check('a JSON round trip keeps that flag usable', (() => {
+    const back = JSON.parse(JSON.stringify(rep));
+    return back.portfolio.breakEvenReachable === rep.portfolio.breakEvenReachable
+      && back.portfolio.breakEvenPeriods === null || back.portfolio.breakEvenPeriods > 0;
+  })());
 }
 
 /* ------------------------------ okx parsing --------------------------- */

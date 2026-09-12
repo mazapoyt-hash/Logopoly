@@ -193,6 +193,37 @@ function summary(rep) {
   out.push(rep.verdict.text);
   out.push('');
 
+  /*
+   * The decomposition right under the verdict, not buried below it. A mean made
+   * by one symbol is the error LABUSDT produced on the first live run, and a
+   * reader who sees only the headline repeats it.
+   */
+  const c = rep.concentration;
+  if (c) {
+    out.push('#### Из чего сделано среднее');
+    out.push('');
+    out.push('| | |');
+    out.push('|---|---:|');
+    out.push(`| Среднее по выборке | ${pct4(c.pooled)} |`);
+    out.push(`| Медианная монета | ${pct4(c.medianOfSymbols)} |`);
+    out.push(`| Монет с положительной ставкой | ${c.positiveSymbols} из ${c.symbols} |`);
+    out.push(`| Без ${c.top.symbol} | ${pct4(c.pooledWithoutTop)} |`);
+    out.push('');
+    out.push('| Монета | Ставка | Выплат | Вклад в среднее |');
+    out.push('|---|---:|---:|---:|');
+    for (const row of c.contributions) {
+      out.push(`| ${row.symbol} | ${pct4(row.meanRate)} | ${row.periods} | ${pct4(row.contribution)} |`);
+    }
+    out.push('');
+    if (c.dominated) {
+      out.push(`**Одна монета решает итог.** Вклад ${c.top.symbol} по модулю больше всего среднего, ` +
+        (c.flipsSign ? 'и без неё знак меняется. ' : '') +
+        'Это то же, что сделал стейблкоин RLUSD со статистикой стратегии: вывод получается не про ' +
+        'рынок, а про состав корзины.');
+      out.push('');
+    }
+  }
+
   if (p) {
     out.push('### Доход');
     out.push('');
@@ -203,7 +234,8 @@ function summary(rep) {
     out.push(`| Доля выплат, где платим мы | ${n1(p.negativeShare * 100)}% |`);
     out.push(`| Годовых на номинал (без издержек) | ${n1(p.annualGross * 100)}% |`);
     out.push(`| Годовых на **капитал** (без издержек) | **${n1(p.annualOnCapital * 100)}%** |`);
-    out.push(`| Окупить вход и выход | ${n1(p.breakEvenPeriods)} выплат ≈ ${n1(p.breakEvenDays)} дней |`);
+    out.push(`| Окупить вход и выход | ${p.breakEvenReachable
+      ? `${n1(p.breakEvenPeriods)} выплат ≈ ${n1(p.breakEvenDays)} дней` : '**никогда** при этой ставке'} |`);
     out.push(`| Период | ${day(p.from)} — ${day(p.to)}, ${p.periods} выплат |`);
     out.push('');
     out.push(`Капитал на единицу номинала: ${n2(rep.capitalPerNotional)}× — спот оплачивается ` +
@@ -311,7 +343,9 @@ function summary(rep) {
   out.push('| Монета | Выплат | Средняя | Отриц. | Годовых на капитал | Окупаемость | Макс. просадка фандинга |');
   out.push('|---|---:|---:|---:|---:|---:|---:|');
   for (const r of rep.perSymbol.slice(0, 25)) {
-    const payback = Number.isFinite(r.breakEvenDays) ? `${n1(r.breakEvenDays)} дн` : 'никогда';
+    // breakEvenReachable, not Number.isFinite: Infinity becomes null in JSON, and
+    // a null would otherwise read as "not computed" instead of "never".
+    const payback = r.breakEvenReachable ? `${n1(r.breakEvenDays)} дн` : 'никогда';
     out.push(`| ${r.symbol} | ${r.periods} | ${pct4(r.meanRate)} | ${n1(r.negativeShare * 100)}% | ` +
       `${n1(r.annualOnCapital * 100)}% | ${payback} | ` +
       `−${n2(r.drawdown?.maxDrawdownPct)}% (${r.drawdown?.longestNegativeRun ?? '—'} подряд) |`);
@@ -325,6 +359,7 @@ function summary(rep) {
     out.push(`Ставка ${n1(c.annualPct)}% годовых, ` +
       (c.doublingYears ? `удвоение счёта за **${n1(c.doublingYears)} года**.` : 'счёт не растёт.'));
     out.push('');
+    if (c.basisText) { out.push(c.basisText); out.push(''); }
     out.push('| Лет | Множитель | Из $100 |');
     out.push('|---:|---:|---:|');
     for (const r of c.rows) out.push(`| ${r.years} | ${n2(r.factor)}× | $${n1(r.value)} |`);
