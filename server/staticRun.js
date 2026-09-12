@@ -105,6 +105,32 @@ export async function runStatic({ dir = DATA_DIR, now = Date.now() } = {}) {
     }
   }
 
+  /*
+   * Symbols we must WATCH, as opposed to symbols we may ENTER.
+   *
+   * An open signal has to be carried to its stop or target whatever happens to
+   * the universe afterwards — and three ways of losing it were live at once:
+   * the top-40 by turnover churns between runs, the toll screen below removes
+   * coins deliberately, and a failed universe fetch falls back to the eight
+   * configured names. The settle loop iterated the narrowed list, so a signal
+   * whose coin had left it was never visited again: no price, no level check,
+   * no resolution, forever.
+   *
+   * That is not a cosmetic gap. A signal that never resolves never becomes a
+   * win or a loss, so it silently leaves the track record — and it leaves for
+   * reasons correlated with the coin's own behaviour, which biases what remains
+   * rather than thinning it evenly. The project's promise is that every signal
+   * is carried to an outcome without exceptions, and this is what keeps it.
+   */
+  const openSymbols = [...new Set(
+    state.signals.filter((s) => s.status === 'open').map((s) => s.symbol),
+  )];
+  const trackSymbols = [...new Set([...symbols, ...openSymbols])];
+  const orphans = openSymbols.filter((s) => !symbols.includes(s));
+  if (orphans.length) {
+    log.push(`веду вне вселенной (открытые сигналы): ${orphans.join(', ')}`);
+  }
+
   const health = await checkSource();
   if (!health.ok) {
     // Write a status file so the site can say what is wrong instead of
@@ -123,11 +149,11 @@ export async function runStatic({ dir = DATA_DIR, now = Date.now() } = {}) {
 
   // Live prices settle anything that already hit its level between runs.
   let prices = {};
-  try { prices = await getPrices(symbols); } catch { /* candles still work */ }
+  try { prices = await getPrices(trackSymbols); } catch { /* candles still work */ }
 
-  // Fetch once, use for everything below.
+  // Fetch once, use for everything below. Watched set, not the entry set.
   const data = {};
-  for (const symbol of symbols) {
+  for (const symbol of trackSymbols) {
     data[symbol] = {
       candles: await getCandles(symbol, config.timeframe, config.candleLimit, { fresh: true }),
       htf: await getCandles(symbol, config.higherTimeframe, config.candleLimit, { fresh: true }),
@@ -145,6 +171,12 @@ export async function runStatic({ dir = DATA_DIR, now = Date.now() } = {}) {
     log.push(`${d.symbol}: исключён — ${d.reason}` +
       (d.costR ? ` (ATR ${d.atrPct.toFixed(3)}%, пошлина ${d.costR.toFixed(2)}R)` : ''));
   }
+  /*
+   * The screen decides where to ENTER, never where to stop watching. A coin it
+   * drops keeps its open signal tracked below — RLUSD is exactly the case:
+   * the screen exists because of it, and its open signal was stranded by the
+   * very filter added to keep new ones from being opened on it.
+   */
   symbols = symbols.filter((s) => screen.kept[s]);
 
   /*
@@ -167,9 +199,11 @@ export async function runStatic({ dir = DATA_DIR, now = Date.now() } = {}) {
     score: Math.round(t.score ?? 0), r: t.r, entryTime: t.entryTime,
   }));
 
-  for (const symbol of symbols) {
-    const { candles, htf } = data[symbol];
-    if (!candles.length) continue;
+  for (const symbol of trackSymbols) {
+    const { candles, htf } = data[symbol] || {};
+    if (!candles?.length) continue;
+    /* Entry is gated by the screened universe; settling is not. */
+    const mayEnter = symbols.includes(symbol);
 
     // 1. Settle open signals for this symbol.
     for (const sig of state.signals) {
@@ -201,6 +235,13 @@ export async function runStatic({ dir = DATA_DIR, now = Date.now() } = {}) {
         }
       }
     }
+
+    /*
+     * Everything below is entry-side: the quality gate, the overview row and the
+     * signal itself. An orphan is watched, not scanned — it should not reappear
+     * in the market table as if it were part of the universe.
+     */
+    if (!mayEnter) continue;
 
     // 2. Data integrity gate before publishing anything new.
     const audit = auditCandles(candles, config.timeframe, {
@@ -276,7 +317,14 @@ export async function runStatic({ dir = DATA_DIR, now = Date.now() } = {}) {
   writeJson(dir, 'status.json', {
     updatedAt: now, source: config.source, ok: true,
     timeframe: config.timeframe, higherTimeframe: config.higherTimeframe,
-    symbols, strategy: config.strategy,
+    symbols,
+    /*
+     * What the page must request prices for: the universe plus any coin still
+     * carrying an open signal. Using `symbols` alone left three open cards with
+     * no quote for hours — the browser simply never asked for those coins.
+     */
+    tracked: trackSymbols,
+    strategy: config.strategy,
     screened: screen.dropped,
     universe: universe && { size: universe.length, minQuoteVolume: config.universe.minQuoteVolume },
     minSampleForStats: config.minSampleForStats,

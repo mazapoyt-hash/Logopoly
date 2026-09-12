@@ -138,6 +138,110 @@ check('the collector ignores signals that are still open', (() => {
   }
 }
 
+/* ------------- an open signal outlives its place in the universe ------- */
+{
+  /*
+   * The bug three live signals hit. The settle loop walked the NARROWED symbol
+   * list, so a coin that had left the universe — by turnover churn, by the toll
+   * screen, or by a failed universe fetch falling back to eight configured
+   * names — was never visited again: no price, no level check, no resolution,
+   * for hours.
+   *
+   * That silently removes signals from the track record, and removes them for
+   * reasons tied to the coin's own behaviour rather than at random. The promise
+   * is that every signal reaches an outcome, so WATCHING must not be gated by
+   * the list that gates ENTRY.
+   */
+  const before = read('status.json');
+  check('status publishes the watched set alongside the scanned universe',
+    Array.isArray(before.tracked) && before.tracked.length >= before.symbols.length);
+
+  const planted = {
+    id: 'orphan-test-1',
+    symbol: 'ZZZORPHANUSDT',
+    timeframe: before.timeframe,
+    direction: 'LONG',
+    entry: 100, stop: 99, target: 102,
+    score: 50, status: 'open',
+    createdAt: Date.now() - 7200_000,
+    barTime: Date.now() - 7200_000,
+    origin: 'test',
+  };
+  check('the planted coin is outside the scanned universe',
+    !before.symbols.includes(planted.symbol));
+
+  const state = loadState(DIR);
+  state.signals.push(planted);
+  fs.writeFileSync(path.join(DIR, 'state.json'), JSON.stringify(state, null, 1) + '\n');
+
+  let crashed = null;
+  try { await runStatic(); } catch (err) { crashed = err.message; }
+  check(`a run with an open signal outside the universe does not break${crashed ? ': ' + crashed : ''}`,
+    crashed === null);
+
+  const after = read('status.json');
+  check('the orphan is watched: it reaches the price request list',
+    after.tracked.includes(planted.symbol));
+  check('but it is NOT scanned: it stays out of the entry universe',
+    !after.symbols.includes(planted.symbol));
+
+  /*
+   * Watched, not scanned — so it must not reappear in the market overview as if
+   * it were part of the universe, and it must not generate new signals.
+   */
+  const market = read('market.json').market;
+  check('the orphan does not appear in the market overview',
+    !market.some((m) => m.symbol === planted.symbol));
+
+  const afterState = loadState(DIR);
+  const mine = afterState.signals.filter((s) => s.symbol === planted.symbol);
+  check('no second signal is opened on a coin that is only watched',
+    mine.length === 1);
+  check('and the one that exists was carried forward, not dropped from state',
+    mine[0].id === planted.id);
+
+  /*
+   * The assertion the whole fix exists for: an orphan must actually RESOLVE.
+   * The levels are placed against the coin's own generated price so the outcome
+   * is certain — a long whose stop sits far above the current price is already
+   * beaten, and under the old code it would have sat open forever because the
+   * settle loop never reached the symbol.
+   */
+  const { getCandles } = await import('../server/sources/index.js');
+  const orphanCandles = await getCandles('ZZZORPHAN2USDT', before.timeframe, 300, { fresh: true });
+  const last = orphanCandles[orphanCandles.length - 1].close;
+
+  const doomed = {
+    id: 'orphan-test-2',
+    symbol: 'ZZZORPHAN2USDT',
+    timeframe: before.timeframe,
+    direction: 'LONG',
+    entry: last * 1.5,
+    stop: last * 1.4,          // already far above price: the stop is beaten
+    target: last * 1.8,
+    score: 50, status: 'open',
+    createdAt: orphanCandles[0].time,
+    barTime: orphanCandles[0].time,
+    origin: 'test',
+  };
+  const st2 = loadState(DIR);
+  st2.signals.push(doomed);
+  fs.writeFileSync(path.join(DIR, 'state.json'), JSON.stringify(st2, null, 1) + '\n');
+
+  await runStatic();
+
+  const settled = loadState(DIR).signals.find((s) => s.id === doomed.id);
+  check('an open signal outside the universe is actually settled, not frozen',
+    settled && settled.status !== 'open');
+  check('it is settled as a loss, because its stop was beaten',
+    settled?.status === 'loss');
+  check('and it carries an exit, a time and an R — so it enters the track record',
+    Number.isFinite(settled?.exit) && Number.isFinite(settled?.exitTime)
+      && Number.isFinite(settled?.r));
+  check('the settled orphan shows up in the published history',
+    (read('signals.json').closed || []).some((s) => s.id === doomed.id));
+}
+
 fs.rmSync(DIR, { recursive: true, force: true });
 fs.rmSync(process.env.COINSCOPE_DATA_DIR, { recursive: true, force: true });
 

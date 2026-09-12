@@ -126,7 +126,13 @@
      * back to the prices captured at the last scan and say so.
      */
     prices: async () => {
-      const symbols = state.status?.symbols || [];
+      /*
+       * `tracked` covers the universe plus coins still carrying an open signal.
+       * Asking only for `symbols` is what left open cards quoteless: a coin that
+       * fell out of the universe — or was dropped by the toll screen — was never
+       * requested, so its card showed no price for as long as the signal lived.
+       */
+      const symbols = state.status?.tracked || state.status?.symbols || [];
       if (!symbols.length) return { at: null, values: {} };
       try {
         const url = 'https://api.binance.com/api/v3/ticker/price?symbols=' +
