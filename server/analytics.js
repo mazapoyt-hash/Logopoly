@@ -30,7 +30,7 @@ import { summarize, backtestSymbol } from './backtest.js';
 import { wilsonInterval } from './probability.js';
 import { GRID } from './validate.js';
 import { randomEntryBenchmark, rotationNull } from './nulls.js';
-import { costSensitivity, tollFromTrades, winRateCurve } from './economics.js';
+import { costSensitivity, tollFromTrades, winRateCurve, kellyFraction } from './economics.js';
 import { walkForward, evidenceScale } from './learning.js';
 
 /** Below this a bucket is reported but never called an edge. */
@@ -323,6 +323,89 @@ export function calibration(closedSignals) {
   return { rows, verdict, sample: usable.length, minBucket: MIN_BUCKET };
 }
 
+/* -------------------- Live record against the backtest ---------------- */
+
+/** Probability of at most `k` successes in `n` trials at rate `p`. */
+export function binomialAtMost(k, n, p) {
+  if (n <= 0) return 1;
+  if (p <= 0) return 1;
+  if (p >= 1) return k >= n ? 1 : 0;
+
+  // Log-space so large n does not overflow the factorials.
+  let logC = 0;
+  let sum = 0;
+  for (let i = 0; i <= k && i <= n; i++) {
+    if (i > 0) logC += Math.log((n - i + 1) / i);
+    sum += Math.exp(logC + i * Math.log(p) + (n - i) * Math.log(1 - p));
+  }
+  return Math.min(1, sum);
+}
+
+/**
+ * Is the live record merely bad, or broken?
+ *
+ * A run of losses provokes the same question every time — "is something wrong
+ * with the tracking?" — and the honest answer is a number, not a reassurance.
+ * Given the win rate the backtest measured, how surprising is the live record?
+ *
+ * Six losses in six trades at a 36% win rate happens 6.9% of the time: unlucky,
+ * entirely ordinary, and no evidence of a bug. Six losses in twenty would be a
+ * 0.01% event and would mean live and historical execution have diverged —
+ * which IS a bug, and a far more interesting one than the losses.
+ *
+ * The check matters because the two failure modes look identical from the
+ * outside and need opposite responses: one is the strategy being what it was
+ * measured to be, the other is the code lying.
+ */
+export function liveVsBacktest(closedSignals, backtestStats, { minTrades = 5 } = {}) {
+  const resolved = (closedSignals || []).filter(
+    (s) => s.status && s.status !== 'open' && Number.isFinite(s.r)
+  );
+  const n = resolved.length;
+  const wins = resolved.filter((s) => s.r > 0).length;
+  const p = backtestStats?.winRate;
+
+  if (!n || p == null) {
+    return { verdict: 'unknown', trades: n, wins,
+      text: 'Закрытых сигналов пока нет — сравнивать не с чем.' };
+  }
+
+  const liveAvgR = resolved.reduce((a, s) => a + s.r, 0) / n;
+  const probability = binomialAtMost(wins, n, p);
+  const expectedWins = n * p;
+
+  if (n < minTrades) {
+    return {
+      verdict: 'tooFew', trades: n, wins, expectedWins, liveAvgR,
+      backtestWinRate: p, probability,
+      text: `Закрытых сигналов всего ${n}. На такой выборке не видно ничего: ` +
+        `даже ${n} убытков подряд при винрейте ${(p * 100).toFixed(0)}% случаются в ` +
+        `${(probability * 100).toFixed(1)}% случаев.`,
+    };
+  }
+
+  /*
+   * 1% is deliberately strict. The question is not "is the live record worse
+   * than average" — with a losing strategy it usually is — but "is it so much
+   * worse that chance stops explaining it", which is when to go looking for a
+   * bug rather than for a better strategy.
+   */
+  const broken = probability < 0.01;
+  return {
+    verdict: broken ? 'diverged' : 'consistent',
+    trades: n, wins, expectedWins, liveAvgR, backtestWinRate: p, probability,
+    text: broken
+      ? `Живой результат — ${wins} побед из ${n} при ожидаемых ${expectedWins.toFixed(1)}. ` +
+        `Вероятность такого при измеренном винрейте: ${(probability * 100).toFixed(2)}%. ` +
+        'Это слишком мало для невезения. Скорее всего, живое исполнение и исторический ' +
+        'расчёт разошлись — это ошибка в коде, и искать надо её, а не стратегию получше.'
+      : `Живой результат — ${wins} побед из ${n} при ожидаемых ${expectedWins.toFixed(1)}. ` +
+        `Вероятность такого при измеренном винрейте: ${(probability * 100).toFixed(1)}%. ` +
+        'Это укладывается в невезение: живой учёт согласуется с бэктестом, и отдельной ' +
+        'поломки тут нет — стратегия просто такая, какой её измерили.',
+  };
+}
+
 /* ---------------------- In-sample / out-of-sample ---------------------- */
 
 /* ------------------------------- The vault ---------------------------- */
@@ -560,6 +643,13 @@ export function analyse({
     },
     excursions: excursions(trades),
     calibration: calibration(signals),
+    /*
+     * Answers the question a losing streak always provokes: is the tracking
+     * broken, or is this the strategy being what it was measured to be?
+     */
+    liveCheck: liveVsBacktest(signals, summarize(trades)),
+    /* What size the measured edge justifies. With a negative edge: none. */
+    kelly: kellyFraction(summarize(trades)),
     tuning: dataBySymbol ? outOfSampleTuning(dataBySymbol, { ratio }) : null,
     /*
      * The question every other section is downstream of: does the entry logic

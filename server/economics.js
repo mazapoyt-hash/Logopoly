@@ -119,6 +119,133 @@ export function tollFromTrades(trades, costs = COSTS) {
   };
 }
 
+/* --------------------------- Sizing and leverage ---------------------- */
+
+/** Share of the account risked on one trade. The only real input to sizing. */
+export const RISK_PCT = Number(process.env.COINSCOPE_RISK_PCT || 1);
+
+/** Exchange maintenance margin, used only to place the liquidation price. */
+const MAINTENANCE = Number(process.env.COINSCOPE_MAINTENANCE || 0.5);
+
+/**
+ * What leverage a signal implies — which is a consequence, not a choice.
+ *
+ * People ask "what leverage should I use" as if it were a property of the
+ * signal. It is not. Two numbers decide it completely: how much of the account
+ * you are willing to lose if the stop is hit, and how far away the stop is.
+ *
+ *     позиция / счёт  =  риск %  /  расстояние до стопа %
+ *
+ * Risk 1% with a stop 1.5% away and the position is 0.67 of the account — no
+ * leverage at all. Leverage above 1 appears only when the stop is CLOSER than
+ * the risk you accept, and that is the dangerous direction: the nearer the
+ * stop, the larger the position, and the smaller the adverse move that
+ * liquidates it.
+ *
+ * The liquidation distance is reported next to the stop for exactly that
+ * reason. If a wick can reach liquidation before the stop fills, the stop is
+ * decorative — the position is gone first, and at a worse price.
+ *
+ * And the part that matters most here: **leverage does not change R.** A
+ * result measured in R is already normalised by what was risked, so doubling
+ * the leverage doubles both the wins and the losses and leaves the average R
+ * exactly where it was. Leverage cannot turn a negative expectancy positive.
+ * It only decides how fast the account gets there.
+ */
+export function sizing({ entry, stop, riskPct = RISK_PCT, maintenancePct = MAINTENANCE }) {
+  if (!(entry > 0) || !(stop > 0) || entry === stop) return null;
+
+  const stopPct = (Math.abs(entry - stop) / entry) * 100;
+  const positionFraction = riskPct / stopPct;      // position / equity
+  const leverage = positionFraction;
+
+  // Where the position is force-closed: equity runs out after roughly
+  // (100/leverage) percent against you, less what the venue keeps back.
+  const liqPct = leverage > 0 ? (100 / leverage) - maintenancePct : Infinity;
+  const safety = liqPct / stopPct;
+
+  /*
+   * Three independent ways a size can be unsafe, and the safety ratio alone
+   * catches only the first. A 50× position behind a 0.1% stop scores 15× on
+   * that ratio and looks fine, which is exactly backwards.
+   */
+  const reasons = [];
+
+  // 1. Liquidation within reach of an ordinary wick: the stop is decorative.
+  if (safety < 3) reasons.push('ликвидация слишком близко к стопу');
+
+  // 2. A stop too tight to pay its own execution. Same arithmetic as the
+  //    universe screen: costs are a share of price, R is a share of the stop.
+  const costR = roundTripCost() / (stopPct / 100);
+  if (costR > MAX_TOLL_R) {
+    reasons.push(`стоп настолько близко, что издержки съедают ${costR.toFixed(2)}R на сделку`);
+  }
+
+  // 3. Gaps jump over stops. At high leverage a routine gap is not a loss of
+  //    1R, it is the account — and no stop placement prevents that.
+  if (leverage > 10) reasons.push('на таком плече обычный гэп перепрыгивает стоп и уносит счёт');
+
+  return {
+    riskPct, stopPct,
+    positionFraction,
+    leverage,
+    /** Below 1 means no borrowing is needed at all. */
+    needsLeverage: leverage > 1,
+    liquidationPct: liqPct,
+    /** How many times further away liquidation sits than the stop. */
+    safetyRatio: safety,
+    costR,
+    reasons,
+    dangerous: reasons.length > 0,
+  };
+}
+
+/**
+ * The size the measured edge justifies — which, with a negative edge, is none.
+ *
+ * Kelly answers "what fraction of the account maximises long-run growth", and
+ * for a two-outcome bet it is
+ *
+ *     f* = (p·b − q) / b ,   b = средний выигрыш / средний проигрыш
+ *
+ * When the expectancy is negative f* comes out negative, and a negative Kelly
+ * fraction has a precise meaning: no positive stake grows the account. Not
+ * "use less leverage" — any size above zero loses, and leverage only picks how
+ * quickly.
+ *
+ * Half-Kelly is reported because full Kelly is famously unusable in practice:
+ * it assumes the measured edge is the true edge, and estimation error at full
+ * size produces drawdowns nobody sits through.
+ */
+export function kellyFraction(stats) {
+  if (!stats || !stats.trades || stats.winRate == null) return null;
+  const wins = stats.wins || 0;
+  const losses = stats.trades - wins;
+  if (!wins || !losses) return null;
+
+  const avgWin = stats.grossWinR / wins;
+  const avgLoss = stats.grossLossR / losses;
+  if (!(avgWin > 0) || !(avgLoss > 0)) return null;
+
+  const b = avgWin / avgLoss;
+  const p = stats.winRate;
+  const f = (p * b - (1 - p)) / b;
+
+  return {
+    fraction: f, half: f / 2, payoff: b, winRate: p,
+    positive: f > 0,
+    text: f > 0
+      ? `Критерий Келли допускает риск ${(f * 100).toFixed(1)}% счёта на сделку ` +
+        `(половинный Келли — ${(f * 50).toFixed(1)}%). Полный Келли на практике не используют: ` +
+        'он считает измеренное преимущество истинным, а ошибка оценки на полном размере даёт ' +
+        'просадки, которые никто не высиживает.'
+      : `Критерий Келли даёт **отрицательную** долю (${(f * 100).toFixed(1)}%). У этого точный ` +
+        'смысл: не существует положительного размера позиции, который наращивает счёт. ' +
+        'Это не «взять плечо поменьше» — любой размер больше нуля теряет, а плечо решает ' +
+        'только, насколько быстро.',
+  };
+}
+
 /* ------------------------------ Screening ----------------------------- */
 
 /** Above this, the toll alone makes a coin unwinnable whatever the signal. */

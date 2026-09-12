@@ -291,6 +291,75 @@
     return Math.max(0, Math.min(1, (price - sig.stop) / span));
   }
 
+  /** Share of the account risked per trade; the only input the reader picks. */
+  const RISK_PCT = 1;
+
+  /**
+   * Leverage is a consequence, not a choice.
+   *
+   * Two numbers decide it completely: how much of the account you accept
+   * losing when the stop is hit, and how far the stop is. Position/equity =
+   * risk% / stop%. With a 1.5% stop and 1% risk that is 0.67 — no borrowing at
+   * all. Leverage above 1 appears only when the stop is CLOSER than the risk
+   * accepted, and that is the dangerous direction: the nearer the stop, the
+   * bigger the position, and the smaller the move that liquidates it.
+   *
+   * Liquidation is shown beside the stop for that reason. If a wick reaches
+   * liquidation before the stop fills, the stop is decorative — the position
+   * is already gone, at a worse price.
+   */
+  function sizingBlock(s) {
+    if (!Number.isFinite(s.entry) || !Number.isFinite(s.stop) || s.entry === s.stop) return '';
+    const stopPct = (Math.abs(s.entry - s.stop) / s.entry) * 100;
+    const leverage = RISK_PCT / stopPct;
+    const liqPct = (100 / leverage) - 0.5;        // less the maintenance margin
+    const needs = leverage > 1;
+    /*
+     * A position smaller than the account cannot be liquidated: the money to
+     * cover it is already there, and price would have to pass zero. Printing a
+     * "liquidation at 142%" in that case is not conservative, it is nonsense,
+     * so the whole clause is dropped rather than dressed up.
+     */
+    const liquidatable = liqPct < 100;
+    const safety = liquidatable ? liqPct / stopPct : Infinity;
+
+    /*
+     * Three independent ways a size is unsafe, and the liquidation distance
+     * catches only the first. A tiny stop behind a large position scores well
+     * on that ratio and is still ruinous: it cannot pay its own execution, and
+     * at high leverage a gap jumps the stop entirely.
+     */
+    const costR = 0.002 / (stopPct / 100);     // round trip 0.2% of price
+    const warnings = [];
+    if (safety < 3) warnings.push('ликвидация слишком близко к стопу');
+    if (costR > 0.5) warnings.push(`стоп так близко, что издержки съедают ${fmtNum(costR, 2)}R на сделку`);
+    if (leverage > 10) warnings.push('на таком плече обычный гэп перепрыгивает стоп');
+    const danger = warnings.length > 0;
+
+    return `
+      <div class="sizing${danger ? ' danger' : ''}">
+        <div class="sizing-head">
+          <span>Размер позиции при риске ${RISK_PCT}% счёта</span>
+          <b>${needs ? `${fmtNum(leverage, 1)}×` : 'без плеча'}</b>
+        </div>
+        <div class="sizing-body">
+          Позиция — <b>${fmtNum(leverage * 100, 0)}%</b> счёта${needs
+            ? `, то есть плечо ${fmtNum(leverage, 1)}×.`
+            : '. Плечо не нужно: стоп дальше, чем принятый риск.'}
+          ${liquidatable
+            ? `Ликвидация примерно в ${fmtNum(liqPct, 1)}% от входа — это
+               ${fmtNum(safety, 1)}× расстояния до стопа.`
+            : 'Ликвидации нет: позиция меньше счёта, средств хватает на любое движение.'}
+          ${danger ? `<b>Опасно:</b> ${warnings.join('; ')}.` : ''}
+        </div>
+        <div class="sizing-note">
+          Плечо не меняет результат в R: R уже нормирован на риск, поэтому вдвое большее
+          плечо удваивает и прибыли, и убытки. Оно решает не <i>сколько</i> заработаешь,
+          а <i>как быстро</i> закончится счёт, если преимущества нет.
+        </div>
+      </div>`;
+  }
+
   function probabilityBlock(sig) {
     if (sig.winProb == null) {
       return `<div class="prob unknown">
@@ -374,6 +443,7 @@
             <div class="plan-v">${fmtPrice(s.entry)}<span class="plan-sub">риск ${fmtNum(Math.abs(slPct), 2)}%</span></div>
           </div>
         </div>
+        ${sizingBlock(s)}
         ${liveRow}
         <div class="score-row">
           <div class="score-bar"><div class="score-fill" style="width:${s.score}%"></div></div>
