@@ -90,11 +90,25 @@ async function main() {
   const basisSymbols = got.slice(0, 3);
   const spotBySymbol = {};
   const perpBySymbol = {};
+  const spotFrom = {};
   for (const symbol of basisSymbols) {
     try {
       perpBySymbol[symbol] = await funding.getPerpKlines(symbol, '1h', BASIS_BARS);
-      spotBySymbol[symbol] = await getHistory(symbol, '1h', BASIS_BARS);
-      console.log(`  базис ${symbol}: перп ${perpBySymbol[symbol].length}, спот ${spotBySymbol[symbol].length} свечей`);
+      /*
+       * Prefer the funding venue's own spot market. With both legs on one
+       * exchange the basis is the spread the position actually carries; a spot
+       * leg from elsewhere makes it a spread BETWEEN venues, which is wider.
+       * Same number, different meaning — so which one happened is recorded.
+       */
+      const sameVenue = await funding.getVenueSpotKlines(symbol, '1h', BASIS_BARS);
+      spotBySymbol[symbol] = sameVenue?.length ? sameVenue : await getHistory(symbol, '1h', BASIS_BARS);
+      // activeVenue() is null offline, and an `undefined` leg label in the report
+      // would read as a missing measurement rather than a generated one.
+      spotFrom[symbol] = sameVenue?.length
+        ? (funding.activeVenue()?.id ?? 'synthetic')
+        : 'binance';
+      console.log(`  базис ${symbol}: перп ${perpBySymbol[symbol].length}, ` +
+        `спот ${spotBySymbol[symbol].length} свечей (${spotFrom[symbol]})`);
     } catch (err) {
       console.log(`  базис ${symbol}: ${err.message}`);
     }
@@ -117,9 +131,17 @@ async function main() {
    * than the same-venue version, and the report has to say so rather than let
    * the number pass for the tighter thing.
    */
+  const spotVenues = [...new Set(Object.values(spotFrom))];
   report.legs = {
-    perp: report.venue, spot: 'binance',
-    crossVenue: report.venue != null && report.venue !== 'binance-futures',
+    perp: report.venue,
+    spot: spotVenues.length === 1 ? spotVenues[0] : spotVenues.join('+') || null,
+    /*
+     * Cross-venue only when the legs genuinely sit on different exchanges. The
+     * earlier version derived this from the perp venue alone and called an OKX
+     * pair cross-venue even when OKX served both legs.
+     */
+    crossVenue: spotVenues.some((v) => v && v !== report.venue &&
+      !(v === 'binance' && report.venue === 'binance-futures')),
   };
 
   /*
