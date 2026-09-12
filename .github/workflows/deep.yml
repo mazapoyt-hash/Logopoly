@@ -55,6 +55,10 @@ jobs:
           COINSCOPE_HOLDOUT_RATIO: ${{ github.event.inputs.ratio || '0.7' }}
           COINSCOPE_UNIVERSE: ${{ github.event.inputs.universe || '40' }}
           COINSCOPE_MIN_VOLUME: '50000000'
+        # `shell: bash` adds -o pipefail. Without it the pipe returns tee's exit
+        # code, so a crashed measurement reported SUCCESS here and surfaced two
+        # steps later as "pathspec 'deep.json' did not match any files".
+        shell: bash
         run: node server/cli-deep.js | tee deep.log
 
       - name: Закоммитить отчёт
