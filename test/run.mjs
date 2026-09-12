@@ -20,6 +20,7 @@ const suites = [
   { file: 'probability.test.mjs', server: false },
   { file: 'quality.test.mjs', server: false },
   { file: 'analytics.test.mjs', server: false },
+  { file: 'funding.test.mjs', server: false },
   { file: 'static.test.mjs', server: false },
   { file: 'api.e2e.mjs', server: true },
 ];

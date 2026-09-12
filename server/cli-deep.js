@@ -256,6 +256,20 @@ function printSummary(rep) {
     }
   }
 
+  if (rep.money) {
+    const m = rep.money;
+    out.push(`## Что это значит в деньгах (ставка $${m.stake} на сигнал)\n`);
+    out.push(m.text.replace(/\*\*/g, '**') + '\n');
+    out.push('| Сигналов | Шанс быть в плюсе | Итог, если $' + m.stake +
+      ' — позиция | Итог, если $' + m.stake + ' — риск |', '|---|---:|---:|---:|');
+    for (const row of m.rows) {
+      out.push(`| ${row.trades} | ${pct(row.probability)} | ` +
+        `$${row.expected.position.toFixed(0)} | $${row.expected.risk.toFixed(0)} |`);
+    }
+    out.push('');
+    if (m.goalText) out.push(m.goalText + '\n');
+  }
+
   if (rep.screen?.dropped?.length) {
     out.push('## Исключённые монеты\n');
     out.push(`Порог: пошлина выше ${r2(rep.screen.maxTollR)}R на сделку — такую монету ` +

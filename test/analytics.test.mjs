@@ -527,6 +527,68 @@ check('expected false positives scale with the number of buckets tested',
   })());
 }
 
+/* ------------------------- the result in money ------------------------ */
+{
+  const { moneyView, probabilityOfProfit, requiredEdge, normalCdf, normalQuantile, tradeSpread } =
+    await import('../server/money.js');
+
+  check('the normal CDF is centred and bounded',
+    Math.abs(normalCdf(0) - 0.5) < 1e-9 && normalCdf(-5) < 0.001 && normalCdf(5) > 0.999);
+  check('the quantile inverts the CDF',
+    Math.abs(normalCdf(normalQuantile(0.9)) - 0.9) < 1e-4);
+
+  /*
+   * The single most useful fact this module produces, and the one that runs
+   * against intuition: with a NEGATIVE edge, trading more makes profit LESS
+   * likely, not more. "Collect more statistics and it evens out" is exactly
+   * backwards — the law of large numbers works against you just as reliably.
+   */
+  const losing = [10, 100, 1000].map((n) => probabilityOfProfit(-0.08, 1.28, n));
+  check('with a negative edge, more trades means less chance of profit',
+    losing[0] > losing[1] && losing[1] > losing[2] && losing[2] < 0.05);
+
+  const winning = [10, 100, 1000].map((n) => probabilityOfProfit(0.08, 1.28, n));
+  check('with a positive edge, more trades means more chance of profit',
+    winning[0] < winning[1] && winning[1] < winning[2] && winning[2] > 0.95);
+
+  check('a coin-flip edge stays at even odds however long you trade',
+    Math.abs(probabilityOfProfit(0, 1.28, 1000) - 0.5) < 1e-9);
+
+  // The goal, turned into a number the system can be measured against.
+  const need = requiredEdge(1.28, 100, 0.9);
+  check('the required edge is positive and shrinks with more trades',
+    need > 0 && requiredEdge(1.28, 400, 0.9) < need);
+
+  check('the spread is measured from the trades, not assumed', (() => {
+    const sd = tradeSpread([{ r: 2 }, { r: -1 }, { r: 2 }, { r: -1 }]);
+    return sd > 1 && sd < 2;
+  })());
+
+  /*
+   * "$100 on a signal" is genuinely ambiguous and the two readings differ by
+   * the leverage factor. Showing only the smaller one while the reader acts on
+   * the larger is exactly the misunderstanding this must not create.
+   */
+  const m = moneyView({
+    stats: { trades: 3531, wins: 1313, winRate: 0.372, avgR: -0.08,
+      grossWinR: 2073, grossLossR: 2355 },
+    trades: Array.from({ length: 200 }, (_, i) => ({ r: i % 3 === 0 ? 1.6 : -1.06 })),
+    stopPct: 1.82, stake: 100,
+  });
+  check('both readings of "$100 a signal" are reported',
+    m.perSignal.position < 0 && m.perSignal.risk < 0);
+  check('they differ by the ratio of stake to stop distance',
+    Math.abs(m.perSignal.risk / m.perSignal.position - 100 / 1.82) < 1e-6);
+  check('the probability of profit falls across the horizons shown', (() => {
+    const p = m.rows.map((r) => r.probability);
+    return p.every((v, i) => i === 0 || v < p[i - 1]);
+  })());
+  check('a losing edge is stated as losing, in money', /теря/i.test(m.text));
+  check('the goal is expressed as the edge it would take',
+    m.requiredEdgeR > 0 && m.gap > 0 && /R/.test(m.goalText));
+  check('no view without statistics', moneyView({ stats: null, stopPct: 1 }) === null);
+}
+
 /* ------------------------- sizing and leverage ------------------------ */
 {
   const { sizing, kellyFraction } = await import('../server/economics.js');

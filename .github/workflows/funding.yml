@@ -1,0 +1,93 @@
+name: Сбор фандинга
+
+# A different question from both the scan and the deep analysis, asked of a
+# different host: not "where does the strategy work" but "what does the market
+# pay for holding the unpopular side". Funding rates move over weeks, so this
+# runs weekly — more often would add no information and burn the rate limit.
+on:
+  schedule:
+    # Mondays, 05:40 UTC — before the deep analysis, so the two do not page the
+    # exchange at the same time.
+    - cron: '40 5 * * 1'
+  workflow_dispatch:
+    inputs:
+      periods:
+        description: 'Сколько выплат истории на монету (1000 ≈ 11 месяцев при 8ч)'
+        required: false
+        default: '2000'
+      universe:
+        description: 'Сколько перпетуалов брать по обороту'
+        required: false
+        default: '25'
+      leverage:
+        description: 'Плечо на шорт-ноге (влияет только на требуемый капитал и ликвидацию)'
+        required: false
+        default: '3'
+      open_vault:
+        description: 'Открыть отложенный слой (необратимо — пишется в историю запусков)'
+        required: false
+        default: 'нет'
+        type: choice
+        options: ['нет', 'да']
+
+concurrency:
+  group: coinscope-funding
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    # Paging 2000 settlements for 25 perpetuals, plus spot and perp candles for
+    # the basis. Dozens of sequential requests: slow, not stuck.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Измерить фандинг
+        env:
+          # Live data, always. The offline generator builds each symbol around a
+          # fixed mean, which makes the selection test pass by construction —
+          # the report refuses to draw a market conclusion from it, and a run
+          # that produced no conclusion would be a wasted job.
+          COINSCOPE_SOURCE: binance
+          COINSCOPE_FUNDING_PERIODS: ${{ github.event.inputs.periods || '2000' }}
+          COINSCOPE_FUNDING_UNIVERSE: ${{ github.event.inputs.universe || '25' }}
+          COINSCOPE_FUNDING_LEVERAGE: ${{ github.event.inputs.leverage || '3' }}
+          COINSCOPE_MIN_VOLUME: '50000000'
+          COINSCOPE_OPEN_VAULT: ${{ github.event.inputs.open_vault == 'да' && '1' || '0' }}
+        run: node server/cli-funding.js | tee funding.log
+
+      - name: Закоммитить отчёт
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/funding.json
+          if git diff --cached --quiet; then
+            echo "Отчёт не изменился."
+            exit 0
+          fi
+          git commit -m "Фандинг: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          for i in 1 2 3; do
+            git pull --rebase --autostash origin main && git push origin HEAD:main && exit 0
+            sleep 5
+          done
+          echo "::error::Не удалось запушить отчёт после трёх попыток"
+          exit 1
+
+      - name: Сохранить лог
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: funding-log
+          path: funding.log
+          if-no-files-found: ignore
