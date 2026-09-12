@@ -1173,13 +1173,20 @@
    * distance is not an answer, it is an advertisement.
    */
   const pct4 = (v) => (v == null || !Number.isFinite(v) ? '—' : `${(v * 100).toFixed(4)}%`);
+  /* The report writes **bold** and `code`; escape first, then allow only those two. */
+  const md = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`(.+?)`/g, '<code>$1</code>');
   const pctNum = (v, d = 1) => (v == null || !Number.isFinite(v) ? '—' : `${v.toFixed(d)}%`);
 
   function fundingVerdictHtml(rep) {
     const v = rep.verdict || {};
+    /*
+     * `dominated` gets the cautious banner, not the red one. A negative mean made
+     * by a single coin is not a loss to report as settled — the page would say
+     * "funding does not pay" in the same colour it uses for a measured loss, and
+     * that is the reading error the verdict itself exists to block.
+     */
     const cls = v.code === 'positive' ? 'ok-banner'
-      : v.code === 'thin' ? 'warn-banner' : 'edge-warning';
-    const md = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`(.+?)`/g, '<code>$1</code>');
+      : (v.code === 'thin' || v.code === 'dominated') ? 'warn-banner' : 'edge-warning';
     const head = !rep.measured
       ? '<div class="edge-warning"><b>Это не рынок.</b> Отчёт посчитан на генераторе: ' +
         'он строит каждую монету вокруг фиксированной средней ставки, поэтому отбор тут ' +
@@ -1188,10 +1195,62 @@
     return head + `<div class="${cls}">${md(v.text || '')}</div>`;
   }
 
+  /**
+   * What the portfolio average is actually made of.
+   *
+   * The report carried this from the first live run and the page did not show it,
+   * so the site displayed "funding does not pay" with no way to see that one coin
+   * out of twenty-four produced the whole negative mean. A verdict without its
+   * decomposition invites exactly the conclusion the decomposition refutes.
+   */
+  function fundingConcentrationHtml(rep) {
+    const c = rep.concentration;
+    if (!c) return '';
+
+    const rows = (c.contributions || []).map((r) => `
+      <tr${r.symbol === c.top.symbol ? ' class="current"' : ''}>
+        <td>${esc(r.symbol)}</td>
+        <td class="num ${r.meanRate >= 0 ? 'up' : 'down'}">${pct4(r.meanRate)}</td>
+        <td class="num">${r.periods}</td>
+        <td class="num ${r.contribution >= 0 ? 'up' : 'down'}">${pct4(r.contribution)}</td>
+      </tr>`).join('');
+
+    const warn = c.dominated ? `
+      <div class="warn-banner"><b>Одна монета решает итог.</b>
+        Вклад ${esc(c.top.symbol)} по модулю больше всего среднего${c.flipsSign
+          ? ', и без неё знак меняется' : ''}.
+        Это то же, что стейблкоин RLUSD сделал со статистикой стратегии: вывод получается
+        не про рынок, а про состав корзины.</div>` : '';
+
+    return `${warn}
+      <div class="mc-row">
+        <div class="metric"><div class="k">Среднее</div>
+          <div class="v ${c.pooled >= 0 ? 'up' : 'down'}">${pct4(c.pooled)}</div>
+          <div class="note">по всей выборке</div></div>
+        <div class="metric"><div class="k">Медианная монета</div>
+          <div class="v ${c.medianOfSymbols >= 0 ? 'up' : 'down'}">${pct4(c.medianOfSymbols)}</div>
+          <div class="note">спорит со средним</div></div>
+        <div class="metric"><div class="k">Платят положительно</div>
+          <div class="v">${c.positiveSymbols} / ${c.symbols}</div>
+          <div class="note">монет</div></div>
+        <div class="metric"><div class="k">Без ${esc(c.top.symbol)}</div>
+          <div class="v ${c.pooledWithoutTop >= 0 ? 'up' : 'down'}">${pct4(c.pooledWithoutTop)}</div>
+          <div class="note">то же самое без главного вклада</div></div>
+      </div>
+      <div class="table-wrap">
+        <table class="grid mini">
+          <thead><tr><th>Монета</th><th class="num">Ставка</th>
+            <th class="num">Выплат</th><th class="num">Вклад в среднее</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
   function fundingIncomeHtml(rep) {
     const p = rep.portfolio;
     if (!p) return '<div class="low-sample">Доход не считался.</div>';
-    const be = Number.isFinite(p.breakEvenDays) ? `${fmtNum(p.breakEvenDays, 1)} дн` : 'никогда';
+    // Infinity becomes null in JSON, so the explicit flag decides, not the number.
+    const be = p.breakEvenReachable ? `${fmtNum(p.breakEvenDays, 1)} дн` : 'никогда';
     return `
       <div class="mc-row">
         <div class="metric"><div class="k">Выплата</div>
@@ -1354,7 +1413,8 @@
           <thead><tr><th class="num">Лет</th><th class="num">Множитель</th><th class="num">Из $100</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
-      </div>`;
+      </div>
+      ${c.basisText ? `<p class="analytics-note">${md(c.basisText)}</p>` : ''}`;
   }
 
   function fundingSymbolsHtml(rep) {
@@ -1365,7 +1425,7 @@
         <td class="num ${r.meanRate >= 0 ? 'up' : 'down'}">${pct4(r.meanRate)}</td>
         <td class="num">${pctNum(r.negativeShare * 100, 0)}</td>
         <td class="num ${r.annualOnCapital >= 0 ? 'up' : 'down'}">${pctNum(r.annualOnCapital * 100)}</td>
-        <td class="num">${Number.isFinite(r.breakEvenDays) ? fmtNum(r.breakEvenDays, 0) + ' дн' : 'никогда'}</td>
+        <td class="num">${r.breakEvenReachable ? fmtNum(r.breakEvenDays, 0) + ' дн' : 'никогда'}</td>
         <td class="num down">−${fmtNum(r.drawdown?.maxDrawdownPct)}%</td>
       </tr>`).join('');
     return `
@@ -1394,7 +1454,7 @@
     box.classList.remove('hidden');
     state.funding = rep;
 
-    $('#fundingVerdict').innerHTML = fundingVerdictHtml(rep);
+    $('#fundingVerdict').innerHTML = fundingVerdictHtml(rep) + fundingConcentrationHtml(rep);
     $('#fundingIncomeBox').innerHTML = fundingIncomeHtml(rep);
     $('#fundingCurveBox').innerHTML = fundingCurveHtml(rep);
     $('#fundingSelectionBox').innerHTML = fundingSelectionHtml(rep);

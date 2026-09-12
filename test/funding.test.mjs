@@ -972,6 +972,25 @@ const series = (rates, { intervalMs = 8 * HOUR, start = 1_700_000_000_000 } = {}
     (app.match(/funding: \(\) => getJson\('data\/funding\.json'\)/g) || []).length === 2);
   check('the page explains what the trade is before showing a yield',
     /бессрочного/.test(html) && /ничего не угадывают/.test(html));
+
+  /*
+   * The decomposition must reach the PAGE, not just the terminal summary. The
+   * report carried `concentration` from the first live run and the renderer
+   * ignored it, so the site displayed "funding does not pay" with no way to see
+   * that one coin of twenty-four produced the whole negative mean.
+   */
+  check('the page renders the concentration decomposition, not just the verdict',
+    /fundingConcentrationHtml/.test(app) && /rep\.concentration/.test(app));
+  check('it is rendered next to the verdict, where the reader sees it',
+    /fundingVerdictHtml\(rep\) \+ fundingConcentrationHtml\(rep\)/.test(app));
+  check('a one-coin verdict is not painted in the same colour as a measured loss',
+    /'dominated'/.test(app) && /warn-banner/.test(app));
+  check('the page reads the explicit break-even flag, not a null',
+    /breakEvenReachable/.test(app) && !/Number\.isFinite\(p\.breakEvenDays\)/.test(app));
+  check('the page says which basket the compounding rate came from',
+    /basisText/.test(app));
+  check('report text is escaped before its bold and code markers are honoured',
+    /const md = \(t\) => esc\(t\)/.test(app));
 }
 
 const passed = results.filter(([, ok]) => ok).length;
