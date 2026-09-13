@@ -95,6 +95,7 @@
     // the server build reads the same file rather than recomputing it.
     analytics: () => getJson('data/analytics.json').catch(() => null),
     funding: () => getJson('data/funding.json').catch(() => null),
+    cross: () => getJson('data/cross.json').catch(() => null),
     prices: async () => getJson('/api/prices'),
     candles: (symbol, tf, limit) => getJson(`/api/candles/${symbol}?limit=${limit}&tf=${encodeURIComponent(tf)}`),
   };
@@ -118,6 +119,7 @@
     validation: () => getJson('data/validation.json').catch(() => null),
     analytics: () => getJson('data/analytics.json').catch(() => null),
     funding: () => getJson('data/funding.json').catch(() => null),
+    cross: () => getJson('data/cross.json').catch(() => null),
 
     /**
      * Prices straight from Binance. Its public market-data endpoints allow
@@ -196,6 +198,7 @@
       if (tab.dataset.view === 'stats') loadStats().then(loadValidation);
       if (tab.dataset.view === 'analytics') loadAnalytics();
       if (tab.dataset.view === 'funding') loadFunding();
+      if (tab.dataset.view === 'cross') loadCross();
     });
   });
 
@@ -1475,6 +1478,184 @@
       `${rep.universe?.measured ?? rep.perSymbol.length} перпетуалов · ` +
       `период ${fmtTime(p.from)} — ${fmtTime(p.to)} · ${p.periods} выплат · ` +
       `отложено и не использовано: ${vault.periods ?? 0} выплат.`;
+  }
+
+  /* --------------------------- Cross-section -------------------------- */
+
+  const CROSS_VERDICT = {
+    edge: { cls: 'ok-banner', label: 'Ранжирование несёт информацию' },
+    weak: { cls: 'warn-banner', label: 'На границе шума' },
+    none: { cls: 'edge-warning', label: 'Неотличимо от перемешанного контроля' },
+    'worse-than-holding': { cls: 'edge-warning', label: 'Хуже, чем просто держать всё' },
+  };
+
+  const pp = (v) => (v == null || !Number.isFinite(v) ? '—'
+    : `${v >= 0 ? '+' : ''}${v.toFixed(1)}`);
+
+  function crossVerdictHtml(rep, report) {
+    const v = CROSS_VERDICT[rep.verdict] || { cls: 'edge-warning', label: rep.verdict };
+    /*
+     * Same guard as the funding view. The generator builds coins with a
+     * persistent per-symbol drift, so a ranking works there by construction —
+     * and a page that showed the green banner off generated data would be
+     * claiming a discovery the data was built to contain.
+     */
+    const head = report.source === 'synthetic'
+      ? '<div class="edge-warning"><b>Это не рынок.</b> Отчёт посчитан на генераторе: ' +
+        'он строит монеты с устойчивым собственным дрейфом, поэтому импульс тут работает ' +
+        'по построению. Нужен запуск по бирже.</div>'
+      : '';
+    return head +
+      `<div class="${v.cls}"><b>${esc(v.label)}.</b> ${md(rep.text || '')}</div>`;
+  }
+
+  /**
+   * The comparison that decides everything: the ranking against holding the lot.
+   *
+   * Absolute return is deliberately not the headline. A basket that returns 40%
+   * while the whole universe returned 60% has found nothing, and a table that
+   * led with 40% would read as success.
+   */
+  function crossHeadlineHtml(rep) {
+    const s = rep.strategy;
+    const b = rep.benchmark;
+    const row = (name, d, bold) => (!d ? '' : `
+      <tr>
+        <td>${bold ? `<b>${esc(name)}</b>` : esc(name)}</td>
+        <td class="num ${d.annualPct >= 0 ? 'up' : 'down'}">${fmtNum(d.annualPct, 1)}%</td>
+        <td class="num">×${fmtNum(d.multiple, 2)}</td>
+        <td class="num">${fmtNum(d.costPct, 1)}%</td>
+        <td class="num">${fmtNum((d.avgTurnover ?? 0) * 100, 0)}%</td>
+      </tr>`);
+
+    return `
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th></th><th class="num">Годовых</th><th class="num">Всего</th>
+            <th class="num">Издержки</th><th class="num">Оборот</th></tr></thead>
+          <tbody>
+            ${row('Ранжирование', s, true)}
+            ${row('Держать всё поровну', b, false)}
+          </tbody>
+        </table>
+      </div>
+      <p class="muted small">
+        Разница: <b class="${rep.excessAnnualPct >= 0 ? 'up' : 'down'}">${pp(rep.excessAnnualPct)} п.п.</b>
+        годовых · против перемешанного контроля ${fmtNum(rep.nullPercentile, 0)}-й процентиль
+        (медиана ${fmtNum(rep.nullMedianAnnualPct, 1)}%, 95-й ${fmtNum(rep.nullP95AnnualPct, 1)}%,
+        ${rep.params?.replicates ?? '—'} повторов) ·
+        ${rep.symbols} монет, ${rep.bars} общих дат, ${s.periods} перекладок.
+      </p>`;
+  }
+
+  /**
+   * Why the control permutes names instead of drawing fresh baskets.
+   *
+   * This is on the page because the earlier control was wrong in the direction
+   * that manufactures discoveries, and a reader shown only a percentile has no
+   * way to know which control produced it.
+   */
+  function crossControlHtml() {
+    return `
+      <p class="panel-sub">
+        Контроль здесь — <b>не</b> «набрать монет наугад заново каждый период». Импульсный
+        набор держится: он меняет около трети состава за перекладку, а набранный заново —
+        три четверти. Разброс у такого контроля уже, и стратегия попадает в его хвост чаще,
+        чем этот хвост обещает: на заведомо пустых данных он объявлял находку в 2 случаях
+        из 5. Вместо этого <b>переставляются названия монет</b> — тот же набор, та же
+        инерция, та же перекладка и те же издержки, но связь между прошлым монеты и её
+        будущим разорвана. Ложных срабатываний на пустых данных: 1 из 40.
+      </p>`;
+  }
+
+  function crossGridHtml(grid) {
+    if (!grid) return '';
+    const rows = (grid.cells || []).map((c) => `
+      <tr>
+        <td class="num">${c.lookback}</td>
+        <td class="num">${c.hold}</td>
+        <td class="num">${c.topK}</td>
+        <td class="num">${fmtNum(c.annualPct, 1)}%</td>
+        <td class="num">${fmtNum(c.benchmarkPct, 1)}%</td>
+        <td class="num ${c.excessAnnualPct >= 0 ? 'up' : 'down'}">${pp(c.excessAnnualPct)}</td>
+        <td class="num">${fmtNum(c.nullPercentile, 0)}</td>
+      </tr>`).join('');
+
+    return `
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th class="num">Оглядка</th><th class="num">Держим</th><th class="num">Монет</th>
+            <th class="num">Годовых</th><th class="num">Держать всё</th>
+            <th class="num">Разница</th><th class="num">Процентиль</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <p class="muted small">
+        Обыграли удержание всех монет: <b>${grid.beatingBenchmark} из ${grid.total}</b>.
+        Обыграли ещё и контроль: <b>${grid.withEdge}</b>. ${md(grid.text || '')}
+      </p>`;
+  }
+
+  /**
+   * The holdout, which is the only number here that was not chosen after the
+   * fact — so it gets its own panel rather than a line in the grid.
+   */
+  function crossHoldoutHtml(grid) {
+    if (!grid) return '';
+    const h = grid.holdout;
+    const detail = !h ? '' : `
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th></th><th class="num">Годовых</th><th class="num">Держать всё</th>
+            <th class="num">Разница</th><th class="num">Процентиль</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Подгоночный кусок</td>
+              <td class="num">${fmtNum(grid.best.strategy.annualPct, 1)}%</td>
+              <td class="num">${fmtNum(grid.best.benchmark?.annualPct, 1)}%</td>
+              <td class="num ${grid.best.excessAnnualPct >= 0 ? 'up' : 'down'}">${pp(grid.best.excessAnnualPct)}</td>
+              <td class="num">${fmtNum(grid.best.nullPercentile, 0)}</td>
+            </tr>
+            <tr>
+              <td><b>Отложенный кусок</b></td>
+              <td class="num">${fmtNum(h.strategy.annualPct, 1)}%</td>
+              <td class="num">${fmtNum(h.benchmark?.annualPct, 1)}%</td>
+              <td class="num ${h.excessAnnualPct >= 0 ? 'up' : 'down'}">${pp(h.excessAnnualPct)}</td>
+              <td class="num">${fmtNum(h.nullPercentile, 0)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>`;
+    return `<p>${md(grid.holdoutText || '')}</p>${detail}`;
+  }
+
+  async function loadCross() {
+    const box = $('#crossBody');
+    const empty = $('#crossEmpty');
+    let report = null;
+    try { report = await API.cross(); } catch { report = null; }
+
+    if (!report || !report.headline) {
+      box.classList.add('hidden');
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+    box.classList.remove('hidden');
+    state.cross = report;
+
+    const rep = report.headline;
+    $('#crossVerdict').innerHTML = crossVerdictHtml(rep, report);
+    $('#crossHeadlineBox').innerHTML = crossHeadlineHtml(rep);
+    $('#crossControlBox').innerHTML = crossControlHtml();
+    $('#crossGridBox').innerHTML = crossGridHtml(report.grid);
+    $('#crossHoldoutBox').innerHTML = crossHoldoutHtml(report.grid);
+
+    $('#crossMeta').textContent =
+      `Отчёт от ${fmtTime(report.generatedAt)} · источник ${report.source || '—'} · ` +
+      `${report.timeframe} · ${report.universe?.loaded ?? rep.symbols} монет · ` +
+      `${rep.bars} общих дат · период ${fmtTime(rep.strategy.from)} — ${fmtTime(rep.strategy.to)} · ` +
+      `издержки ${((report.costs.feeRate + report.costs.slippageRate) * 200).toFixed(2)}% за круг.`;
   }
 
   /* ----------------------------- Validation --------------------------- */
