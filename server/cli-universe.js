@@ -108,6 +108,67 @@ function funnel(rows) {
   };
 }
 
+/**
+ * The same question asked of a different exchange.
+ *
+ * The first run of this diagnostic ruled out everything it was built to rule
+ * out — the array arrived complete (3701 rows, 1.9MB, every field present) and
+ * 681 pairs carried a readable turnover. Only seven cleared $50M because, on
+ * that host, only seven do.
+ *
+ * Which raises a question the Binance side cannot answer alone: BTCUSDT at
+ * $515M a day is small for the largest pair on the largest venue, and ETH
+ * ranking above BTC is stranger still. Either the mirror reports a fraction of
+ * the real book, or the market genuinely is this thin. `api.binance.com`
+ * answers 451 from every runner, so the main host cannot arbitrate.
+ *
+ * A second venue can. If OKX says BTC turns over billions, the mirror
+ * under-reports and the floor is fine. If OKX agrees, the floor is calibrated
+ * against a market that no longer exists and has to come down — with the cost
+ * model following it, because a floor and a slippage assumption are one
+ * decision, not two.
+ */
+async function crossCheck(symbols) {
+  const host = process.env.OKX_URL || 'https://www.okx.com';
+  const res = await ask(host, '/api/v5/market/tickers?instType=SPOT');
+  if (res.status !== 200 || !res.body.trim()) return { host, res, rows: null };
+  try {
+    const parsed = JSON.parse(res.body);
+    const data = Array.isArray(parsed?.data) ? parsed.data : null;
+    if (!data) return { host, res, rows: null, error: 'в ответе нет поля data' };
+    const wanted = new Set(symbols.map((s) => `${s.replace(/USDT$/, '')}-USDT`));
+    /*
+     * OKX changes what `volCcy24h` means between instrument types: on a SWAP it
+     * is the base currency (so turnover needs × price, which is what the
+     * funding adapter does), on SPOT it is already the quote currency. Getting
+     * that backwards inflates or deflates every figure by the price of the
+     * coin — a unit error that produces a confident wrong answer, which is the
+     * one outcome this whole diagnostic exists to avoid.
+     *
+     * So compute it both ways and print both. If `vol24h × last` and
+     * `volCcy24h` agree, the reading is right; if they differ by roughly the
+     * price, the convention is the other way round and the table says so
+     * without anyone having to remember which is which.
+     */
+    const rows = data
+      .filter((r) => wanted.has(r?.instId))
+      .map((r) => {
+        const last = Number(r.last);
+        return {
+          symbol: String(r.instId).replace('-USDT', 'USDT'),
+          last,
+          viaBase: Number(r.vol24h) * last,     // base volume × price
+          viaQuote: Number(r.volCcy24h),        // quote volume as reported
+        };
+      })
+      .filter((r) => Number.isFinite(r.viaBase) || Number.isFinite(r.viaQuote))
+      .sort((a, b) => (b.viaBase || 0) - (a.viaBase || 0));
+    return { host, res, rows };
+  } catch (err) {
+    return { host, res, rows: null, error: err.message };
+  }
+}
+
 async function main() {
   const out = [];
   out.push('## Вселенная: куда деваются монеты');
@@ -188,8 +249,8 @@ async function main() {
         'обрезается сам ответ, а не наши фильтры. Чинить надо запрос, а не порог.');
     } else if (f.aboveFloor < 30) {
       out.push(`**Массив полный (${f.rows} строк), но выше порога только ${f.aboveFloor}.** ` +
-        'Тогда дело в самом пороге или в поле оборота — сравните распределение выше ' +
-        'с тем, что видно на бирже глазами.');
+        'Ответ не обрезан и поля на месте, значит теряет строки не запрос и не наш отбор. ' +
+        'Остаётся один вопрос: эти обороты настоящие? Ответ ниже, у второй биржи.');
     } else {
       out.push(`**Здесь порог проходят ${f.aboveFloor} пар.** Если скан при этом работает ` +
         'на семи, расходится не запрос, а то, что с ответом делают дальше.');
@@ -200,6 +261,69 @@ async function main() {
     const picked = selectUniverse(best.rows, { limit: LIMIT, minQuoteVolume: FLOOR });
     out.push('Через `selectUniverse` проходит: ' + `**${picked.length}** монет` +
       (picked.length ? ` — ${picked.slice(0, 10).map((p) => p.symbol).join(', ')}…` : '') + '.');
+    out.push('');
+
+    /* ---------------------- the second opinion ------------------------- */
+    const compare = f.top.slice(0, 8).map((r) => r.symbol);
+    const okx = await crossCheck(compare);
+    out.push('### Вторая биржа для сверки');
+    out.push('');
+    console.log(`okx: ${okx.res.status ?? 'нет ответа'} ${okx.res.bytes} байт` +
+      (okx.rows ? ` → ${okx.rows.length} совпавших пар` : ` (${okx.error || okx.res.error || '—'})`));
+
+    if (!okx.rows?.length) {
+      out.push(`OKX не ответил разбираемым списком (${okx.res.status ?? '—'}` +
+        `${okx.error ? `, ${okx.error}` : ''}). Сверить обороты не с чем, так что ` +
+        'вывод о пороге пока держится на одном источнике — это слабее, чем хотелось бы.');
+    } else {
+      const byOkx = new Map(okx.rows.map((r) => [r.symbol, r]));
+      out.push('Обороты за 24ч по тем же монетам. У OKX два поля, и смысл ' +
+        '`volCcy24h` отличается для спота и свопов, поэтому показаны оба способа: ' +
+        'если они сходятся — чтение верное.');
+      out.push('');
+      out.push('| Монета | Binance (зеркало) | OKX: объём × цена | OKX: volCcy24h | Отношение |');
+      out.push('|---|---:|---:|---:|---:|');
+      const ratios = [];
+      for (const r of f.top.slice(0, 8)) {
+        const o = byOkx.get(r.symbol);
+        // Whichever OKX reading is the larger is the quote-denominated one:
+        // base-denominated volume is smaller than turnover by the coin's price.
+        const okxTurnover = o ? Math.max(o.viaBase || 0, o.viaQuote || 0) : null;
+        const ratio = okxTurnover && r.quoteVolume > 0 ? okxTurnover / r.quoteVolume : null;
+        if (ratio) ratios.push(ratio);
+        out.push(`| ${r.symbol} | ${usd(r.quoteVolume)} | ${o ? usd(o.viaBase) : '—'} | ` +
+          `${o ? usd(o.viaQuote) : '—'} | ${ratio ? `×${ratio.toFixed(1)}` : '—'} |`);
+      }
+      out.push('');
+
+      /*
+       * The verdict, and it decides what gets fixed. A mirror reporting a
+       * fraction of the real book is a data-source bug; a market that is
+       * genuinely this thin means the floor was calibrated against a different
+       * era, and lowering it obliges the cost model to follow — a flat 0.05%
+       * slippage is defensible on a pair turning over hundreds of millions and
+       * fiction on one turning over two.
+       */
+      ratios.sort((a, b) => a - b);
+      const median = ratios.length ? ratios[Math.floor(ratios.length / 2)] : null;
+      if (median == null) {
+        out.push('Ни одной пары не совпало по названию — сверка не состоялась.');
+      } else if (median > 3) {
+        out.push(`**Зеркало занижает: у OKX те же пары идут в среднем в ${median.toFixed(1)} раза ` +
+          'больше.** Значит рынок не тонкий, а `data-api.binance.vision` отдаёт часть книги. ' +
+          'Чинить надо источник, а не порог: порог $50M откалиброван правильно.');
+      } else if (median > 0.33) {
+        out.push(`**Биржи согласны (медиана отношения ×${median.toFixed(1)}).** Рынок ` +
+          'действительно такой тонкий, и порог $50M откалиброван под другую эпоху. ' +
+          'Опускать его придётся — но вместе с моделью издержек: плоские 0.05% ' +
+          'проскальзывания защитимы на паре с оборотом в сотни миллионов и выдумка ' +
+          'на паре с оборотом в два. Порог и издержки — это одно решение, а не два.');
+      } else {
+        out.push(`**OKX показывает ещё меньше (медиана ×${median.toFixed(1)}).** ` +
+          'Тогда зеркало Binance не занижает, а рынок тонкий даже сильнее, чем ' +
+          'следует из первой таблицы.');
+      }
+    }
   }
 
   const text = out.join('\n');
