@@ -13,7 +13,7 @@ export const name = 'binance';
 /** Binance interval strings happen to match ours, but map explicitly. */
 const INTERVAL = {
   '1m': '1m', '5m': '5m', '15m': '15m', '30m': '30m',
-  '1h': '1h', '4h': '4h', '1d': '1d',
+  '1h': '1h', '4h': '4h', '1d': '1d', '1w': '1w',
 };
 
 /** Hosts to try in order; the first that answers becomes the preferred one. */
