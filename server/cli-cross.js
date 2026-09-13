@@ -62,8 +62,21 @@ async function main() {
   let symbols = config.symbols;
   const universe = await getUniverse({ limit: UNIVERSE, minQuoteVolume: MIN_VOLUME });
   if (universe.length) symbols = universe.map((u) => u.symbol);
-  console.log(`Вселенная: ${symbols.length} монет с оборотом от ` +
-    `$${(MIN_VOLUME / 1e6).toFixed(0)}M. Таймфрейм ${TIMEFRAME}, ${BARS} свечей.`);
+  console.log(`Вселенная: ${symbols.length} монет из ${UNIVERSE} запрошенных, ` +
+    `оборот от $${(MIN_VOLUME / 1e6).toFixed(0)}M. Таймфрейм ${TIMEFRAME}, ${BARS} свечей.`);
+
+  /*
+   * A cross-section of seven coins is not a cross-section, and the first live
+   * run stopped here. Stopping was right, but the message blamed the idea when
+   * the cause was upstream: the exchange request returned seven rows where
+   * forty were asked for, and the scan had been running on that for days
+   * without saying so. Name the real cause and where to look.
+   */
+  if (universe.length && universe.length < UNIVERSE / 2) {
+    console.log(`  ⚠️ вселенная вернулась узкой (${universe.length} из ${UNIVERSE}). ` +
+      'Это не свойство рынка: на споте Binance сотни пар проходят этот порог. ' +
+      'Диагностика — Actions → «Диагностика вселенной».');
+  }
 
   /*
    * A cross-section needs the coins to share dates, so a coin that fails to
@@ -84,7 +97,12 @@ async function main() {
   const loaded = Object.keys(dataBySymbol);
   console.log(`История загружена по ${loaded.length} монетам.`);
   if (loaded.length < 8) {
-    console.error('Слишком узкая вселенная для поперечного среза — прекращаю.');
+    console.error(`Для поперечного среза нужно минимум 8 монет, доступно ${loaded.length}. ` +
+      'Ранжировать семь монет друг против друга бессмысленно: верхняя треть — ' +
+      'это две монеты, и любой вердикт был бы шумом.');
+    console.error('Причина почти наверняка выше по течению: биржа вернула ' +
+      `${universe.length} монет вместо ${UNIVERSE}. Запустите «Диагностика вселенной» — ` +
+      'она покажет, обрезается ответ или не проходит порог.');
     process.exit(1);
   }
 

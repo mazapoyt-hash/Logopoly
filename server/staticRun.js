@@ -99,6 +99,22 @@ export async function runStatic({ dir = DATA_DIR, now = Date.now() } = {}) {
         limit: config.universe.size, minQuoteVolume: config.universe.minQuoteVolume,
       });
       if (universe.length) symbols = universe.map((u) => u.symbol);
+      /*
+       * A universe far smaller than the one asked for is a failure that looks
+       * like a success, and it ran unnoticed for days: the scan asked for 40
+       * coins, got 7, screened none of them, and reported "ok". Nothing in the
+       * report said the sample had shrunk by a factor of six — the first sign
+       * was a cross-sectional run refusing to start.
+       *
+       * So say it out loud here. A thin universe does not just narrow the scan;
+       * it silently changes what every statistic downstream is a statistic OF.
+       */
+      if (universe.length < config.universe.size / 2) {
+        log.push(`вселенная вернулась узкой: ${universe.length} монет из ` +
+          `${config.universe.size} запрошенных при пороге ` +
+          `$${(config.universe.minQuoteVolume / 1e6).toFixed(0)}M — ` +
+          'все числа ниже посчитаны по этой выборке');
+      }
     } catch (err) {
       // A universe we cannot fetch is not a reason to skip the scan entirely.
       log.push(`вселенная недоступна (${err.message}), работаю по списку из настроек`);
@@ -326,7 +342,14 @@ export async function runStatic({ dir = DATA_DIR, now = Date.now() } = {}) {
     tracked: trackSymbols,
     strategy: config.strategy,
     screened: screen.dropped,
-    universe: universe && { size: universe.length, minQuoteVolume: config.universe.minQuoteVolume },
+    universe: universe && {
+      size: universe.length,
+      // Without the number ASKED for, `size: 7` reads as a setting rather than
+      // as a shortfall, which is exactly how it went unnoticed.
+      requested: config.universe.size,
+      thin: universe.length < config.universe.size / 2,
+      minQuoteVolume: config.universe.minQuoteVolume,
+    },
     minSampleForStats: config.minSampleForStats,
     dataQuality: quality,
     counts: { open: state.signals.filter((s) => s.status === 'open').length, closed: closed.length },

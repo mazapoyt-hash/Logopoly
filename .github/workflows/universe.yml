@@ -1,0 +1,39 @@
+name: Диагностика вселенной
+
+# Why a job of its own: the exchange is unreachable from the development
+# sandbox (451 from its egress allowlist), so the only way to see what the
+# ticker endpoint actually returns is to ask from a runner. Guessing instead of
+# asking is what cost three funding runs the last time a host misbehaved.
+#
+# Nothing is committed here. It reads, counts, and prints.
+on:
+  workflow_dispatch:
+    inputs:
+      min_volume:
+        description: 'Порог оборота за 24ч, в долларах'
+        required: false
+        default: '50000000'
+      universe:
+        description: 'Сколько монет запрашивать'
+        required: false
+        default: '40'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Посчитать воронку вселенной
+        env:
+          COINSCOPE_MIN_VOLUME: ${{ github.event.inputs.min_volume || '50000000' }}
+          COINSCOPE_UNIVERSE: ${{ github.event.inputs.universe || '40' }}
+        run: node server/cli-universe.js
