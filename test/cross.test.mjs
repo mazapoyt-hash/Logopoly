@@ -546,6 +546,56 @@ function universe({ n = 12, bars = 600, driftSpread = 0, baseDrift = 0.001,
     readFileSync(new URL('./run.mjs', import.meta.url), 'utf8').includes('cross.test.mjs'));
 }
 
+/* ------------------ a thin universe must not be silent ---------------- */
+
+{
+  /*
+   * The failure this guards against actually happened, and it is the worst
+   * shape a bug can take: one that reports success.
+   *
+   * The scan asked the exchange for 40 coins, got 7, screened none of them, and
+   * wrote `ok: true`. No line of any report said the sample had shrunk sixfold,
+   * so every statistic downstream silently became a statistic about seven
+   * coins. It ran that way for days, and the first thing to notice was a
+   * cross-sectional run refusing to start — by accident, because ranking seven
+   * coins is impossible rather than merely misleading.
+   *
+   * A narrow universe is not itself a bug; it may be a real market fact, or a
+   * deliberate setting. Saying nothing about it is the bug.
+   */
+  const { readFileSync } = await import('node:fs');
+  const staticRun = readFileSync(new URL('../server/staticRun.js', import.meta.url), 'utf8');
+  const cli = readFileSync(new URL('../server/cli-cross.js', import.meta.url), 'utf8');
+  const wf = readFileSync(new URL('../.github/workflows/universe.yml', import.meta.url), 'utf8');
+  const diag = readFileSync(new URL('../server/cli-universe.js', import.meta.url), 'utf8');
+
+  check('a scan whose universe comes back half-size says so in its log',
+    /universe\.length < config\.universe\.size \/ 2/.test(staticRun)
+      && /вернулась узкой/.test(staticRun));
+  check('and status.json records what was ASKED for, not only what arrived',
+    /requested: config\.universe\.size/.test(staticRun) && /thin:/.test(staticRun));
+  check('the cross run names the upstream cause instead of blaming the idea',
+    /Диагностика вселенной/.test(cli) && /вместо \$\{UNIVERSE\}/.test(cli));
+
+  /*
+   * The diagnostic must not share the adapter's request path: the adapter is
+   * the suspect, and a probe that reuses its suspect can hide the defect.
+   */
+  check('the diagnostic asks the hosts directly rather than through the adapter',
+    /fetch\(host \+ path/.test(diag) && !/from '\.\/sources\/index\.js'/.test(diag));
+  check('it counts every funnel stage separately, so the collapsing one is visible',
+    ['rows', 'usdt', 'notStable', 'notLeveraged', 'withVolume', 'aboveFloor']
+      .every((k) => diag.includes(`${k}:`)));
+  check('it reports which fields a row actually has, since a missing one reads as thin',
+    /fields:/.test(diag) && /quoteVolume/.test(diag));
+  check('it separates "the array was short" from "the floor cut it down"',
+    /f\.rows < 500/.test(diag) && /Массив полный/.test(diag));
+  check('it is dispatchable from a phone and commits nothing',
+    /workflow_dispatch/.test(wf) && /contents: read/.test(wf) && !/git commit/.test(wf));
+  check('importing the diagnostic does not fire requests',
+    /cli-universe\\.js\$\/\.test\(process\.argv\[1\]/.test(diag));
+}
+
 const passed = results.filter(([, ok]) => ok).length;
 console.log(`  ${passed}/${results.length} passed`);
 process.exit(passed === results.length ? 0 : 1);
