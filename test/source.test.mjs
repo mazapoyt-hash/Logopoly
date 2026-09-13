@@ -4,7 +4,7 @@
  * tested against recorded payload shapes).
  */
 import { fetchCandles, fetchPrice } from '../server/sources/synthetic.js';
-import { parseKlines, dropUnclosed, parseTickers, classifyStatus, hostList } from '../server/sources/binance.js';
+import { parseKlines, dropUnclosed, parseTickers, classifyStatus, hostList, selectUniverse } from '../server/sources/binance.js';
 import { makeChecker, close } from './helpers.mjs';
 
 const results = [];
@@ -156,6 +156,66 @@ check('the market-data mirror is among the fallbacks',
     weeklyOk = !/Unsupported timeframe/.test(err.message);
   }
   check('the exchange adapter accepts a weekly interval', weeklyOk);
+}
+
+/* --------------------------- universe selection ----------------------- */
+
+{
+  /*
+   * These exist to rule a suspect OUT, and the suspect matters.
+   *
+   * The scan asked the exchange for 40 coins and worked on 7 for days without
+   * saying so. Two things could lose those rows: the response, or this
+   * function. Ruling out one of them narrows a live investigation, and leaving
+   * it un-ruled-out means re-investigating it every time the question comes
+   * back.
+   *
+   * The payload here is deliberately realistic in shape: three thousand pairs,
+   * four hundred of them above the floor — roughly what Binance spot actually
+   * returns. A test on five rows would prove nothing about a function whose
+   * suspected failure is losing rows at scale.
+   */
+  const full = [];
+  for (let i = 0; i < 3000; i++) {
+    const quoteVolume = i < 400 ? 5e8 - i * 1e6 : 4e7 - i;
+    full.push({
+      symbol: `C${i}USDT`, quoteVolume: String(quoteVolume),
+      count: '1000', priceChangePercent: '1.0',
+    });
+  }
+
+  check('a full ticker payload yields the whole requested universe, not a sliver',
+    selectUniverse(full, { limit: 40, minQuoteVolume: 50e6 }).length === 40);
+  check('and it is the most liquid end that survives',
+    selectUniverse(full, { limit: 40, minQuoteVolume: 50e6 })[0].symbol === 'C0USDT');
+  check('a smaller ask is honoured exactly',
+    selectUniverse(full, { limit: 12, minQuoteVolume: 50e6 }).length === 12);
+
+  /*
+   * The two shapes that would explain a thin universe, distinguished. They
+   * produce different counts, so the count itself says which one happened —
+   * and neither of them is this function misbehaving.
+   */
+  check('a truncated response yields exactly what arrived, however little',
+    selectUniverse(full.slice(0, 20), { limit: 40, minQuoteVolume: 50e6 }).length === 20);
+
+  const mini = full.map(({ symbol, quoteVolume, count, priceChangePercent }) =>
+    ({ symbol, volume: quoteVolume, count, priceChangePercent }));
+  check('a MINI ticker without quoteVolume yields nothing at all, not a handful',
+    selectUniverse(mini, { limit: 40, minQuoteVolume: 50e6 }).length === 0);
+
+  // Which is what rules MINI out as the live cause: the scan saw 7, not 0.
+  check('so a universe of seven is neither an empty field nor this function',
+    selectUniverse(full, { limit: 40, minQuoteVolume: 50e6 }).length > 7
+      && selectUniverse(mini, { limit: 40, minQuoteVolume: 50e6 }).length < 7);
+
+  check('the exclusions remove only what they name',
+    selectUniverse([
+      { symbol: 'BTCUSDT', quoteVolume: '9e9', count: '1', priceChangePercent: '0' },
+      { symbol: 'USDCUSDT', quoteVolume: '9e9', count: '1', priceChangePercent: '0' },
+      { symbol: 'BTCUPUSDT', quoteVolume: '9e9', count: '1', priceChangePercent: '0' },
+      { symbol: 'ETHBTC', quoteVolume: '9e9', count: '1', priceChangePercent: '0' },
+    ], { limit: 40, minQuoteVolume: 50e6 }).map((r) => r.symbol).join() === 'BTCUSDT');
 }
 
 const passed = results.filter(([, ok]) => ok).length;
