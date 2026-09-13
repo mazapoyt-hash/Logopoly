@@ -106,6 +106,13 @@ export const TIMEFRAME_MS = {
   '1h': 60 * 60_000,
   '4h': 4 * 60 * 60_000,
   '1d': 24 * 60 * 60_000,
+  /*
+   * Weekly exists to be the trend filter for a DAILY signal. The higher
+   * timeframe has to be slower than the signal one, and 4h — the default for
+   * hourly signals — is faster than a day, so a daily run without this entry
+   * would filter its trend on noise finer than the bar it trades.
+   */
+  '1w': 7 * 24 * 60 * 60_000,
 };
 
 export function timeframeMs(tf) {

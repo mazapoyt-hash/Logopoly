@@ -125,6 +125,39 @@ check('the mirror list has several distinct hosts', (() => {
 check('the market-data mirror is among the fallbacks',
   hostList().some((h) => h.includes('data-api.binance.vision')));
 
+/* ------------------- a daily signal needs a weekly filter -------------- */
+{
+  /*
+   * The trend filter has to be SLOWER than the signal timeframe. The default
+   * pair is 1h→4h, and 4h is faster than a day — so a daily run without a
+   * weekly entry would filter its trend on bars finer than the ones it trades,
+   * which is backwards and silent.
+   *
+   * This matters because the toll is six times smaller on daily bars than on
+   * hourly ones (−0.022R against −0.135R), and that is the only lever measured
+   * in this project that moves the arithmetic by a factor rather than percent.
+   */
+  const { timeframeMs, TIMEFRAME_MS } = await import('../server/config.js');
+
+  check('a week is a known timeframe', TIMEFRAME_MS['1w'] > 0);
+  check('a week is exactly seven days', timeframeMs('1w') === 7 * timeframeMs('1d'));
+  check('every trend filter is slower than the signal it filters',
+    timeframeMs('4h') > timeframeMs('1h')
+    && timeframeMs('1d') > timeframeMs('4h')
+    && timeframeMs('1w') > timeframeMs('1d'));
+
+  const binance = await import('../server/sources/binance.js');
+  let weeklyOk = true;
+  try {
+    // Rejects unknown timeframes before any request, so this throws on '1w'
+    // only if the interval map lacks it.
+    await binance.fetchCandles('BTCUSDT', '1w', 1);
+  } catch (err) {
+    weeklyOk = !/Unsupported timeframe/.test(err.message);
+  }
+  check('the exchange adapter accepts a weekly interval', weeklyOk);
+}
+
 const passed = results.filter(([, ok]) => ok).length;
 console.log(`  ${passed}/${results.length} passed`);
 process.exit(passed === results.length ? 0 : 1);

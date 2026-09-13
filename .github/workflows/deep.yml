@@ -24,6 +24,18 @@ on:
         description: 'Сколько монет брать по обороту (0 — список из настроек)'
         required: false
         default: '40'
+      timeframe:
+        description: 'Таймфрейм сигнала. Пошлина на 1d в 6 раз меньше, чем на 1h'
+        required: false
+        default: '1h'
+        type: choice
+        options: ['1h', '4h', '1d']
+      htf:
+        description: 'Тренд-фильтр. Должен быть медленнее сигнального: 1h→4h, 4h→1d, 1d→1w'
+        required: false
+        default: '4h'
+        type: choice
+        options: ['4h', '1d', '1w']
 
 concurrency:
   group: coinscope-deep
@@ -55,6 +67,8 @@ jobs:
           COINSCOPE_HOLDOUT_RATIO: ${{ github.event.inputs.ratio || '0.7' }}
           COINSCOPE_UNIVERSE: ${{ github.event.inputs.universe || '40' }}
           COINSCOPE_MIN_VOLUME: '50000000'
+          COINSCOPE_TIMEFRAME: ${{ github.event.inputs.timeframe || '1h' }}
+          COINSCOPE_HTF: ${{ github.event.inputs.htf || '4h' }}
         # `shell: bash` adds -o pipefail. Without it the pipe returns tee's exit
         # code, so a crashed measurement reported SUCCESS here and surfaced two
         # steps later as "pathspec 'deep.json' did not match any files".
