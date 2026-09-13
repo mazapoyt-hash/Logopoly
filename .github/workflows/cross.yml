@@ -1,0 +1,112 @@
+name: Поперечный срез
+
+# A third question, separate from the scan and from the deep analysis.
+#
+# The scan asks "is this coin worth buying". The deep run has answered "did that
+# question ever have a good answer" — no: the entries are indistinguishable from
+# random, and the pre-cost edge was the market's own drift.
+#
+# This asks a relative question instead: does ranking the coins against EACH
+# OTHER and holding the leaders beat simply holding all of them. Momentum
+# rankings move over weeks, not hours, so this runs weekly; more often would
+# add no information.
+on:
+  schedule:
+    # Mondays, 06:40 UTC — an hour after the funding job, so the two never page
+    # the exchange at the same time.
+    - cron: '40 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      timeframe:
+        description: 'Таймфрейм баров'
+        required: false
+        default: '1d'
+        type: choice
+        options: ['1d', '4h', '1w']
+      bars:
+        description: 'Сколько баров истории на монету'
+        required: false
+        default: '1200'
+      universe:
+        description: 'Сколько монет брать по обороту'
+        required: false
+        default: '40'
+      mode:
+        description: 'Только лонги или лонг/шорт (шорт-нога нейтрализует рынок)'
+        required: false
+        default: 'longOnly'
+        type: choice
+        options: ['longOnly', 'longShort']
+      holdout:
+        description: 'Доля истории, отложенная от подбора настроек'
+        required: false
+        default: '0.3'
+
+concurrency:
+  group: coinscope-cross
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    # 40 symbols × 1200 daily bars, then a 24-cell grid each with its own
+    # permutation control. Minutes of sequential requests plus minutes of
+    # arithmetic: slow, not stuck.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Измерить поперечный срез
+        env:
+          # Live data, always. The offline generator builds coins with a
+          # persistent per-symbol drift, which makes a momentum ranking work by
+          # construction — the report says so in a banner, and a run whose
+          # conclusion is "the generator did what the generator does" would be
+          # a wasted job.
+          COINSCOPE_SOURCE: binance
+          COINSCOPE_CROSS_TIMEFRAME: ${{ github.event.inputs.timeframe || '1d' }}
+          COINSCOPE_CROSS_BARS: ${{ github.event.inputs.bars || '1200' }}
+          COINSCOPE_CROSS_UNIVERSE: ${{ github.event.inputs.universe || '40' }}
+          COINSCOPE_CROSS_MODE: ${{ github.event.inputs.mode || 'longOnly' }}
+          COINSCOPE_CROSS_HOLDOUT: ${{ github.event.inputs.holdout || '0.3' }}
+          COINSCOPE_MIN_VOLUME: '50000000'
+        # `shell: bash` adds -o pipefail. Without it the pipe returns tee's exit
+        # code, so a crashed measurement reports SUCCESS here and surfaces two
+        # steps later as "pathspec did not match any files".
+        shell: bash
+        run: node server/cli-cross.js | tee cross.log
+
+      - name: Закоммитить отчёт
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/cross.json
+          if git diff --cached --quiet; then
+            echo "Отчёт не изменился."
+            exit 0
+          fi
+          git commit -m "Поперечный срез: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          for i in 1 2 3; do
+            git pull --rebase --autostash origin main && git push origin HEAD:main && exit 0
+            sleep 5
+          done
+          echo "::error::Не удалось запушить отчёт после трёх попыток"
+          exit 1
+
+      - name: Сохранить лог
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-log
+          path: cross.log
+          if-no-files-found: ignore
