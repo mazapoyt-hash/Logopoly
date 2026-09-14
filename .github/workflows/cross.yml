@@ -79,7 +79,12 @@ jobs:
           COINSCOPE_CROSS_UNIVERSE: ${{ github.event.inputs.universe || '40' }}
           COINSCOPE_CROSS_MODE: ${{ github.event.inputs.mode || 'longOnly' }}
           COINSCOPE_CROSS_HOLDOUT: ${{ github.event.inputs.holdout || '0.3' }}
-          COINSCOPE_MIN_VOLUME: '50000000'
+          # Deliberately NOT pinned. The floor lives in config.js beside the cost
+          # model it is paired with (see server/liquidity.js): lowering one
+          # without the other lets thin coins into every statistic at a liquid
+          # coin's price. Pinning it here is how the floor silently stayed at
+          # $50M after the default moved — the deep run recomputed on seven
+          # coins and reported success.
         # `shell: bash` adds -o pipefail. Without it the pipe returns tee's exit
         # code, so a crashed measurement reports SUCCESS here and surfaces two
         # steps later as "pathspec did not match any files".
