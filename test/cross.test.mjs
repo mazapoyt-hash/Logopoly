@@ -18,7 +18,7 @@
 import { makeChecker, close } from './helpers.mjs';
 import {
   alignCloses, rankAt, simulate, describe, crossSectional, crossGrid, splitByTime,
-  shuffleLabels,
+  shuffleLabels, holdings, leaveOneOut,
 } from '../server/cross.js';
 import { makeRng } from '../server/nulls.js';
 
@@ -500,6 +500,97 @@ function universe({ n = 12, bars = 600, driftSpread = 0, baseDrift = 0.001,
 
   check('a history too short to split is not split',
     splitByTime({ A: { candles: series([1, 2, 3]) } }) === null);
+}
+
+/* ------------------- who actually made the result --------------------- */
+
+{
+  /*
+   * The case this exists to catch, built deliberately.
+   *
+   * One coin runs away from the field while everything else drifts sideways.
+   * A momentum ranking picks it every period, the aggregate looks excellent,
+   * and the percentile against the control agrees — because the control is
+   * about the ranking, not about breadth. Nothing in the earlier report could
+   * tell this apart from a broad effect.
+   *
+   * The funding work learned this the expensive way: a portfolio mean of
+   * −0.00955% was one coin contributing −0.015011%, and the site said "funding
+   * does not pay". A positive result deserves the same suspicion.
+   */
+  const rng = makeRng(20260914);
+  const data = {};
+  for (let k = 0; k < 12; k++) {
+    let p = 100;
+    const closes = [];
+    for (let i = 0; i < 700; i++) {
+      const drift = k === 0 ? 0.006 : 0;       // one runaway, eleven flat
+      p *= 1 + drift + (rng() + rng() + rng() - 1.5) * 0.010;
+      closes.push(p);
+    }
+    data[`C${k}USDT`] = { candles: series(closes) };
+  }
+
+  const loo = leaveOneOut(data, { lookback: 20, hold: 10, topK: 3, costs: FREE, replicates: 0 });
+  check('a result carried by one coin is named as dominated',
+    loo.dominated === true);
+  check('and the coin responsible is the one actually responsible',
+    loo.worst.symbol === 'C0USDT');
+  check('the text says the rule did not do it, the coin did',
+    /результат сделала она, а не правило/.test(loo.text));
+  check('removing it costs more excess than removing anything else',
+    loo.rows.every((r, i) => i === 0 || r.excessLost <= loo.rows[0].excessLost + 1e-9));
+
+  const h = holdings(data, { lookback: 20, hold: 10, topK: 3, costs: FREE });
+  check('the runaway coin is held far more often than an even rotation would',
+    h.rows[0].symbol === 'C0USDT' && h.topShare > h.evenShare * 2);
+  check('holdings are reported as a share of periods, not a raw count alone',
+    h.rows.every((r) => r.share >= 0 && r.share <= 1) && h.periods > 0);
+}
+
+{
+  /*
+   * The discriminating opposite: an effect spread across the whole field. Every
+   * coin has its own persistent drift, so the ranking has many coins to work
+   * with and no single removal can break it. A decomposition that called this
+   * dominated would be useless — it would flag everything.
+   */
+  const data = universe({ n: 14, bars: 900, driftSpread: 0.0025, noise: 0.010, seed: 777 });
+  const loo = leaveOneOut(data, { lookback: 40, hold: 10, topK: 4, costs: FREE, replicates: 0 });
+  check('a broad effect is not called dominated', loo.dominated === false);
+  check('and survives the removal of every single coin, one at a time',
+    loo.survivors === loo.total);
+  check('the text still names the coin that hurts most, without overclaiming',
+    /но и без неё правило работает/.test(loo.text));
+
+  /*
+   * The distinction this pair exists to draw, and my first attempt at this test
+   * got it backwards.
+   *
+   * I asserted that a broad effect must rotate — that no coin should be held
+   * most of the time. It does not hold: in this universe the top coin is held
+   * 93% of periods, because it genuinely has the highest drift and the ranking
+   * is right to keep picking it. A high holding share is therefore NOT evidence
+   * of dominance.
+   *
+   * So the two diagnostics answer different questions, and only one of them is
+   * a verdict. `holdings` describes how concentrated the book was; `leaveOneOut`
+   * decides whether the result depended on one coin. They can disagree — a
+   * strategy can lean hard on one name and still survive its removal — which is
+   * exactly why both are reported rather than one standing in for the other.
+   */
+  const h = holdings(data, { lookback: 40, hold: 10, topK: 4, costs: FREE });
+  check('a concentrated book is not by itself a dominated result',
+    h.topShare > 0.8 && loo.dominated === false);
+  check('and the even-rotation yardstick is reported so the reader can judge',
+    close(h.evenShare, 4 / 14, 1e-9) && h.topShare > h.evenShare);
+}
+
+{
+  check('a universe too small to leave one out of is refused',
+    leaveOneOut({ A: { candles: series([1, 2, 3]) } }) === null);
+  check('holdings on an unrankable panel is refused rather than empty',
+    holdings({ A: { candles: series([1, 2, 3]) } }) === null);
 }
 
 /* ------------------------------- the page ----------------------------- */

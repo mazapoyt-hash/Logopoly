@@ -20,7 +20,7 @@ import fs from 'node:fs';
 
 import { config } from './config.js';
 import { getHistory, checkSource, getUniverse } from './sources/index.js';
-import { crossSectional, crossGrid } from './cross.js';
+import { crossSectional, crossGrid, holdings, leaveOneOut } from './cross.js';
 import { COSTS } from './backtest.js';
 import {
   costsBySymbol as buildCosts, describeUniverse, slippageFor, MIN_VOLUME as FLOOR,
@@ -148,6 +148,25 @@ async function main() {
     costsBySymbol: perSymbolCosts,
   });
 
+  /*
+   * Who actually made the result — the check the first live run did not have.
+   *
+   * A cross-sectional edge has an obvious way to be fake: one coin that ran,
+   * got picked every period, and carried everything while the percentile
+   * happily agreed, because the control tests the ranking and not the breadth.
+   * The funding report needed exactly this decomposition after one coin of
+   * twenty-four produced its whole negative mean.
+   */
+  console.log('Проверяю, не сделала ли результат одна монета…');
+  const concentration = leaveOneOut(dataBySymbol, {
+    lookback: 40, hold: 10, topK: 5, mode: MODE, costs: COSTS,
+    costsBySymbol: perSymbolCosts, replicates: 0,
+  });
+  const held = holdings(dataBySymbol, {
+    lookback: 40, hold: 10, topK: 5, mode: MODE, costs: COSTS,
+    costsBySymbol: perSymbolCosts,
+  });
+
   const report = {
     generatedAt: Date.now(),
     source: config.source,
@@ -159,6 +178,8 @@ async function main() {
     costsBySymbol: perSymbolCosts,
     headline,
     grid,
+    concentration,
+    held,
   };
   writeJson(DATA_DIR, 'cross.json', report);
 
@@ -257,6 +278,36 @@ async function main() {
     out.push('Для сравнения: старая плоская модель брала ' +
       `${(slippageFor(100e6) * 100).toFixed(3)}% со всех подряд.`);
     out.push('');
+  }
+
+  if (concentration) {
+    out.push('### Не сделала ли результат одна монета');
+    out.push('');
+    out.push('Каждая строка — прогон на вселенной, где этой монеты **никогда не было**: ' +
+      'ранжирование пересобирается, бенчмарк тоже. Это отвечает на вопрос ' +
+      '«сработало бы без неё», а не на более лёгкий «сколько она внесла».');
+    out.push('');
+    out.push(`${concentration.dominated ? '🔴' : '🟢'} **${concentration.text}**`);
+    out.push('');
+    out.push('| Убрали | Разница без неё | Потеряно | Держалась |');
+    out.push('|---|---:|---:|---:|');
+    const heldShare = new Map((held?.rows || []).map((r) => [r.symbol, r.share]));
+    for (const r of concentration.rows.slice(0, 10)) {
+      const sh = heldShare.get(r.symbol);
+      out.push(`| ${r.symbol} | ${sign(r.excessAnnualPct)} п.п. | ` +
+        `${sign(-r.excessLost)} | ${sh == null ? '—' : (sh * 100).toFixed(0) + '%'} |`);
+    }
+    out.push('');
+    if (held) {
+      out.push(`Для сравнения: при идеально ровной ротации каждая монета держалась бы ` +
+        `${(held.evenShare * 100).toFixed(0)}% периодов. Чаще всех — ` +
+        `${(held.topShare * 100).toFixed(0)}%. Ни разу не попали в набор: ${held.neverHeld}.`);
+      out.push('');
+      out.push('Высокая доля удержания сама по себе не приговор: если у монеты ' +
+        'действительно лучший импульс, правило право, что держит её. Приговор — ' +
+        'строка выше, где без неё преимущество исчезает.');
+      out.push('');
+    }
   }
 
   out.push('### Сетка настроек');
