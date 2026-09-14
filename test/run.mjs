@@ -23,6 +23,7 @@ const suites = [
   { file: 'funding.test.mjs', server: false },
   { file: 'cross.test.mjs', server: false },
   { file: 'goal.test.mjs', server: false },
+  { file: 'liquidity.test.mjs', server: false },
   { file: 'static.test.mjs', server: false },
   { file: 'api.e2e.mjs', server: true },
 ];

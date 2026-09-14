@@ -40,13 +40,24 @@ export const config = {
      */
     size: Number(env.COINSCOPE_UNIVERSE || 0),
     /**
-     * Turnover floor, in quote currency per 24h. This is not a quality filter,
-     * it is a HONESTY filter: the cost model charges a flat 0.05% slippage,
-     * which is defensible on a pair trading hundreds of millions a day and
-     * fiction on a thin one. Including thin coins at a liquid coin's costs
-     * would inflate every result for free.
+     * Turnover floor, in quote currency per 24h.
+     *
+     * It used to be $50M, paired with a flat 0.05% slippage charged to every
+     * coin alike. That pair was one decision pretending to be two: the floor
+     * existed BECAUSE the flat rate was only defensible on deep pairs.
+     *
+     * Then the floor stopped admitting anyone. Measured across 3701 pairs on
+     * 2026-09-14, only seven cleared $50M a day — confirmed against OKX, which
+     * agreed on every pair and with itself across two differently-derived
+     * fields, so this is the market's real size and not a broken feed.
+     *
+     * So the floor came down AND the cost model went up together: see
+     * server/liquidity.js, where slippage now scales as 1/sqrt(turnover). The
+     * floor is now purely a modelling limit — below it the curve extrapolates
+     * past anything it can describe, and an extrapolated number reads exactly
+     * like a measured one.
      */
-    minQuoteVolume: Number(env.COINSCOPE_MIN_VOLUME || 50e6),
+    minQuoteVolume: Number(env.COINSCOPE_MIN_VOLUME || 10e6),
   },
 
   /** Signal timeframe and the higher timeframe used as a trend filter. */

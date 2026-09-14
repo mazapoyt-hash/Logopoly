@@ -287,7 +287,7 @@ export async function fetchPrices(symbols) {
  * BULL/BEAR — they track a derivative, not the coin), and stablecoin pairs,
  * whose price barely moves and whose ATR-scaled stops would be absurd.
  */
-export function selectUniverse(rows, { limit = 40, minQuoteVolume = 50e6 } = {}) {
+export function selectUniverse(rows, { limit = 40, minQuoteVolume = 10e6 } = {}) {
   if (!Array.isArray(rows)) throw new Error('Binance 24hr: expected an array');
 
   const STABLE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDP|EUR|GBP|AEUR|USD1)USDT$/;
