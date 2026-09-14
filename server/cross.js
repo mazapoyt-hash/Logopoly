@@ -482,6 +482,21 @@ export function crossGrid(dataBySymbol, {
     mode, costs, replicates, startAt: split.from, costsBySymbol,
   }) : null;
 
+  /*
+   * The holdout gets decomposed too, and it is the one that most needed it.
+   *
+   * "The only number nobody chose after the fact" is how the reserved slice has
+   * been described in every report — which makes it the number a reader trusts
+   * most, and therefore the one where an undetected single-coin result does the
+   * most damage. The full-panel decomposition already said `dominated`; letting
+   * the holdout stand undecomposed beside it would invite exactly the reading
+   * the decomposition exists to prevent.
+   */
+  const holdoutConcentration = (holdout && split) ? leaveOneOut(split.reserved, {
+    lookback: best.params.lookback, hold: best.params.hold, topK: best.params.topK,
+    mode, costs, replicates: 0, startAt: split.from, costsBySymbol,
+  }) : null;
+
   return {
     cells: cells.map((c) => ({
       ...c.params,
@@ -496,6 +511,7 @@ export function crossGrid(dataBySymbol, {
     withEdge: strong.length,
     best,
     holdout,
+    holdoutConcentration,
     holdoutText: holdoutText(best, holdout),
     text: strong.length
       ? `Из ${cells.length} наборов настроек ${strong.length} обыгрывают и удержание всех монет, ` +
