@@ -396,6 +396,19 @@ async function main() {
       `${n1(grid.holdout.nullPercentile)}-й процентиль против контроля.`);
     out.push('');
   }
+  /*
+   * And the same question of the holdout, because "the only number nobody chose
+   * after the fact" is the number a reader trusts most — so an undetected
+   * single-coin result does the most damage exactly here.
+   */
+  const hc = grid.holdoutConcentration;
+  if (hc) {
+    out.push('');
+    out.push(`${hc.dominated ? '🔴' : hc.verdict === 'concentrated' ? '🟡' : '🟢'} ` +
+      `**И на отложенном куске:** ${hc.text}`);
+    out.push('');
+  }
+
   out.push('Сетка настраивалась на первых ' + Math.round((1 - HOLDOUT) * 100) + '% истории, ' +
     'отложенный кусок — последние ' + Math.round(HOLDOUT * 100) + '%, и он не участвовал ' +
     'в выборе ячейки. Это единственное число в отчёте, которое не выбирали задним числом.');

@@ -464,6 +464,18 @@ function universe({ n = 12, bars = 600, driftSpread = 0, baseDrift = 0.001,
     grid.beatingBenchmark >= 3 && grid.withEdge >= 1);
 
   check('the grid is tuned on one slice and checked on another', grid.holdout !== null);
+
+  /*
+   * The holdout is decomposed too, and it is the slice that most needed it:
+   * "the only number nobody chose after the fact" is what a reader trusts most,
+   * so a single-coin result hiding there does the most damage.
+   */
+  check('and the reserved slice gets the same per-coin decomposition',
+    grid.holdoutConcentration !== null
+      && typeof grid.holdoutConcentration.verdict === 'string');
+  check('which is computed on the reserved slice, not on the tuning one',
+    grid.holdoutConcentration.rows.length > 0
+      && Number.isFinite(grid.holdoutConcentration.fullExcessAnnualPct));
   check('the holdout is scored only after the cut',
     grid.holdout.params.startAt > 0 && grid.holdout.strategy.from >= grid.holdout.params.startAt);
   check('the holdout runs the settings the grid chose, not its own',
