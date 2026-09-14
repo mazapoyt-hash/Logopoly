@@ -24,6 +24,7 @@ const suites = [
   { file: 'cross.test.mjs', server: false },
   { file: 'goal.test.mjs', server: false },
   { file: 'liquidity.test.mjs', server: false },
+  { file: 'selectivity.test.mjs', server: false },
   { file: 'static.test.mjs', server: false },
   { file: 'api.e2e.mjs', server: true },
 ];
