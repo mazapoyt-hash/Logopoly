@@ -653,6 +653,29 @@ function universe({ n = 12, bars = 600, driftSpread = 0, baseDrift = 0.001,
     /screened: screen\.dropped/.test(cli));
   check('the reason is written down, since a name list demonstrably cannot do it',
     /RLUSD/.test(cli));
+
+  /*
+   * The panel's length is set by the youngest coin, not by the market.
+   *
+   * A cross-section needs shared DATES, and a date counts only when most of the
+   * universe has a bar for it — so one recent listing costs everyone else their
+   * earlier history. Measured: the panel came to 886 days because UUSDT had 244
+   * bars and PUMPUSDT 368, while 22 of 36 coins had more than 1200.
+   *
+   * That matters more than it sounds. The decomposition found one coin carrying
+   * the whole edge — not because the data was dirty, but because 2.4 years
+   * holds about one big momentum move, and one event is not evidence however
+   * good its percentile looks.
+   */
+  check('a coin without enough history is kept out of the panel',
+    /candles\.length >= MIN_BARS/.test(cli));
+  check('and the reason given is that it would truncate the window for everyone',
+    /обрежет общее окно/.test(cli));
+  check('the fetch asks for more bars than the filter demands, leaving headroom',
+    /COINSCOPE_CROSS_BARS \|\| 1600/.test(cli)
+      && /COINSCOPE_CROSS_MIN_BARS \|\| 1200/.test(cli));
+  check('the minimum is recorded in the committed report',
+    /minBars: MIN_BARS/.test(cli));
 }
 
 {

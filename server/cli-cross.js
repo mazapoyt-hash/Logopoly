@@ -36,12 +36,39 @@ import { DATA_DIR, writeJson } from './staticRun.js';
  * surviving its own trading.
  */
 const TIMEFRAME = process.env.COINSCOPE_CROSS_TIMEFRAME || '1d';
-const BARS = Number(process.env.COINSCOPE_CROSS_BARS || 1200);
+/*
+ * Deliberately more than MIN_BARS below. Requesting exactly the minimum would
+ * demand a coin have every single requested bar with nothing to spare, so one
+ * missing day would disqualify it — the filter would then be about fetch luck
+ * rather than about history.
+ */
+const BARS = Number(process.env.COINSCOPE_CROSS_BARS || 1600);
 const UNIVERSE = Number(process.env.COINSCOPE_CROSS_UNIVERSE || 40);
 const MIN_VOLUME = Number(process.env.COINSCOPE_MIN_VOLUME || FLOOR);
 const MODE = process.env.COINSCOPE_CROSS_MODE || 'longOnly';
 const HOLDOUT = Number(process.env.COINSCOPE_CROSS_HOLDOUT || 0.3);
 const REPLICATES = Number(process.env.COINSCOPE_CROSS_REPLICATES || 400);
+
+/**
+ * Minimum history a coin needs to join the panel, and it buys years.
+ *
+ * A cross-section needs coins to share DATES, and a date only counts when most
+ * of the universe has a bar for it. So the panel's start is dragged forward by
+ * whichever coins listed most recently — one new listing costs everyone else
+ * their earlier history.
+ *
+ * Measured on the first live run: the panel was 886 days, not because the
+ * market is young but because UUSDT had 244 bars, PUMPUSDT 368, HOLOUSDT 368,
+ * TRUMPUSDT 603. Meanwhile 22 of the 36 coins had more than 1200.
+ *
+ * That is a trade worth making, and it is the specific thing this measurement
+ * lacked. The decomposition showed one coin carrying 93% of the edge — not
+ * because the data was dirty but because 2.4 years contains about one big
+ * momentum move, and one event is not evidence however good its percentile
+ * looks. Fewer coins over more years is more independent events, which is the
+ * only thing that can settle the question.
+ */
+const MIN_BARS = Number(process.env.COINSCOPE_CROSS_MIN_BARS || 1200);
 
 const n1 = (v) => (v == null || !Number.isFinite(v) ? '—' : v.toFixed(1));
 const n2 = (v) => (v == null || !Number.isFinite(v) ? '—' : v.toFixed(2));
@@ -67,7 +94,8 @@ async function main() {
   const universe = await getUniverse({ limit: UNIVERSE, minQuoteVolume: MIN_VOLUME });
   if (universe.length) symbols = universe.map((u) => u.symbol);
   console.log(`Вселенная: ${symbols.length} монет из ${UNIVERSE} запрошенных, ` +
-    `оборот от $${(MIN_VOLUME / 1e6).toFixed(0)}M. Таймфрейм ${TIMEFRAME}, ${BARS} свечей.`);
+    `оборот от $${(MIN_VOLUME / 1e6).toFixed(0)}M. Таймфрейм ${TIMEFRAME}, ${BARS} свечей, ` +
+    `история от ${MIN_BARS} баров.`);
 
   /*
    * A cross-section of seven coins is not a cross-section, and the first live
@@ -109,8 +137,11 @@ async function main() {
   for (const symbol of symbols) {
     try {
       const candles = await getHistory(symbol, TIMEFRAME, BARS);
-      if (candles.length >= 200) dataBySymbol[symbol] = { candles };
-      else console.log(`  ${symbol}: всего ${candles.length} свечей — мало, пропускаю`);
+      if (candles.length >= MIN_BARS) dataBySymbol[symbol] = { candles };
+      else {
+        console.log(`  ${symbol}: ${candles.length} свечей < ${MIN_BARS} — ` +
+          'пропускаю, иначе обрежет общее окно всем остальным');
+      }
     } catch (err) {
       console.log(`  ${symbol}: ${err.message}`);
     }
@@ -198,6 +229,7 @@ async function main() {
     mode: MODE,
     universe: {
       requested: UNIVERSE, loaded: loaded.length, minQuoteVolume: MIN_VOLUME,
+      minBars: MIN_BARS,
       screened: screen.dropped,
     },
     costs: { feeRate: COSTS.feeRate, slippageRate: COSTS.slippageRate },
