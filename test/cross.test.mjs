@@ -561,7 +561,7 @@ function universe({ n = 12, bars = 600, driftSpread = 0, baseDrift = 0.001,
   check('and survives the removal of every single coin, one at a time',
     loo.survivors === loo.total);
   check('the text still names the coin that hurts most, without overclaiming',
-    /но и без неё правило работает/.test(loo.text));
+    /распределён по вселенной/.test(loo.text) && loo.verdict === 'broad');
 
   /*
    * The distinction this pair exists to draw, and my first attempt at this test
@@ -584,6 +584,75 @@ function universe({ n = 12, bars = 600, driftSpread = 0, baseDrift = 0.001,
     h.topShare > 0.8 && loo.dominated === false);
   check('and the even-rotation yardstick is reported so the reader can judge',
     close(h.evenShare, 4 / 14, 1e-9) && h.topShare > h.evenShare);
+}
+
+{
+  /*
+   * The grade the boolean could not express, and the live run that forced it.
+   *
+   * On real data ZECUSDT took the excess from +40.8 п.п. to +2.7 — ninety-three
+   * per cent of the edge in one coin — and the old flag said `dominated: false`
+   * because 2.7 is above zero. Technically correct, completely misleading: a
+   * reader glancing at the green flag would have called the result broad.
+   *
+   * This universe reproduces that shape: one coin carrying most of the edge
+   * without quite carrying all of it.
+   */
+  const rng = makeRng(70707);
+  const data = {};
+  for (let k = 0; k < 12; k++) {
+    let p = 100;
+    const closes = [];
+    for (let i = 0; i < 700; i++) {
+      // One strong runaway, and a mild spread among the rest so removing the
+      // runaway leaves a small but positive edge rather than nothing at all.
+      const drift = k === 0 ? 0.005 : 0.0004 * (k % 3);
+      p *= 1 + drift + (rng() + rng() + rng() - 1.5) * 0.011;
+      closes.push(p);
+    }
+    data[`C${k}USDT`] = { candles: series(closes) };
+  }
+
+  const loo = leaveOneOut(data, { lookback: 20, hold: 10, topK: 3, costs: FREE, replicates: 0 });
+  check('an edge that survives but only just is graded, not waved through',
+    ['concentrated', 'dominated'].includes(loo.verdict));
+  check('the share of the edge carried by one coin is reported as a number',
+    Number.isFinite(loo.topShareOfExcess));
+
+  /*
+   * The property that matters regardless of which side of the threshold this
+   * particular seed lands on: the grade and the share must agree, and a
+   * "broad" grade must never be handed out when one coin carries most of it.
+   */
+  check('a concentrated grade means more than half the edge sits in one coin',
+    loo.verdict !== 'concentrated' || loo.topShareOfExcess > 0.5);
+  check('and a broad grade is impossible when one coin carries most of the edge',
+    !(loo.verdict === 'broad' && loo.topShareOfExcess > 0.5));
+  check('the text refuses to call a concentrated result a broad effect',
+    loo.verdict !== 'concentrated' || /Читать это как широкий эффект нельзя/.test(loo.text));
+}
+
+{
+  /*
+   * The screen the cross run did not have, asserted through the CLI because
+   * that is where it was missing.
+   *
+   * The first live decomposition found RLUSDUSDT — Ripple's dollar — inside a
+   * momentum universe, carrying 16.7 п.п. of the reported edge. The deep run
+   * had excluded stablecoins by MECHANISM for months; the cross run excluded
+   * them by nothing. The name list cannot catch RLUSD, which is the whole
+   * reason the mechanism exists.
+   */
+  const { readFileSync } = await import('node:fs');
+  const cli = readFileSync(new URL('../server/cli-cross.js', import.meta.url), 'utf8');
+  const deep = readFileSync(new URL('../server/cli-deep.js', import.meta.url), 'utf8');
+
+  check('the cross run screens by toll, exactly as the deep run does',
+    /screenByToll\(dataBySymbol\)/.test(cli) && /screenByToll\(dataBySymbol\)/.test(deep));
+  check('and what it excluded is recorded in the committed report',
+    /screened: screen\.dropped/.test(cli));
+  check('the reason is written down, since a name list demonstrably cannot do it',
+    /RLUSD/.test(cli));
 }
 
 {

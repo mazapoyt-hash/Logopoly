@@ -619,11 +619,38 @@ export function leaveOneOut(dataBySymbol, opts = {}) {
   const survivors = rows.filter((r) => r.excessAnnualPct > 0).length;
 
   /*
-   * `dominated` is the blunt version of the question and it is deliberately
-   * strict: if removing ONE coin out of thirty takes the excess to zero or
-   * below, the result was that coin, whatever the percentile said.
+   * A graded verdict, because the boolean version was too lenient and the first
+   * live run proved it.
+   *
+   * The original rule was "does removing one coin take the excess to zero or
+   * below". On real data ZECUSDT took +40.8 п.п. down to +2.7 — ninety-three
+   * per cent of the edge gone — and the flag still said `false`, because 2.7 is
+   * above zero. Technically right and completely misleading: a reader glancing
+   * at a green flag would have concluded the result was broad.
+   *
+   * So the share is what gets reported, and the middle grade exists precisely
+   * for the case the boolean could not express.
    */
-  const dominated = !(worst.excessAnnualPct > 0);
+  const share = full.excessAnnualPct > 0 ? worst.excessLost / full.excessAnnualPct : null;
+  const verdict = !(worst.excessAnnualPct > 0) ? 'dominated'
+    : (share != null && share > 0.5) ? 'concentrated' : 'broad';
+  const dominated = verdict === 'dominated';
+
+  const pctShare = share == null ? '—' : `${(share * 100).toFixed(0)}%`;
+  const text = verdict === 'dominated'
+    ? `Убрать одну монету (${worst.symbol}) — и преимущество исчезает: ` +
+      `${worst.excessAnnualPct.toFixed(1)} п.п. вместо ${full.excessAnnualPct.toFixed(1)}. ` +
+      'Значит результат сделала она, а не правило, и никакой процентиль этого не меняет.'
+    : verdict === 'concentrated'
+      ? `Формально преимущество переживает удаление любой монеты, но держится оно ` +
+        `на одной: без ${worst.symbol} от ${full.excessAnnualPct.toFixed(1)} п.п. ` +
+        `остаётся ${worst.excessAnnualPct.toFixed(1)} — это ${pctShare} всего ` +
+        'преимущества в одной монете. Читать это как широкий эффект нельзя.'
+      : `Преимущество переживает удаление любой отдельной монеты: ${survivors} из ` +
+        `${rows.length} вариантов «без одной» остаются в плюсе. Больнее всего бьёт ` +
+        `${worst.symbol} (−${worst.excessLost.toFixed(1)} п.п., остаётся ` +
+        `${worst.excessAnnualPct.toFixed(1)}, ${pctShare} преимущества), но эффект ` +
+        'распределён по вселенной, а не собран в одном имени.';
 
   return {
     fullExcessAnnualPct: full.excessAnnualPct,
@@ -631,14 +658,10 @@ export function leaveOneOut(dataBySymbol, opts = {}) {
     worst,
     survivors,
     total: rows.length,
+    /** Share of the whole edge that the single most important coin carries. */
+    topShareOfExcess: share,
+    verdict,
     dominated,
-    text: dominated
-      ? `Убрать одну монету (${worst.symbol}) — и преимущество исчезает: ` +
-        `${worst.excessAnnualPct.toFixed(1)} п.п. вместо ${full.excessAnnualPct.toFixed(1)}. ` +
-        'Значит результат сделала она, а не правило, и никакой процентиль этого не меняет.'
-      : `Преимущество переживает удаление любой отдельной монеты: ${survivors} из ` +
-        `${rows.length} вариантов «без одной» остаются в плюсе. Больнее всего бьёт ` +
-        `${worst.symbol} (−${worst.excessLost.toFixed(1)} п.п., остаётся ` +
-        `${worst.excessAnnualPct.toFixed(1)}), но и без неё правило работает.`,
+    text,
   };
 }

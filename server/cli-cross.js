@@ -25,6 +25,7 @@ import { COSTS } from './backtest.js';
 import {
   costsBySymbol as buildCosts, describeUniverse, slippageFor, MIN_VOLUME as FLOOR,
 } from './liquidity.js';
+import { screenByToll } from './economics.js';
 import { DATA_DIR, writeJson } from './staticRun.js';
 
 /**
@@ -114,8 +115,31 @@ async function main() {
       console.log(`  ${symbol}: ${err.message}`);
     }
   }
+  /*
+   * Disqualify by arithmetic, exactly as the deep run does — and the first live
+   * decomposition is why this is here.
+   *
+   * That run's universe contained RLUSDUSDT, Ripple's dollar. A coin pegged to
+   * a dollar barely moves, so round-trip costs swamp any move it makes, and the
+   * project already paid for this lesson once: RLUSD produced −8.7R per trade
+   * and dragged a whole portfolio from −0.12R to −0.41R.
+   *
+   * The name list cannot catch it — that is the recorded lesson, "имён
+   * недостаточно, нужен механизм" — so the mechanism is the toll: costs as a
+   * share of the coin's own typical move. The deep run has applied it for
+   * months. The cross run never did, which is how a stablecoin ended up in a
+   * momentum ranking carrying 16.7 п.п. of the reported edge.
+   */
+  const screen = screenByToll(dataBySymbol);
+  for (const d of screen.dropped) {
+    console.log(`  исключён ${d.symbol}: ${d.reason}` +
+      (d.costR ? ` (ATR ${d.atrPct.toFixed(3)}%, пошлина ${d.costR.toFixed(2)}R)` : ` (${d.bars} свечей)`));
+    delete dataBySymbol[d.symbol];
+  }
+
   const loaded = Object.keys(dataBySymbol);
-  console.log(`История загружена по ${loaded.length} монетам.`);
+  console.log(`История загружена по ${loaded.length} монетам` +
+    (screen.dropped.length ? ` (исключено по пошлине: ${screen.dropped.length}).` : '.'));
   if (loaded.length < 8) {
     console.error(`Для поперечного среза нужно минимум 8 монет, доступно ${loaded.length}. ` +
       'Ранжировать семь монет друг против друга бессмысленно: верхняя треть — ' +
@@ -172,7 +196,10 @@ async function main() {
     source: config.source,
     timeframe: TIMEFRAME,
     mode: MODE,
-    universe: { requested: UNIVERSE, loaded: loaded.length, minQuoteVolume: MIN_VOLUME },
+    universe: {
+      requested: UNIVERSE, loaded: loaded.length, minQuoteVolume: MIN_VOLUME,
+      screened: screen.dropped,
+    },
     costs: { feeRate: COSTS.feeRate, slippageRate: COSTS.slippageRate },
     liquidity,
     costsBySymbol: perSymbolCosts,
