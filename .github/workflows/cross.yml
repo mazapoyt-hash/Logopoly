@@ -24,7 +24,11 @@ on:
         type: choice
         options: ['1d', '4h', '1w']
       bars:
-        description: 'Сколько баров истории на монету'
+        description: 'Сколько баров истории запрашивать на монету'
+        required: false
+        default: '1600'
+      min_bars:
+        description: 'Минимум истории, чтобы монета попала в панель (обрезает общее окно)'
         required: false
         default: '1200'
       universe:
@@ -75,7 +79,8 @@ jobs:
           # a wasted job.
           COINSCOPE_SOURCE: binance
           COINSCOPE_CROSS_TIMEFRAME: ${{ github.event.inputs.timeframe || '1d' }}
-          COINSCOPE_CROSS_BARS: ${{ github.event.inputs.bars || '1200' }}
+          COINSCOPE_CROSS_BARS: ${{ github.event.inputs.bars || '1600' }}
+          COINSCOPE_CROSS_MIN_BARS: ${{ github.event.inputs.min_bars || '1200' }}
           COINSCOPE_CROSS_UNIVERSE: ${{ github.event.inputs.universe || '40' }}
           COINSCOPE_CROSS_MODE: ${{ github.event.inputs.mode || 'longOnly' }}
           COINSCOPE_CROSS_HOLDOUT: ${{ github.event.inputs.holdout || '0.3' }}
