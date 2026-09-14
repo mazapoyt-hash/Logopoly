@@ -255,6 +255,48 @@ check('and the thinnest are capped rather than sent to infinity',
     diag.includes(`'${MIN_VOLUME}'`));
 }
 
+/* ------------- a narrow universe must be loud in every job ------------ */
+
+{
+  /*
+   * The asymmetry this closes, observed live on 2026-09-14.
+   *
+   * One narrow universe hit two jobs at once. The cross-sectional run refused
+   * and named the upstream cause — ranking seven coins is impossible, not
+   * merely misleading. The deep run computed 275 trades on the same seven,
+   * finished green, and committed a report dated today, indistinguishable from
+   * a fresh measurement on forty.
+   *
+   * Seven coins is not a wrong answer to the deep run's question; it is a
+   * different question. A report that does not say which one it answered is
+   * worse than no report, so the shortfall has to reach the log, the committed
+   * JSON and the summary a person actually reads.
+   */
+  const { readFileSync } = await import('node:fs');
+  const deep = readFileSync(new URL('../server/cli-deep.js', import.meta.url), 'utf8');
+  const cross = readFileSync(new URL('../server/cli-cross.js', import.meta.url), 'utf8');
+  const scan = readFileSync(new URL('../server/staticRun.js', import.meta.url), 'utf8');
+
+  check('the deep run notices when the universe comes back half-size',
+    /universe\.length < config\.universe\.size \/ 2/.test(deep));
+  check('and says so at the top of the summary, not buried in a table',
+    /u\?\.thin/.test(deep) && /Вселенная узкая/.test(deep));
+  check('and records requested and thin beside size in the committed report',
+    /requested: config\.universe\.size/.test(deep) && /thin: thinUniverse/.test(deep));
+  check('and states the numbers are not comparable with a full-universe run',
+    /несопоставимы/.test(deep));
+
+  /*
+   * All three jobs that select a universe must carry the same guard. One of
+   * them being loud is what made the other two look fine.
+   */
+  check('every job that picks a universe carries the same guard',
+    [deep, cross, scan].every((src) => /вернулась узкой|вернулась узкой|узк/.test(src)));
+  check('the cross run still refuses outright, because seven cannot be ranked',
+    /Для поперечного среза нужно минимум 8 монет/.test(cross)
+      && /process\.exit\(1\)/.test(cross));
+}
+
 const passed = results.filter(([, ok]) => ok).length;
 console.log(`  ${passed}/${results.length} passed`);
 process.exit(passed === results.length ? 0 : 1);

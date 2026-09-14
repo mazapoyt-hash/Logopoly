@@ -526,3 +526,119 @@ function holdoutText(best, holdout) {
   return `${head} Знак сохранился, но против случайных наборов на отложенном куске это лишь ` +
     `${holdout.nullPercentile?.toFixed(0) ?? '—'}-й процентиль — то есть отличить от везения пока нельзя.`;
 }
+
+/* --------------------- who actually made the result ------------------- */
+
+/**
+ * How often each coin was actually held.
+ *
+ * A "cross-sectional" strategy that spends most of its life holding the same
+ * two coins is not cross-sectional, it is a concentrated bet wearing a ranking
+ * for a hat. The share below is the cheapest way to see that, and it costs one
+ * extra pass over the panel.
+ */
+export function holdings(dataBySymbol, {
+  lookback = 40, hold = 10, topK = 5, mode = 'longOnly',
+  costs = COSTS, costsBySymbol = null, startAt = 0,
+} = {}) {
+  const panel = alignCloses(dataBySymbol);
+  if (!panel) return null;
+
+  const periods = simulate(panel, {
+    lookback, hold, topK, mode, costs, costsBySymbol, startAt,
+    pick: (ranking) => ({
+      longs: ranking.slice(0, topK).map((r) => r.symbol),
+      shorts: mode === 'longShort' ? ranking.slice(-topK).map((r) => r.symbol) : [],
+    }),
+  });
+  if (!periods.length) return null;
+
+  const count = new Map(panel.symbols.map((s) => [s, 0]));
+  for (const p of periods) for (const s of p.basket) count.set(s, (count.get(s) || 0) + 1);
+
+  const rows = [...count.entries()]
+    .map(([symbol, held]) => ({ symbol, held, share: held / periods.length }))
+    .sort((a, b) => b.held - a.held);
+
+  return {
+    periods: periods.length,
+    rows,
+    // Perfectly even rotation would give every coin topK/symbols of the time;
+    // the ratio says how far from that the strategy actually sits.
+    evenShare: topK / panel.symbols.length,
+    topShare: rows[0]?.share ?? null,
+    neverHeld: rows.filter((r) => r.held === 0).length,
+  };
+}
+
+/**
+ * Would the result survive without any single coin?
+ *
+ * This exists because the funding work learned it the expensive way: a
+ * portfolio mean of −0.00955% turned out to be one coin contributing
+ * −0.015011%, and the report said "funding does not pay" with no way to see
+ * that. A positive result deserves the same suspicion as a negative one, and a
+ * cross-sectional edge has an obvious way to be fake — one coin that ran, got
+ * picked every period, and carried everything.
+ *
+ * Leave-one-out rather than attribution, deliberately. Attribution splits the
+ * result you got; this re-runs the strategy on a universe where the coin never
+ * existed, so the ranking genuinely reshuffles and the benchmark moves too.
+ * That answers the question actually being asked — "would this have worked
+ * without it" — instead of the easier one it is usually confused with.
+ *
+ * The control is skipped per row (`replicates: 0`) because the question here is
+ * the size of the excess, not its significance, and 32 null distributions would
+ * cost minutes to answer a question nobody asked.
+ */
+export function leaveOneOut(dataBySymbol, opts = {}) {
+  const full = crossSectional(dataBySymbol, opts);
+  if (!full) return null;
+
+  const symbols = Object.keys(dataBySymbol);
+  const rows = [];
+  for (const symbol of symbols) {
+    const without = { ...dataBySymbol };
+    delete without[symbol];
+    const r = crossSectional(without, { ...opts, replicates: 0 });
+    if (!r) continue;
+    rows.push({
+      symbol,
+      annualPct: r.strategy.annualPct,
+      benchmarkPct: r.benchmark?.annualPct ?? null,
+      excessAnnualPct: r.excessAnnualPct,
+      // How much of the edge this one coin was carrying.
+      excessLost: full.excessAnnualPct - r.excessAnnualPct,
+    });
+  }
+  if (!rows.length) return null;
+
+  // Sorted by damage done: the coin whose removal costs the most is first.
+  rows.sort((a, b) => b.excessLost - a.excessLost);
+  const worst = rows[0];
+  const survivors = rows.filter((r) => r.excessAnnualPct > 0).length;
+
+  /*
+   * `dominated` is the blunt version of the question and it is deliberately
+   * strict: if removing ONE coin out of thirty takes the excess to zero or
+   * below, the result was that coin, whatever the percentile said.
+   */
+  const dominated = !(worst.excessAnnualPct > 0);
+
+  return {
+    fullExcessAnnualPct: full.excessAnnualPct,
+    rows,
+    worst,
+    survivors,
+    total: rows.length,
+    dominated,
+    text: dominated
+      ? `Убрать одну монету (${worst.symbol}) — и преимущество исчезает: ` +
+        `${worst.excessAnnualPct.toFixed(1)} п.п. вместо ${full.excessAnnualPct.toFixed(1)}. ` +
+        'Значит результат сделала она, а не правило, и никакой процентиль этого не меняет.'
+      : `Преимущество переживает удаление любой отдельной монеты: ${survivors} из ` +
+        `${rows.length} вариантов «без одной» остаются в плюсе. Больнее всего бьёт ` +
+        `${worst.symbol} (−${worst.excessLost.toFixed(1)} п.п., остаётся ` +
+        `${worst.excessAnnualPct.toFixed(1)}), но и без неё правило работает.`,
+  };
+}
