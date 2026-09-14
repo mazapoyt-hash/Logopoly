@@ -22,6 +22,9 @@ import { config } from './config.js';
 import { getHistory, checkSource, getUniverse } from './sources/index.js';
 import { crossSectional, crossGrid } from './cross.js';
 import { COSTS } from './backtest.js';
+import {
+  costsBySymbol as buildCosts, describeUniverse, slippageFor, MIN_VOLUME as FLOOR,
+} from './liquidity.js';
 import { DATA_DIR, writeJson } from './staticRun.js';
 
 /**
@@ -34,7 +37,7 @@ import { DATA_DIR, writeJson } from './staticRun.js';
 const TIMEFRAME = process.env.COINSCOPE_CROSS_TIMEFRAME || '1d';
 const BARS = Number(process.env.COINSCOPE_CROSS_BARS || 1200);
 const UNIVERSE = Number(process.env.COINSCOPE_CROSS_UNIVERSE || 40);
-const MIN_VOLUME = Number(process.env.COINSCOPE_MIN_VOLUME || 50e6);
+const MIN_VOLUME = Number(process.env.COINSCOPE_MIN_VOLUME || FLOOR);
 const MODE = process.env.COINSCOPE_CROSS_MODE || 'longOnly';
 const HOLDOUT = Number(process.env.COINSCOPE_CROSS_HOLDOUT || 0.3);
 const REPLICATES = Number(process.env.COINSCOPE_CROSS_REPLICATES || 400);
@@ -84,6 +87,23 @@ async function main() {
    * cannot cover anyway. A run on thirty-eight coins is still a run; a run that
    * aborts because one symbol 404'd is not.
    */
+  /*
+   * Costs per coin, from the turnover the exchange just reported.
+   *
+   * This is the half of the fix that makes the lower floor honest. A momentum
+   * ranking systematically picks whatever moved most, which skews it towards
+   * the thin end of the universe — so charging one average rate would subsidise
+   * exactly the coins the strategy prefers, and the subsidy would surface as
+   * edge.
+   */
+  const perSymbolCosts = buildCosts(universe);
+  const liquidity = describeUniverse(universe, MIN_VOLUME);
+  if (liquidity.kept) {
+    console.log(`Издержки по монете: от ${(liquidity.medianSlippage * 100).toFixed(3)}% ` +
+      `(медиана) до ${(liquidity.worstSlippage * 100).toFixed(3)}% за сторону; ` +
+      `тоньше всех $${(liquidity.thinnest / 1e6).toFixed(0)}M в сутки.`);
+  }
+
   const dataBySymbol = {};
   for (const symbol of symbols) {
     try {
@@ -110,6 +130,7 @@ async function main() {
   console.log('Считаю сетку настроек и отложенную проверку…');
   const grid = crossGrid(dataBySymbol, {
     mode: MODE, costs: COSTS, replicates: Math.min(REPLICATES, 200), holdoutRatio: HOLDOUT,
+    costsBySymbol: perSymbolCosts,
   });
   if (!grid) {
     console.error('Не удалось построить панель — нет общих дат у монет.');
@@ -124,6 +145,7 @@ async function main() {
    */
   const headline = crossSectional(dataBySymbol, {
     lookback: 40, hold: 10, topK: 5, mode: MODE, costs: COSTS, replicates: REPLICATES,
+    costsBySymbol: perSymbolCosts,
   });
 
   const report = {
@@ -133,6 +155,8 @@ async function main() {
     mode: MODE,
     universe: { requested: UNIVERSE, loaded: loaded.length, minQuoteVolume: MIN_VOLUME },
     costs: { feeRate: COSTS.feeRate, slippageRate: COSTS.slippageRate },
+    liquidity,
+    costsBySymbol: perSymbolCosts,
     headline,
     grid,
   };
@@ -195,6 +219,43 @@ async function main() {
       'и её будущим разорвана. Ложных срабатываний на пустых данных: 1 из 40.');
     out.push('');
     out.push(headline.text);
+    out.push('');
+  }
+
+  /*
+   * What each coin was charged. A run that charged different coins different
+   * costs has to show what it charged each one, or its totals are unauditable —
+   * and this is the table where an implausibly cheap thin coin would be visible.
+   */
+  const charged = Object.entries(perSymbolCosts)
+    .filter(([sym]) => loaded.includes(sym))
+    .map(([sym, c]) => ({
+      symbol: sym,
+      quoteVolume: universe.find((u) => u.symbol === sym)?.quoteVolume ?? null,
+      slip: c.slippageRate,
+      trip: (c.feeRate + c.slippageRate) * 2,
+    }))
+    .sort((a, b) => b.trip - a.trip);
+
+  if (charged.length) {
+    out.push('### Что стоило торговать каждой монетой');
+    out.push('');
+    out.push('Порог вселенной опущен с $50M до $' + (MIN_VOLUME / 1e6).toFixed(0) + 'M, ' +
+      'но не бесплатно: проскальзывание теперь считается по обороту как ' +
+      '`0.05% × √($100M / оборот)`, а не плоской ставкой для всех. Опустить порог, ' +
+      'не подняв издержки, означало бы впустить тонкие монеты по цене ликвидных — ' +
+      'каждый результат стал бы лучше, и ни одно улучшение не было бы настоящим.');
+    out.push('');
+    out.push('| Монета | Оборот за сутки | Проскальзывание | Полный круг |');
+    out.push('|---|---:|---:|---:|');
+    for (const r of charged.slice(0, 12)) {
+      out.push(`| ${r.symbol} | ${r.quoteVolume ? '$' + (r.quoteVolume / 1e6).toFixed(0) + 'M' : '—'} | ` +
+        `${(r.slip * 100).toFixed(3)}% | ${(r.trip * 100).toFixed(3)}% |`);
+    }
+    if (charged.length > 12) out.push(`| …ещё ${charged.length - 12} | | | |`);
+    out.push('');
+    out.push('Для сравнения: старая плоская модель брала ' +
+      `${(slippageFor(100e6) * 100).toFixed(3)}% со всех подряд.`);
     out.push('');
   }
 

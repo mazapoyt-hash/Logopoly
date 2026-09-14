@@ -124,8 +124,26 @@ const legReturn = (panel, from, to, symbol) => {
  * strategy pays, the control pays too — otherwise the comparison flatters the
  * strategy by construction.
  */
-export function simulate(panel, { lookback, hold, topK, mode, costs, pick, startAt = 0 }) {
-  const trip = (costs.feeRate + costs.slippageRate) * 2;  // in and out, one leg
+export function simulate(panel, {
+  lookback, hold, topK, mode, costs, pick, startAt = 0, costsBySymbol = null,
+}) {
+  /*
+   * The round trip is per COIN, not per basket.
+   *
+   * A flat rate here was the exact mechanism by which a thin coin got charged a
+   * deep coin's costs — and a momentum ranking systematically picks whatever
+   * moved most, which skews it towards the thin end. Charging one average
+   * would subsidise precisely the coins the strategy prefers, and the
+   * subsidy would show up as edge.
+   *
+   * `costsBySymbol` is optional so the synthetic tests can still hand in one
+   * rate; when it is present, each leg pays its own.
+   */
+  const tripFor = (symbol) => {
+    const c = costsBySymbol?.[symbol] || costs;
+    return (c.feeRate + c.slippageRate) * 2;
+  };
+  const flatTrip = (costs.feeRate + costs.slippageRate) * 2;
   const periods = [];
   let held = new Set();
 
@@ -161,18 +179,26 @@ export function simulate(panel, { lookback, hold, topK, mode, costs, pick, start
      * charging nothing would make it look free. Both are wrong.
      */
     const wanted = new Set([...longs, ...shorts]);
+    /*
+     * Each coin entering or leaving pays half its own round trip — one side of
+     * it — so the total is the sum over what actually moved rather than an
+     * average applied to a count.
+     */
     let changed = 0;
-    for (const s of wanted) if (!held.has(s)) changed++;
-    for (const s of held) if (!wanted.has(s)) changed++;
+    let paid = 0;
+    for (const s of wanted) if (!held.has(s)) { changed++; paid += tripFor(s) / 2; }
+    for (const s of held) if (!wanted.has(s)) { changed++; paid += tripFor(s) / 2; }
     const turnover = wanted.size ? changed / (wanted.size * 2) : 1;
+    // Spread the cost over the basket, since `gross` is the basket's mean.
+    const cost = wanted.size ? paid / wanted.size : flatTrip;
     held = wanted;
 
     periods.push({
       at: panel.times[i],
       until: panel.times[i + hold],
       gross: mean(legs),
-      cost: turnover * trip,
-      net: mean(legs) - turnover * trip,
+      cost,
+      net: mean(legs) - cost,
       turnover,
       basket: [...wanted],
     });
@@ -221,9 +247,9 @@ export function describe(periods, hold) {
  * rebalance loop so it pays the same kind of cost, though its turnover is near
  * zero because the basket never changes.
  */
-function universeBenchmark(panel, { hold, lookback, costs, startAt }) {
+function universeBenchmark(panel, { hold, lookback, costs, startAt, costsBySymbol }) {
   return simulate(panel, {
-    lookback, hold, topK: 1, mode: 'longOnly', costs, startAt,
+    lookback, hold, topK: 1, mode: 'longOnly', costs, startAt, costsBySymbol,
     pick: (ranking) => ({ longs: ranking.map((r) => r.symbol), shorts: [] }),
   });
 }
@@ -279,14 +305,14 @@ export function shuffleLabels(symbols, rng) {
  */
 export function crossSectional(dataBySymbol, {
   lookback = 20, hold = 5, topK = 3, mode = 'longOnly',
-  costs = COSTS, replicates = 400, seed = 90210, startAt = 0,
+  costs = COSTS, replicates = 400, seed = 90210, startAt = 0, costsBySymbol = null,
 } = {}) {
   const panel = alignCloses(dataBySymbol);
   if (!panel) return null;
   if (panel.symbols.length < topK * (mode === 'longShort' ? 2 : 1) + 2) return null;
 
   const strategyPeriods = simulate(panel, {
-    lookback, hold, topK, mode, costs, startAt,
+    lookback, hold, topK, mode, costs, startAt, costsBySymbol,
     pick: (ranking) => ({
       longs: ranking.slice(0, topK).map((r) => r.symbol),
       shorts: mode === 'longShort' ? ranking.slice(-topK).map((r) => r.symbol) : [],
@@ -295,14 +321,15 @@ export function crossSectional(dataBySymbol, {
   const strategy = describe(strategyPeriods, hold);
   if (!strategy) return null;
 
-  const benchmark = describe(universeBenchmark(panel, { hold, lookback, costs, startAt }), hold);
+  const benchmark = describe(
+    universeBenchmark(panel, { hold, lookback, costs, startAt, costsBySymbol }), hold);
 
   const rnd = makeRng(seed);
   const nullAnnuals = [];
   for (let r = 0; r < replicates; r++) {
     const swap = shuffleLabels(panel.symbols, rnd);
     const periods = simulate(panel, {
-      lookback, hold, topK, mode, costs, startAt,
+      lookback, hold, topK, mode, costs, startAt, costsBySymbol,
       pick: (ranking) => {
         const relabelled = ranking.map((row) => swap.get(row.symbol));
         return {
@@ -425,6 +452,7 @@ export function splitByTime(dataBySymbol, { ratio = 0.3, warmupBars = 60 } = {})
 export function crossGrid(dataBySymbol, {
   lookbacks = [10, 20, 40, 60], holds = [5, 10, 20], topKs = [3, 5],
   mode = 'longOnly', costs = COSTS, replicates = 200, holdoutRatio = 0.3,
+  costsBySymbol = null,
 } = {}) {
   const split = holdoutRatio > 0 ? splitByTime(dataBySymbol, {
     ratio: holdoutRatio, warmupBars: Math.max(...lookbacks) + Math.max(...holds),
@@ -435,7 +463,9 @@ export function crossGrid(dataBySymbol, {
   for (const lookback of lookbacks) {
     for (const hold of holds) {
       for (const topK of topKs) {
-        const r = crossSectional(tuning, { lookback, hold, topK, mode, costs, replicates });
+        const r = crossSectional(tuning, {
+          lookback, hold, topK, mode, costs, replicates, costsBySymbol,
+        });
         if (r) cells.push(r);
       }
     }
@@ -449,7 +479,7 @@ export function crossGrid(dataBySymbol, {
   // The grid picked these settings; the reserved slice had no say in it.
   const holdout = split ? crossSectional(split.reserved, {
     lookback: best.params.lookback, hold: best.params.hold, topK: best.params.topK,
-    mode, costs, replicates, startAt: split.from,
+    mode, costs, replicates, startAt: split.from, costsBySymbol,
   }) : null;
 
   return {
