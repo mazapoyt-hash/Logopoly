@@ -360,3 +360,17 @@ tr.current td { background: rgba(77,141,255,.07); font-weight: 600; }
   font-size: 12px; color: var(--muted); text-transform: uppercase;
   letter-spacing: .05em; margin-bottom: 4px;
 }
+
+/* Goal tab: two plain number inputs, side by side until the screen is narrow. */
+.goal-inputs { display: flex; flex-wrap: wrap; gap: 16px; }
+.goal-inputs label {
+  display: flex; flex-direction: column; gap: 6px;
+  font-size: 13px; color: var(--muted);
+}
+.goal-inputs input {
+  font: inherit; font-size: 18px; font-variant-numeric: tabular-nums;
+  padding: 8px 10px; min-width: 160px; max-width: 100%;
+  color: var(--ink); background: var(--panel-2);
+  border: 1px solid var(--border); border-radius: 8px;
+}
+.goal-inputs input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
