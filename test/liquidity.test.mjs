@@ -208,6 +208,53 @@ check('and the thinnest are capped rather than sent to infinity',
       && describeUniverse(null, MIN_VOLUME).offered === 0);
 }
 
+/* ---------------- the floor must not be overridden behind us ---------- */
+
+{
+  /*
+   * How the first recomputation silently failed, kept as a test because the
+   * failure reported SUCCESS.
+   *
+   * The floor was lowered in config.js — and every measurement workflow pinned
+   * `COINSCOPE_MIN_VOLUME: '50000000'` in its own env, so the old value won.
+   * The deep run then recomputed on the same seven coins, finished green, and
+   * committed a report that looked exactly like a fresh measurement on a wider
+   * universe.
+   *
+   * A default that any caller can quietly pin to a stale value is not a
+   * default. The measurement jobs now inherit it; only the diagnostic overrides
+   * it, and that one is supposed to — its whole job is to show the funnel at
+   * whatever threshold you ask about.
+   */
+  const { readFileSync, readdirSync } = await import('node:fs');
+  const dir = new URL('../.github/workflows/', import.meta.url);
+  const files = readdirSync(dir).filter((f) => f.endsWith('.yml'));
+
+  const pinning = files.filter((f) => {
+    const body = readFileSync(new URL(f, dir), 'utf8');
+    const line = body.split('\n').find((l) => l.includes('COINSCOPE_MIN_VOLUME'));
+    return line && !line.includes('github.event.inputs');
+  });
+
+  check('no measurement workflow pins the turnover floor to a literal',
+    pinning.length === 0);
+  check('and none of them still carries the old $50M value anywhere',
+    files.every((f) => !/COINSCOPE_MIN_VOLUME:\s*'?50000000/
+      .test(readFileSync(new URL(f, dir), 'utf8'))));
+
+  /*
+   * The one legitimate override, asserted rather than merely tolerated: the
+   * diagnostic exists to answer "how many coins clear THIS threshold", so it
+   * has to take one — and its own default must agree with the config default,
+   * or the two disagree about what the universe is.
+   */
+  const diag = readFileSync(new URL('universe.yml', dir), 'utf8');
+  check('the diagnostic still takes a threshold, because that is its question',
+    /COINSCOPE_MIN_VOLUME: \$\{\{ github\.event\.inputs\.min_volume/.test(diag));
+  check('and its default matches the floor the rest of the project uses',
+    diag.includes(`'${MIN_VOLUME}'`));
+}
+
 const passed = results.filter(([, ok]) => ok).length;
 console.log(`  ${passed}/${results.length} passed`);
 process.exit(passed === results.length ? 0 : 1);

@@ -68,7 +68,12 @@ jobs:
           # with how many coins are watched — not with how loose the thresholds
           # are. Widening the universe raises the rate without lowering the bar.
           COINSCOPE_UNIVERSE: '40'
-          COINSCOPE_MIN_VOLUME: '50000000'
+          # Deliberately NOT pinned. The floor lives in config.js beside the cost
+          # model it is paired with (see server/liquidity.js): lowering one
+          # without the other lets thin coins into every statistic at a liquid
+          # coin's price. Pinning it here is how the floor silently stayed at
+          # $50M after the default moved — the deep run recomputed on seven
+          # coins and reported success.
         run: node server/cli-scan.js | tee scan.log
 
       - name: Закоммитить данные

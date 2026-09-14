@@ -63,7 +63,12 @@ jobs:
           COINSCOPE_FUNDING_PERIODS: ${{ github.event.inputs.periods || '2000' }}
           COINSCOPE_FUNDING_UNIVERSE: ${{ github.event.inputs.universe || '25' }}
           COINSCOPE_FUNDING_LEVERAGE: ${{ github.event.inputs.leverage || '3' }}
-          COINSCOPE_MIN_VOLUME: '50000000'
+          # Deliberately NOT pinned. The floor lives in config.js beside the cost
+          # model it is paired with (see server/liquidity.js): lowering one
+          # without the other lets thin coins into every statistic at a liquid
+          # coin's price. Pinning it here is how the floor silently stayed at
+          # $50M after the default moved — the deep run recomputed on seven
+          # coins and reported success.
           COINSCOPE_OPEN_VAULT: ${{ github.event.inputs.open_vault == 'да' && '1' || '0' }}
         # `shell: bash` adds -o pipefail. Without it the pipe returns tee's exit
         # code, so a crashed measurement reported SUCCESS here and surfaced two

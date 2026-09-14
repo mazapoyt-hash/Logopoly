@@ -10,9 +10,9 @@ on:
   workflow_dispatch:
     inputs:
       min_volume:
-        description: 'Порог оборота за 24ч, в долларах'
+        description: 'Порог оборота за 24ч, в долларах (пусто — берётся из config.js)'
         required: false
-        default: '50000000'
+        default: '10000000'
       universe:
         description: 'Сколько монет запрашивать'
         required: false
@@ -34,6 +34,6 @@ jobs:
 
       - name: Посчитать воронку вселенной
         env:
-          COINSCOPE_MIN_VOLUME: ${{ github.event.inputs.min_volume || '50000000' }}
+          COINSCOPE_MIN_VOLUME: ${{ github.event.inputs.min_volume || '10000000' }}
           COINSCOPE_UNIVERSE: ${{ github.event.inputs.universe || '40' }}
         run: node server/cli-universe.js
