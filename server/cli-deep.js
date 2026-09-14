@@ -23,6 +23,7 @@ import { backtestSymbol } from './backtest.js';
 import { auditCandles, describeAudit } from './dataQuality.js';
 import { analyse, reserveVault, evaluateOnVault, VAULT_RATIO } from './analytics.js';
 import { tollByTimeframe, screenByToll } from './economics.js';
+import { selectivity } from './selectivity.js';
 import { DATA_DIR, loadState, writeJson } from './staticRun.js';
 
 const BARS = Number(process.env.COINSCOPE_HISTORY_BARS || 8000);
@@ -174,6 +175,13 @@ async function main() {
   report.vault = openVaultIfAsked(vault);
   report.tollByTimeframe = tollByTimeframe(byTimeframe);
   report.screen = { maxTollR: screen.maxTollR, dropped: screen.dropped };
+  /*
+   * The score breakdown says whether the score orders trades. This says what
+   * raising the bar is WORTH — and, when the answer is "not enough to prove",
+   * how many years of the surviving trade rate it would take to find out.
+   */
+  console.log('Протяжка по порогу score с контролем перебора…');
+  report.selectivity = selectivity(trades, { holdout: 1 - RATIO });
 
   writeJson(DATA_DIR, 'analytics.json', report);
   console.log(`\nЗаписано: ${path.join(DATA_DIR, 'analytics.json')}`);
@@ -278,6 +286,35 @@ function printSummary(rep) {
           : '**Дело не в издержках.** Даже при нулевых входы не лучше случайных — значит, ' +
             'плюс без издержек создан не выбором момента, а чем-то ещё (дрейфом рынка, ' +
             'геометрией стопа и цели).\n');
+    }
+  }
+
+  if (rep.selectivity) {
+    const s = rep.selectivity;
+    out.push('## Что покупает повышение планки\n');
+    out.push('_Не «ранжирует ли score», а «что получит тот, кто возьмёт всё выше порога»._\n');
+    out.push(s.text + '\n');
+    out.push('| Порог | Сделок | Доля | Винрейт | Средний R | Прибавка | Шум (95%) | В год | Нужно лет |',
+      '|---|---:|---:|---:|---:|---:|---:|---:|---:|');
+    for (const r of s.rows) {
+      out.push(`| ${r.threshold}${r.beatsNull ? ' ⚑' : ''} | ${r.trades} | ${pct(r.share)} | ` +
+        `${pct(r.winRate)} | ${r2(r.avgR)} | ${r2(r.lift)} | ${r2(r.nullP95)} | ` +
+        `${r.perYear == null ? '—' : r.perYear.toFixed(0)} | ` +
+        `${r.yearsNeeded == null ? '—' : r.yearsNeeded.toFixed(0)} |`);
+    }
+    out.push('');
+    if (s.sweepNull) {
+      out.push(`Перебор семи порогов на бессмысленном score находит прибавку до ` +
+        `**${r2(s.sweepNull.bestLiftP95)}R** в 5% случаев (медиана ${r2(s.sweepNull.bestLiftP50)}R). ` +
+        'Настоящий порог должен перебить именно это число, а не ноль.\n');
+    }
+    if (s.reserved) {
+      out.push('### Порог, выбранный вслепую\n');
+      out.push(`Планка ${s.reserved.threshold} выбрана на ранней части ` +
+        `(${s.reserved.chosenOn.trades} сделок, ${r2(s.reserved.chosenOn.avgR)}R) и применена к ` +
+        `отложенной один раз: ${day(s.reserved.from)} — ${day(s.reserved.to)}, ` +
+        `${s.reserved.trades} сделок, **${r2(s.reserved.avgR)}R** против ` +
+        `${r2(s.reserved.baseAvgR)}R без порога.\n`);
     }
   }
 
