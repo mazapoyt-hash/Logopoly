@@ -199,6 +199,8 @@
       if (tab.dataset.view === 'analytics') loadAnalytics();
       if (tab.dataset.view === 'funding') loadFunding();
       if (tab.dataset.view === 'cross') loadCross();
+      // The goal tab is a separate ES module: it shares the arithmetic with the
+      // test suite rather than restating it here, so it mounts itself.
     });
   });
 
