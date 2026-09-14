@@ -54,13 +54,36 @@ async function main() {
    */
   let symbols = config.symbols;
   let universe = null;
+  let thinUniverse = false;
   if (config.universe.size > 0) {
     universe = await getUniverse({
       limit: config.universe.size, minQuoteVolume: config.universe.minQuoteVolume,
     });
     if (universe.length) symbols = universe.map((u) => u.symbol);
-    console.log(`Вселенная: ${symbols.length} монет с оборотом от ` +
+    console.log(`Вселенная: ${symbols.length} монет из ${config.universe.size} ` +
+      `запрошенных, оборот от ` +
       `$${(config.universe.minQuoteVolume / 1e6).toFixed(0)}M за сутки.`);
+
+    /*
+     * The asymmetry this closes, observed live on 2026-09-14.
+     *
+     * The same narrow universe hit two jobs at once. The cross-sectional run
+     * refused outright and named the upstream cause, because ranking seven
+     * coins is impossible rather than merely misleading. THIS run computed 275
+     * trades on those seven, finished green, and committed a report dated today
+     * — indistinguishable from a fresh measurement on a wide universe.
+     *
+     * Seven coins is not a wrong answer to the deep run's question, it is a
+     * different question, and a report that does not say which one it answered
+     * is worse than no report. So the shortfall goes into the log AND into the
+     * committed JSON, where the site and any later reader can see it.
+     */
+    thinUniverse = universe.length < config.universe.size / 2;
+    if (thinUniverse) {
+      console.log(`  ⚠️ вселенная вернулась узкой (${universe.length} из ` +
+        `${config.universe.size}). Все числа ниже посчитаны по этой выборке, ` +
+        'а не по запрошенной. Диагностика — Actions → «Диагностика вселенной».');
+    }
   }
 
   console.log(`Источник: ${config.source}. Запрашиваю ${BARS} свечей ${config.timeframe} ` +
@@ -138,7 +161,13 @@ async function main() {
     symbolsRequested: symbols.length,
     screened: screen.dropped,
     universe: universe && {
-      size: universe.length, minQuoteVolume: config.universe.minQuoteVolume,
+      size: universe.length,
+      // Without the number ASKED for, `size: 7` reads as a setting rather than
+      // as a shortfall — which is exactly how a report on seven coins passed
+      // for a fresh measurement on forty.
+      requested: config.universe.size,
+      thin: thinUniverse,
+      minQuoteVolume: config.universe.minQuoteVolume,
       coins: universe.map((u) => ({ symbol: u.symbol, quoteVolume: u.quoteVolume })),
     },
   };
@@ -201,6 +230,20 @@ function printSummary(rep) {
   const out = [];
   const o = rep.overall;
   out.push('# Глубокий анализ\n');
+
+  /*
+   * At the very top, because this is the fact that reframes every number under
+   * it — and burying it in a table is how a report on seven coins passed for a
+   * measurement on forty.
+   */
+  const u = rep.history?.universe;
+  if (u?.thin) {
+    out.push(`> ⚠️ **Вселенная узкая: ${u.size} монет из ${u.requested} запрошенных.** ` +
+      'Все числа ниже посчитаны по этой выборке, а не по запрошенной, и с прогоном ' +
+      'на полной вселенной несопоставимы. Диагностика — Actions → «Диагностика ' +
+      'вселенной».\n');
+  }
+
   out.push(`Период: **${day(rep.sample.from)} — ${day(rep.sample.to)}**, сделок: **${o.trades}**\n`);
   out.push('| Метрика | Значение |', '|---|---|');
   out.push(`| Винрейт | ${pct(o.winRate)} |`);
