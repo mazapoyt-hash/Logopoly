@@ -1,0 +1,104 @@
+name: Расхождения спот/перп
+
+# Четвёртый вопрос, и первый другого класса.
+#
+# Скан, глубокий анализ и поперечный срез спрашивают «куда пойдёт цена», то есть
+# предсказывают. Все три ответили «мы не знаем»: входы неотличимы от случайных,
+# Келли отрицателен, срез держится на одной монете.
+#
+# Здесь угадывать не надо. Перп и спот — один актив, связанный механизмом
+# фандинга: их зазор притянут к нулю конструкцией биржи. Вопрос только в том,
+# расходятся ли они настолько, чтобы окупить двойное пересечение спреда.
+#
+# Базис на часовых барах живёт часами, а не неделями, поэтому прогон чаще
+# поперечного среза — но всё равно редкий: ответ про НАЛИЧИЕ механизма меняется
+# медленно, даже если сам зазор дышит быстро.
+on:
+  schedule:
+    # Четверг, 07:10 UTC — в день, свободный от остальных трёх измерений.
+    - cron: '10 7 * * 4'
+  workflow_dispatch:
+    inputs:
+      universe:
+        description: 'Сколько перпетуалов брать по обороту'
+        required: false
+        default: '25'
+      bars:
+        description: 'Часовых свечей на монету (1500 ≈ 62 дня)'
+        required: false
+        default: '1500'
+      replicates:
+        description: 'Случайных блужданий на каждый порог'
+        required: false
+        default: '200'
+      min_episodes:
+        description: 'Минимум эпизодов, чтобы порог вообще рассматривался'
+        required: false
+        default: '30'
+
+concurrency:
+  group: coinscope-dislocation
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    # 25 монет × 2 запроса свечей, затем 5 порогов × 200 блужданий на монету.
+    # Минуты последовательных запросов плюс минуты арифметики.
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Измерить расхождения
+        env:
+          # Живые данные всегда. Офлайн-генератор не строит отдельный перпетуал
+          # и отдаёт спот дважды, из-за чего базис тождественно ноль; модуль это
+          # ловит и говорит «вырожденный вход», но прогон с таким выводом —
+          # потраченная работа.
+          COINSCOPE_SOURCE: binance
+          COINSCOPE_DISLOC_UNIVERSE: ${{ github.event.inputs.universe || '25' }}
+          COINSCOPE_DISLOC_BARS: ${{ github.event.inputs.bars || '1500' }}
+          COINSCOPE_DISLOC_REPLICATES: ${{ github.event.inputs.replicates || '200' }}
+          COINSCOPE_DISLOC_MIN_EPISODES: ${{ github.event.inputs.min_episodes || '30' }}
+          # Порог оборота намеренно НЕ закреплён: он живёт в config.js рядом с
+          # моделью издержек, с которой составляет одно решение. Именно так он
+          # однажды тихо остался на $50M после смены умолчания.
+        # `shell: bash` добавляет -o pipefail. Без него код возврата берётся у
+        # tee, и упавшее измерение рапортует об успехе.
+        shell: bash
+        run: node server/cli-dislocation.js | tee dislocation.log
+
+      - name: Закоммитить отчёт
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/dislocation.json
+          if git diff --cached --quiet; then
+            echo "Отчёт не изменился."
+            exit 0
+          fi
+          git commit -m "Расхождения: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          for i in 1 2 3; do
+            git pull --rebase --autostash origin main && git push origin HEAD:main && exit 0
+            sleep 5
+          done
+          echo "::error::Не удалось запушить отчёт после трёх попыток"
+          exit 1
+
+      - name: Сохранить лог
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dislocation-log
+          path: dislocation.log
+          if-no-files-found: ignore
