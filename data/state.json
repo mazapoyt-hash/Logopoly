@@ -50345,14 +50345,18 @@
    },
    "barTime": 1791489600000,
    "expiryBars": 24,
-   "status": "open",
+   "status": "expired",
    "createdAt": 1791496764666,
    "winProb": 0.3507692307692308,
    "probLow": 0.30090411548355367,
    "probHigh": 0.40412103948467415,
    "probSample": 325,
    "probBasis": "direction",
-   "expectedR": -0.10475808455993901
+   "expectedR": -0.10475808455993901,
+   "exit": 1.0893,
+   "exitTime": 1791576000000,
+   "barsHeld": 24,
+   "r": 0.37874249472989574
   },
   {
    "id": 861,
@@ -50577,14 +50581,18 @@
    },
    "barTime": 1791529200000,
    "expiryBars": 24,
-   "status": "open",
+   "status": "loss",
    "createdAt": 1791536095761,
    "winProb": 0.6666666666666666,
    "probLow": 0.46705959494080457,
    "probHigh": 0.8202802131162036,
    "probSample": 24,
    "probBasis": "symbol+direction",
-   "expectedR": 0.7936035804583854
+   "expectedR": 0.7936035804583854,
+   "exit": 0.8542728073554591,
+   "exitTime": 1791561600000,
+   "barsHeld": 9,
+   "r": -1.010546445492843
   },
   {
    "id": 865,
@@ -50809,16 +50817,294 @@
    "probSample": 608,
    "probBasis": "direction",
    "expectedR": -0.04621313748647646
+  },
+  {
+   "id": 869,
+   "symbol": "RLCUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "entry": 1.0362,
+   "stop": 0.8656357921622624,
+   "target": 1.3773284156754753,
+   "atr": 0.11370947189182504,
+   "score": 82,
+   "reasons": [
+    {
+     "weight": 18,
+     "text": "Цена выше EMA200 — общий тренд вверх"
+    },
+    {
+     "weight": 14,
+     "text": "EMA50 выше EMA200 (золотой крест)"
+    },
+    {
+     "weight": 8,
+     "text": "Импульс MACD усиливается"
+    },
+    {
+     "weight": 12,
+     "text": "RSI 55 — в рабочей зоне, без перегрева"
+    },
+    {
+     "weight": 12,
+     "text": "+DI выше −DI — покупатели давят"
+    },
+    {
+     "weight": 8,
+     "text": "Объём выше среднего (×1.17)"
+    },
+    {
+     "weight": 10,
+     "text": "ADX растёт — тренд набирает силу"
+    }
+   ],
+   "context": {
+    "htfTrend": "up",
+    "adx": 42.24949732051204,
+    "rsi": 54.813590857252485,
+    "relVol": 1.1682600771710534,
+    "ema200": 0.6648987319610564
+   },
+   "barTime": 1791576000000,
+   "expiryBars": 24,
+   "status": "open",
+   "createdAt": 1791581724879,
+   "winProb": 0.6153846153846154,
+   "probLow": 0.4253452003942009,
+   "probHigh": 0.7757164048816557,
+   "probSample": 26,
+   "probBasis": "symbol+direction",
+   "expectedR": 0.6548228092314423
+  },
+  {
+   "id": 870,
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "entry": 0.1258,
+   "stop": 0.1161842653107762,
+   "target": 0.14503146937844758,
+   "atr": 0.006410489792815862,
+   "score": 84,
+   "reasons": [
+    {
+     "weight": 18,
+     "text": "Цена выше EMA200 — общий тренд вверх"
+    },
+    {
+     "weight": 14,
+     "text": "EMA50 выше EMA200 (золотой крест)"
+    },
+    {
+     "weight": 14,
+     "text": "MACD-гистограмма положительная"
+    },
+    {
+     "weight": 8,
+     "text": "Импульс MACD усиливается"
+    },
+    {
+     "weight": 12,
+     "text": "+DI выше −DI — покупатели давят"
+    },
+    {
+     "weight": 8,
+     "text": "Объём выше среднего (×1.52)"
+    },
+    {
+     "weight": 10,
+     "text": "ADX растёт — тренд набирает силу"
+    }
+   ],
+   "context": {
+    "htfTrend": "up",
+    "adx": 54.453610735996975,
+    "rsi": 91.672570781347,
+    "relVol": 1.5179268311002059,
+    "ema200": 0.06573647656531442
+   },
+   "barTime": 1791576000000,
+   "expiryBars": 24,
+   "status": "open",
+   "createdAt": 1791581724879,
+   "winProb": 0.35,
+   "probLow": 0.1811895478679446,
+   "probHigh": 0.5671494897805353,
+   "probSample": 20,
+   "probBasis": "symbol+direction",
+   "expectedR": 0.01440267008036743
+  },
+  {
+   "id": 871,
+   "symbol": "OGNUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "entry": 0.03858,
+   "stop": 0.034441751152121516,
+   "target": 0.04685649769575698,
+   "atr": 0.002758832565252326,
+   "score": 64,
+   "reasons": [
+    {
+     "weight": 18,
+     "text": "Цена выше EMA200 — общий тренд вверх"
+    },
+    {
+     "weight": 14,
+     "text": "EMA50 выше EMA200 (золотой крест)"
+    },
+    {
+     "weight": 8,
+     "text": "Импульс MACD усиливается"
+    },
+    {
+     "weight": 12,
+     "text": "RSI 50 — в рабочей зоне, без перегрева"
+    },
+    {
+     "weight": 12,
+     "text": "+DI выше −DI — покупатели давят"
+    }
+   ],
+   "context": {
+    "htfTrend": "up",
+    "adx": 24.3195516962162,
+    "rsi": 49.93352814993332,
+    "relVol": 0.7112591028318076,
+    "ema200": 0.02724618206094233
+   },
+   "barTime": 1791576000000,
+   "expiryBars": 24,
+   "status": "open",
+   "createdAt": 1791581724879,
+   "winProb": 0.3549382716049383,
+   "probLow": 0.30481361878624386,
+   "probHigh": 0.4084625487288,
+   "probSample": 324,
+   "probBasis": "direction",
+   "expectedR": -0.10064395317093246
+  },
+  {
+   "id": 872,
+   "symbol": "ATOMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "entry": 2.03,
+   "stop": 1.9523681901597312,
+   "target": 2.185263619680537,
+   "atr": 0.051754539893512426,
+   "score": 88,
+   "reasons": [
+    {
+     "weight": 18,
+     "text": "Цена выше EMA200 — общий тренд вверх"
+    },
+    {
+     "weight": 14,
+     "text": "EMA50 выше EMA200 (золотой крест)"
+    },
+    {
+     "weight": 14,
+     "text": "MACD-гистограмма положительная"
+    },
+    {
+     "weight": 12,
+     "text": "RSI 68 — в рабочей зоне, без перегрева"
+    },
+    {
+     "weight": 12,
+     "text": "+DI выше −DI — покупатели давят"
+    },
+    {
+     "weight": 8,
+     "text": "Объём выше среднего (×1.30)"
+    },
+    {
+     "weight": 10,
+     "text": "ADX растёт — тренд набирает силу"
+    }
+   ],
+   "context": {
+    "htfTrend": "up",
+    "adx": 53.980451892317255,
+    "rsi": 68.21124355155688,
+    "relVol": 1.2969360826342966,
+    "ema200": 1.7845397091644493
+   },
+   "barTime": 1791576000000,
+   "expiryBars": 24,
+   "status": "open",
+   "createdAt": 1791581724879,
+   "winProb": 0.36721311475409835,
+   "probLow": 0.32990078366353587,
+   "probHigh": 0.4061874840589515,
+   "probSample": 610,
+   "probBasis": "direction",
+   "expectedR": -0.03947475803689144
+  },
+  {
+   "id": 873,
+   "symbol": "APTUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "entry": 0.82,
+   "stop": 0.7931935491194083,
+   "target": 0.8736129017611832,
+   "atr": 0.01787096725372774,
+   "score": 68,
+   "reasons": [
+    {
+     "weight": 18,
+     "text": "Цена выше EMA200 — общий тренд вверх"
+    },
+    {
+     "weight": 8,
+     "text": "Импульс MACD усиливается"
+    },
+    {
+     "weight": 12,
+     "text": "RSI 62 — в рабочей зоне, без перегрева"
+    },
+    {
+     "weight": 12,
+     "text": "+DI выше −DI — покупатели давят"
+    },
+    {
+     "weight": 8,
+     "text": "Объём выше среднего (×1.19)"
+    },
+    {
+     "weight": 10,
+     "text": "ADX растёт — тренд набирает силу"
+    }
+   ],
+   "context": {
+    "htfTrend": "up",
+    "adx": 24.394929780775904,
+    "rsi": 61.64416600854975,
+    "relVol": 1.1931980122764665,
+    "ema200": 0.7916097859144722
+   },
+   "barTime": 1791576000000,
+   "expiryBars": 24,
+   "status": "open",
+   "createdAt": 1791581724879,
+   "winProb": 0.3549382716049383,
+   "probLow": 0.30481361878624386,
+   "probHigh": 0.4084625487288,
+   "probSample": 324,
+   "probBasis": "direction",
+   "expectedR": -0.10064395317093246
   }
  ],
- "nextId": 869,
+ "nextId": 874,
  "backtestTrades": [
   {
    "symbol": "BTCUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 70,
-   "r": -1.283501637367035,
+   "r": -1.2835016432034565,
    "entryTime": 1790600400000
   },
   {
@@ -50826,7 +51112,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 66,
-   "r": -0.6897765740327407,
+   "r": -0.6897765845950103,
    "entryTime": 1790607600000
   },
   {
@@ -50834,7 +51120,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 74,
-   "r": 0.0895728127226297,
+   "r": 0.08957281275356349,
    "entryTime": 1790776800000
   },
   {
@@ -50842,7 +51128,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 80,
-   "r": 1.7408519979274086,
+   "r": 1.7408519979173671,
    "entryTime": 1790899200000
   },
   {
@@ -50850,7 +51136,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": -1.228699082768109,
+   "r": -1.2286990827739341,
    "entryTime": 1790913600000
   },
   {
@@ -50858,7 +51144,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 80,
-   "r": -1.2184286225401744,
+   "r": -1.2184286225451484,
    "entryTime": 1790917200000
   },
   {
@@ -50866,7 +51152,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 64,
-   "r": -1.1963426099056678,
+   "r": -1.1963426099075927,
    "entryTime": 1790953200000
   },
   {
@@ -50874,7 +51160,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 88,
-   "r": 1.3744335867891213,
+   "r": 1.3744335867884754,
    "entryTime": 1791115200000
   },
   {
@@ -50882,7 +51168,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": 1.4346516339685926,
+   "r": 1.4346516339682482,
    "entryTime": 1791144000000
   },
   {
@@ -50890,7 +51176,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": -1.454714700805636,
+   "r": -1.4547147008058108,
    "entryTime": 1791151200000
   },
   {
@@ -50898,7 +51184,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 70,
-   "r": -1.3624489522701582,
+   "r": -1.3624489522702363,
    "entryTime": 1791169200000
   },
   {
@@ -50906,7 +51192,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 78,
-   "r": 1.6627854151274184,
+   "r": 1.66278541512738,
    "entryTime": 1791172800000
   },
   {
@@ -50914,7 +51200,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 64,
-   "r": -1.2534391913674625,
+   "r": -1.253439191367479,
    "entryTime": 1791208800000
   },
   {
@@ -50922,7 +51208,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 72,
-   "r": -1.221418704862434,
+   "r": -1.2214187062584783,
    "entryTime": 1790596800000
   },
   {
@@ -50930,7 +51216,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 96,
-   "r": -1.2008570306575355,
+   "r": -1.200857030658866,
    "entryTime": 1790924400000
   },
   {
@@ -50938,7 +51224,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 64,
-   "r": -1.163419286602608,
+   "r": -1.1634192866031374,
    "entryTime": 1790949600000
   },
   {
@@ -50946,7 +51232,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 88,
-   "r": 1.5257414706378645,
+   "r": 1.5257414706376764,
    "entryTime": 1791100800000
   },
   {
@@ -50954,7 +51240,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": -1.4034658265703486,
+   "r": -1.4034658265704032,
    "entryTime": 1791151200000
   },
   {
@@ -50962,7 +51248,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 78,
-   "r": -1.3395258518167796,
+   "r": -1.3395258518168085,
    "entryTime": 1791169200000
   },
   {
@@ -50970,7 +51256,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 64,
-   "r": -1.3186057140308505,
+   "r": -1.3186057140308676,
    "entryTime": 1791172800000
   },
   {
@@ -50978,23 +51264,15 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 62,
-   "r": -0.5223401143589969,
+   "r": -0.5223401143590074,
    "entryTime": 1791219600000
   },
   {
    "symbol": "SOLUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 96,
-   "r": -1.155652512361359,
-   "entryTime": 1790503200000
-  },
-  {
-   "symbol": "SOLUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
    "score": 60,
-   "r": -1.1375779075556756,
+   "r": -1.13757790853698,
    "entryTime": 1790596800000
   },
   {
@@ -51002,7 +51280,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 74,
-   "r": -1.1205023695196807,
+   "r": -1.120502370084053,
    "entryTime": 1790611200000
   },
   {
@@ -51010,7 +51288,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 64,
-   "r": -1.115884361047171,
+   "r": -1.115884361383873,
    "entryTime": 1790632800000
   },
   {
@@ -51018,7 +51296,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 66,
-   "r": 0.31073089114353697,
+   "r": 0.31073089172005924,
    "entryTime": 1790658000000
   },
   {
@@ -51026,7 +51304,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 88,
-   "r": -1.1293726142044032,
+   "r": -1.1293726142055749,
    "entryTime": 1790917200000
   },
   {
@@ -51034,7 +51312,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 64,
-   "r": -1.1296831895092696,
+   "r": -1.1296831895098436,
    "entryTime": 1790953200000
   },
   {
@@ -51042,7 +51320,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 64,
-   "r": 0.5135068802987661,
+   "r": 0.5135068803000048,
    "entryTime": 1790989200000
   },
   {
@@ -51050,7 +51328,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 96,
-   "r": 1.6817961332193092,
+   "r": 1.6817961332190605,
    "entryTime": 1791079200000
   },
   {
@@ -51058,7 +51336,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": -1.3077695064355446,
+   "r": -1.3077695064356505,
    "entryTime": 1791118800000
   },
   {
@@ -51066,7 +51344,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 64,
-   "r": -1.294474067393397,
+   "r": -1.2944740673934534,
    "entryTime": 1791144000000
   },
   {
@@ -51074,23 +51352,15 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 86,
-   "r": -1.2349435974779726,
+   "r": -1.2349435974779888,
    "entryTime": 1791180000000
   },
   {
    "symbol": "ZECUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 80,
-   "r": -1.1095624931625425,
-   "entryTime": 1790499600000
-  },
-  {
-   "symbol": "ZECUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
    "score": 64,
-   "r": -1.097439102581934,
+   "r": -1.0974391096588099,
    "entryTime": 1790532000000
   },
   {
@@ -51098,7 +51368,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 100,
-   "r": -1.1033719444448142,
+   "r": -1.1033719465654042,
    "entryTime": 1790596800000
   },
   {
@@ -51113,16 +51383,16 @@
    "symbol": "NEARUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 78,
-   "r": -1.0518923168498333,
-   "entryTime": 1790499600000
+   "score": 64,
+   "r": -1.058671302722002,
+   "entryTime": 1790528400000
   },
   {
    "symbol": "NEARUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 70,
-   "r": -1.053614726118274,
+   "r": -1.0536147265998508,
    "entryTime": 1790593200000
   },
   {
@@ -51130,7 +51400,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 88,
-   "r": 1.9432967604775553,
+   "r": 1.9432967603921165,
    "entryTime": 1790679600000
   },
   {
@@ -51138,7 +51408,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 96,
-   "r": -1.046656614892863,
+   "r": -1.0466566149015508,
    "entryTime": 1790773200000
   },
   {
@@ -51146,7 +51416,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 80,
-   "r": -1.0560013819077863,
+   "r": -1.0560013819086493,
    "entryTime": 1790906400000
   },
   {
@@ -51154,7 +51424,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 82,
-   "r": 1.9060961109571954,
+   "r": 1.9060961109571206,
    "entryTime": 1791068400000
   },
   {
@@ -51162,7 +51432,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": -1.0853581565231556,
+   "r": -1.0853581565231727,
    "entryTime": 1791136800000
   },
   {
@@ -51170,7 +51440,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 70,
-   "r": 1.9148804012728322,
+   "r": 1.9148804012728284,
    "entryTime": 1791154800000
   },
   {
@@ -51178,7 +51448,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 96,
-   "r": -1.067760482766586,
+   "r": -1.0677604827665894,
    "entryTime": 1791183600000
   },
   {
@@ -51186,7 +51456,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 88,
-   "r": 1.9337236920424201,
+   "r": 1.9337236920424279,
    "entryTime": 1791187200000
   },
   {
@@ -51194,7 +51464,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 66,
-   "r": -1.0693439704509726,
+   "r": -1.069343970450974,
    "entryTime": 1791244800000
   },
   {
@@ -51202,7 +51472,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 78,
-   "r": -1.0725319378966447,
+   "r": -1.0725319378966456,
    "entryTime": 1791270000000
   },
   {
@@ -51210,7 +51480,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 62,
-   "r": -1.07594576125422,
+   "r": -1.0759457612542205,
    "entryTime": 1791295200000
   },
   {
@@ -51225,16 +51495,8 @@
    "symbol": "XRPUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 66,
-   "r": -1.161215314023826,
-   "entryTime": 1790499600000
-  },
-  {
-   "symbol": "XRPUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
    "score": 64,
-   "r": -1.15567346845145,
+   "r": -1.1556734681783498,
    "entryTime": 1790517600000
   },
   {
@@ -51242,7 +51504,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 100,
-   "r": -1.1153337623819295,
+   "r": -1.1153337623525752,
    "entryTime": 1790596800000
   },
   {
@@ -51250,7 +51512,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 68,
-   "r": -1.0960045255623263,
+   "r": -1.0960045255469106,
    "entryTime": 1790611200000
   },
   {
@@ -51258,7 +51520,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 96,
-   "r": -1.157619508771284,
+   "r": -1.1576195087712295,
    "entryTime": 1790931600000
   },
   {
@@ -51266,7 +51528,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 78,
-   "r": -1.1258785697610119,
+   "r": -1.125878569760987,
    "entryTime": 1790949600000
   },
   {
@@ -51274,7 +51536,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 74,
-   "r": 1.6650586059898465,
+   "r": 1.6650586059898296,
    "entryTime": 1791118800000
   },
   {
@@ -51298,7 +51560,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 68,
-   "r": -1.1831589660631932,
+   "r": -1.1831589653193415,
    "entryTime": 1790614800000
   },
   {
@@ -51306,7 +51568,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 66,
-   "r": -0.607579808715343,
+   "r": -0.6075798086384607,
    "entryTime": 1790784000000
   },
   {
@@ -51314,7 +51576,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 88,
-   "r": -1.2736037817346952,
+   "r": -1.273603781732267,
    "entryTime": 1790931600000
   },
   {
@@ -51322,7 +51584,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 96,
-   "r": 1.6350693356773771,
+   "r": 1.6350693356778692,
    "entryTime": 1791036000000
   },
   {
@@ -51330,7 +51592,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": -1.2897431684366079,
+   "r": -1.2897431684363583,
    "entryTime": 1791046800000
   },
   {
@@ -51338,7 +51600,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 70,
-   "r": 1.6988429260709568,
+   "r": 1.6988429260710938,
    "entryTime": 1791079200000
   },
   {
@@ -51346,7 +51608,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": -1.3183451564979247,
+   "r": -1.3183451564978295,
    "entryTime": 1791104400000
   },
   {
@@ -51354,7 +51616,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 64,
-   "r": 1.6565319939166994,
+   "r": 1.656531993916742,
    "entryTime": 1791129600000
   },
   {
@@ -51362,7 +51624,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": 1.6713127641549461,
+   "r": 1.671312764154976,
    "entryTime": 1791162000000
   },
   {
@@ -51370,7 +51632,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": -1.2816794107292366,
+   "r": -1.2816794107292198,
    "entryTime": 1791165600000
   },
   {
@@ -51378,7 +51640,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 78,
-   "r": -1.242329678624173,
+   "r": -1.2423296786241604,
    "entryTime": 1791169200000
   },
   {
@@ -51386,207 +51648,15 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 64,
-   "r": -1.2479062136455996,
+   "r": -1.2479062136455907,
    "entryTime": 1791208800000
-  },
-  {
-   "symbol": "SUIUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": -1.0698505097336526,
-   "entryTime": 1790499600000
-  },
-  {
-   "symbol": "SUIUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 88,
-   "r": 0.26455088857631903,
-   "entryTime": 1790665200000
-  },
-  {
-   "symbol": "SUIUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 80,
-   "r": 1.8799961525255973,
-   "entryTime": 1791072000000
-  },
-  {
-   "symbol": "SUIUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": -1.1063856974454034,
-   "entryTime": 1791126000000
-  },
-  {
-   "symbol": "SUIUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 96,
-   "r": -1.094393125970495,
-   "entryTime": 1791129600000
-  },
-  {
-   "symbol": "SUIUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 70,
-   "r": 1.9046929620600739,
-   "entryTime": 1791147600000
-  },
-  {
-   "symbol": "SUIUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 96,
-   "r": -1.0918528461902135,
-   "entryTime": 1791165600000
-  },
-  {
-   "symbol": "SUIUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 78,
-   "r": -1.0878154108863936,
-   "entryTime": 1791172800000
-  },
-  {
-   "symbol": "SUIUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 64,
-   "r": -0.7839880134966271,
-   "entryTime": 1791226800000
-  },
-  {
-   "symbol": "UNIUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 88,
-   "r": -1.078240828725874,
-   "entryTime": 1790499600000
-  },
-  {
-   "symbol": "UNIUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 78,
-   "r": -1.0796993454759474,
-   "entryTime": 1790514000000
-  },
-  {
-   "symbol": "UNIUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 60,
-   "r": -1.0695612799388874,
-   "entryTime": 1790704800000
-  },
-  {
-   "symbol": "DOGEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 66,
-   "r": -1.1487328472041765,
-   "entryTime": 1790499600000
-  },
-  {
-   "symbol": "DOGEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 62,
-   "r": -1.0943388818104474,
-   "entryTime": 1790611200000
-  },
-  {
-   "symbol": "DOGEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 62,
-   "r": -0.046939797253617875,
-   "entryTime": 1790658000000
-  },
-  {
-   "symbol": "DOGEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 88,
-   "r": -0.4056459922486247,
-   "entryTime": 1790776800000
-  },
-  {
-   "symbol": "DOGEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 74,
-   "r": 1.849562595188662,
-   "entryTime": 1790910000000
-  },
-  {
-   "symbol": "DOGEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 96,
-   "r": -1.1265279408027828,
-   "entryTime": 1790928000000
-  },
-  {
-   "symbol": "DOGEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 78,
-   "r": -1.1154510639028619,
-   "entryTime": 1790949600000
-  },
-  {
-   "symbol": "DOGEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 82,
-   "r": 1.723242670312932,
-   "entryTime": 1791126000000
-  },
-  {
-   "symbol": "DOGEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 70,
-   "r": 1.7725975032421752,
-   "entryTime": 1791133200000
-  },
-  {
-   "symbol": "DOGEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 70,
-   "r": -1.1924494231379192,
-   "entryTime": 1791147600000
-  },
-  {
-   "symbol": "DOGEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 64,
-   "r": -1.1662079044069003,
-   "entryTime": 1791172800000
-  },
-  {
-   "symbol": "DOGEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 66,
-   "r": -1.155950266438731,
-   "entryTime": 1791226800000
   },
   {
    "symbol": "STRKUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 66,
-   "r": -1.0587394705739774,
+   "r": -1.0587394705148152,
    "entryTime": 1790683200000
   },
   {
@@ -51594,7 +51664,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 80,
-   "r": -1.0690243155452337,
+   "r": -1.0690243155423593,
    "entryTime": 1790845200000
   },
   {
@@ -51602,7 +51672,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 96,
-   "r": -1.0726019654539478,
+   "r": -1.0726019654532326,
    "entryTime": 1790917200000
   },
   {
@@ -51610,7 +51680,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 70,
-   "r": -1.0765190421652633,
+   "r": -1.0765190421646564,
    "entryTime": 1790931600000
   },
   {
@@ -51618,7 +51688,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": 1.946229116418166,
+   "r": 1.946229116418193,
    "entryTime": 1791043200000
   },
   {
@@ -51626,7 +51696,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": -1.0456896466907406,
+   "r": -1.0456896466907295,
    "entryTime": 1791064800000
   },
   {
@@ -51634,7 +51704,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 80,
-   "r": 1.9567995393700706,
+   "r": 1.9567995393700794,
    "entryTime": 1791082800000
   },
   {
@@ -51642,7 +51712,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 70,
-   "r": -1.037131695554785,
+   "r": -1.037131695554783,
    "entryTime": 1791122400000
   },
   {
@@ -51650,7 +51720,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 64,
-   "r": -1.0392813778894785,
+   "r": -1.039281377889477,
    "entryTime": 1791144000000
   },
   {
@@ -51730,7 +51800,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 88,
-   "r": 1.9574009500616398,
+   "r": 1.95740095006164,
    "entryTime": 1791460800000
   },
   {
@@ -51738,7 +51808,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": 1.9610804633236187,
+   "r": 1.961080463323623,
    "entryTime": 1791511200000
   },
   {
@@ -51758,131 +51828,99 @@
    "entryTime": 1791532800000
   },
   {
-   "symbol": "ENAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 74,
-   "r": 1.9238264034138484,
-   "entryTime": 1790499600000
-  },
-  {
-   "symbol": "ENAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 96,
-   "r": -1.0609066164512453,
-   "entryTime": 1790535600000
-  },
-  {
-   "symbol": "ENAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 70,
-   "r": -1.057803691701749,
-   "entryTime": 1790542800000
-  },
-  {
-   "symbol": "ENAUSDT",
+   "symbol": "UNIUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 64,
-   "r": -1.0641934677481508,
-   "entryTime": 1790668800000
+   "r": -1.067325246546323,
+   "entryTime": 1790679600000
   },
   {
-   "symbol": "ENAUSDT",
+   "symbol": "UNIUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 64,
-   "r": 1.934539822399711,
-   "entryTime": 1790701200000
+   "score": 60,
+   "r": -1.0695612799360892,
+   "entryTime": 1790704800000
   },
   {
-   "symbol": "ENAUSDT",
+   "symbol": "SUIUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 96,
-   "r": 1.9313122391708046,
-   "entryTime": 1790758800000
+   "score": 78,
+   "r": -1.0715385218990565,
+   "entryTime": 1790517600000
   },
   {
-   "symbol": "ENAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": -1.056077155746156,
-   "entryTime": 1790773200000
-  },
-  {
-   "symbol": "ENAUSDT",
+   "symbol": "SUIUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 88,
-   "r": -1.046762822843443,
-   "entryTime": 1790776800000
+   "r": 0.2645508883479594,
+   "entryTime": 1790665200000
   },
   {
-   "symbol": "ENAUSDT",
+   "symbol": "SUIUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 60,
-   "r": -1.0621801354875609,
-   "entryTime": 1790913600000
+   "score": 80,
+   "r": 1.8799961525256423,
+   "entryTime": 1791072000000
   },
   {
-   "symbol": "ENAUSDT",
+   "symbol": "SUIUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 68,
-   "r": 0.7302234226993234,
-   "entryTime": 1791046800000
+   "score": 84,
+   "r": -1.1063856974453923,
+   "entryTime": 1791126000000
   },
   {
-   "symbol": "ENAUSDT",
+   "symbol": "SUIUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 64,
-   "r": -1.1123307614563134,
-   "entryTime": 1791151200000
+   "score": 96,
+   "r": -1.0943931259704864,
+   "entryTime": 1791129600000
   },
   {
-   "symbol": "ENAUSDT",
+   "symbol": "SUIUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 70,
-   "r": -1.081854418362523,
-   "entryTime": 1791183600000
+   "r": 1.9046929620600799,
+   "entryTime": 1791147600000
   },
   {
-   "symbol": "ENAUSDT",
+   "symbol": "SUIUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 82,
-   "r": -1.0655199945722862,
-   "entryTime": 1791194400000
+   "score": 96,
+   "r": -1.0918528461902097,
+   "entryTime": 1791165600000
   },
   {
-   "symbol": "ENAUSDT",
+   "symbol": "SUIUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 78,
+   "r": -1.0878154108863904,
+   "entryTime": 1791172800000
+  },
+  {
+   "symbol": "SUIUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 64,
-   "r": -1.0553149294521706,
-   "entryTime": 1791208800000
-  },
-  {
-   "symbol": "RLCUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 60,
-   "r": -1.0961555256272324,
-   "entryTime": 1790499600000
+   "r": -0.7839880134966204,
+   "entryTime": 1791226800000
   },
   {
    "symbol": "RLCUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 66,
-   "r": -1.111881995224671,
+   "r": -1.1118819943576543,
    "entryTime": 1790532000000
   },
   {
@@ -51890,7 +51928,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 62,
-   "r": -1.0893116137923775,
+   "r": -1.0893116137129277,
    "entryTime": 1790629200000
   },
   {
@@ -51898,7 +51936,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 80,
-   "r": 0.001946947420057856,
+   "r": 0.0019469474192243747,
    "entryTime": 1790661600000
   },
   {
@@ -51906,7 +51944,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 96,
-   "r": 0.14366323694573843,
+   "r": 0.14366323693773717,
    "entryTime": 1790758800000
   },
   {
@@ -51914,7 +51952,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 86,
-   "r": 1.906129056809935,
+   "r": 1.9061290568106706,
    "entryTime": 1790856000000
   },
   {
@@ -51922,7 +51960,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": -1.087167928432662,
+   "r": -1.0871679284324358,
    "entryTime": 1790906400000
   },
   {
@@ -51930,7 +51968,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 88,
-   "r": 1.9117340993098264,
+   "r": 1.9117340993099685,
    "entryTime": 1790924400000
   },
   {
@@ -51938,7 +51976,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 96,
-   "r": -1.089487208544044,
+   "r": -1.0894872085439464,
    "entryTime": 1790949600000
   },
   {
@@ -51946,7 +51984,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 78,
-   "r": -1.0841202481675947,
+   "r": -1.0841202481675503,
    "entryTime": 1790982000000
   },
   {
@@ -51954,7 +51992,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 96,
-   "r": -1.114174374682232,
+   "r": -1.1141743746822301,
    "entryTime": 1791169200000
   },
   {
@@ -51962,7 +52000,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 88,
-   "r": 1.890536149345036,
+   "r": 1.89053614934503,
    "entryTime": 1791172800000
   },
   {
@@ -51970,7 +52008,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 96,
-   "r": 1.89319252735833,
+   "r": 1.893192527358331,
    "entryTime": 1791187200000
   },
   {
@@ -51978,7 +52016,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": 1.9261517077010355,
+   "r": 1.9261517077010362,
    "entryTime": 1791190800000
   },
   {
@@ -51986,7 +52024,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": -1.047993596932578,
+   "r": -1.0479935969325778,
    "entryTime": 1791194400000
   },
   {
@@ -52010,7 +52048,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": 1.975593209929616,
+   "r": 1.9755932099296125,
    "entryTime": 1791219600000
   },
   {
@@ -52018,7 +52056,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 76,
-   "r": 1.9797254741623111,
+   "r": 1.9797254741623083,
    "entryTime": 1791237600000
   },
   {
@@ -52094,107 +52132,19 @@
    "entryTime": 1791525600000
   },
   {
-   "symbol": "ADAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 86,
-   "r": -1.0824039679053297,
-   "entryTime": 1790596800000
-  },
-  {
-   "symbol": "ADAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 60,
-   "r": -1.069904205411863,
-   "entryTime": 1790611200000
-  },
-  {
-   "symbol": "ADAUSDT",
+   "symbol": "RLCUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 88,
-   "r": -1.0950099828032547,
-   "entryTime": 1790942400000
-  },
-  {
-   "symbol": "ADAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 78,
-   "r": -1.0888649922960938,
-   "entryTime": 1790949600000
-  },
-  {
-   "symbol": "ADAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 66,
-   "r": -0.7701548634495156,
-   "entryTime": 1790989200000
-  },
-  {
-   "symbol": "ADAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 70,
-   "r": 1.8514813659834735,
-   "entryTime": 1791140400000
-  },
-  {
-   "symbol": "ADAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": 1.8949973726538543,
-   "entryTime": 1791151200000
-  },
-  {
-   "symbol": "ADAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": -1.0848901524644565,
-   "entryTime": 1791169200000
-  },
-  {
-   "symbol": "ADAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 78,
-   "r": 1.9088520733617387,
-   "entryTime": 1791226800000
-  },
-  {
-   "symbol": "ADAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 96,
-   "r": -1.089153579638126,
-   "entryTime": 1791277200000
-  },
-  {
-   "symbol": "ADAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 78,
-   "r": -1.0925540818184603,
-   "entryTime": 1791302400000
-  },
-  {
-   "symbol": "ADAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 66,
-   "r": -1.1173849006123473,
-   "entryTime": 1791417600000
+   "r": -1.010546445492843,
+   "entryTime": 1791529200000
   },
   {
    "symbol": "XAUTUSDT",
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 84,
-   "r": 0.9286762254447689,
+   "r": 0.9286761825573101,
    "entryTime": 1790553600000
   },
   {
@@ -52202,7 +52152,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 84,
-   "r": 1.1550624289233857,
+   "r": 1.155062404043694,
    "entryTime": 1790557200000
   },
   {
@@ -52210,7 +52160,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 84,
-   "r": 1.3021393572432947,
+   "r": 1.3021393425338676,
    "entryTime": 1790564400000
   },
   {
@@ -52218,7 +52168,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 84,
-   "r": 1.4049877740658225,
+   "r": 1.4049877654279623,
    "entryTime": 1790575200000
   },
   {
@@ -52226,7 +52176,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 76,
-   "r": 1.5616122733707507,
+   "r": 1.5616122705675428,
    "entryTime": 1790600400000
   },
   {
@@ -52234,7 +52184,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 84,
-   "r": -1.3662399036892228,
+   "r": -1.3662399054965078,
    "entryTime": 1790604000000
   },
   {
@@ -52242,7 +52192,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 66,
-   "r": -1.3466020194081736,
+   "r": -1.3466020207996656,
    "entryTime": 1790611200000
   },
   {
@@ -52250,7 +52200,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 78,
-   "r": -1.4223552157449337,
+   "r": -1.4223552160931086,
    "entryTime": 1790697600000
   },
   {
@@ -52258,7 +52208,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 84,
-   "r": 0.2717330747055363,
+   "r": 0.2717330747488414,
    "entryTime": 1790773200000
   },
   {
@@ -52266,7 +52216,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 74,
-   "r": -2.0535668975697217,
+   "r": -2.0535668975698433,
    "entryTime": 1791165600000
   },
   {
@@ -52310,19 +52260,931 @@
    "entryTime": 1791435600000
   },
   {
+   "symbol": "DOGEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 62,
+   "r": -1.094338881805401,
+   "entryTime": 1790611200000
+  },
+  {
+   "symbol": "DOGEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 62,
+   "r": -0.04693979725261457,
+   "entryTime": 1790658000000
+  },
+  {
+   "symbol": "DOGEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 88,
+   "r": -0.405645992247913,
+   "entryTime": 1790776800000
+  },
+  {
+   "symbol": "DOGEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 74,
+   "r": 1.849562595188688,
+   "entryTime": 1790910000000
+  },
+  {
+   "symbol": "DOGEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 96,
+   "r": -1.1265279408027702,
+   "entryTime": 1790928000000
+  },
+  {
+   "symbol": "DOGEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 78,
+   "r": -1.1154510639028543,
+   "entryTime": 1790949600000
+  },
+  {
+   "symbol": "DOGEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 82,
+   "r": 1.7232426703129524,
+   "entryTime": 1791126000000
+  },
+  {
+   "symbol": "DOGEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 70,
+   "r": 1.7725975032421917,
+   "entryTime": 1791133200000
+  },
+  {
+   "symbol": "DOGEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 70,
+   "r": -1.1924494231379192,
+   "entryTime": 1791147600000
+  },
+  {
+   "symbol": "DOGEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": -1.1662079044069003,
+   "entryTime": 1791172800000
+  },
+  {
+   "symbol": "DOGEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 66,
+   "r": -1.155950266438731,
+   "entryTime": 1791226800000
+  },
+  {
+   "symbol": "ENAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 96,
+   "r": -1.0609066126736606,
+   "entryTime": 1790535600000
+  },
+  {
+   "symbol": "ENAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 70,
+   "r": -1.0578036886773468,
+   "entryTime": 1790542800000
+  },
+  {
+   "symbol": "ENAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": -1.0641934674412068,
+   "entryTime": 1790668800000
+  },
+  {
+   "symbol": "ENAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": 1.9345398225526949,
+   "entryTime": 1790701200000
+  },
+  {
+   "symbol": "ENAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 96,
+   "r": 1.9313122392198598,
+   "entryTime": 1790758800000
+  },
+  {
+   "symbol": "ENAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": -1.0560771557212343,
+   "entryTime": 1790773200000
+  },
+  {
+   "symbol": "ENAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 88,
+   "r": -1.0467628228264334,
+   "entryTime": 1790776800000
+  },
+  {
+   "symbol": "ENAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 60,
+   "r": -1.062180135485658,
+   "entryTime": 1790913600000
+  },
+  {
+   "symbol": "ENAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 68,
+   "r": 0.7302234226969581,
+   "entryTime": 1791046800000
+  },
+  {
+   "symbol": "ENAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": -1.1123307614562665,
+   "entryTime": 1791151200000
+  },
+  {
+   "symbol": "ENAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 70,
+   "r": -1.0818544183625105,
+   "entryTime": 1791183600000
+  },
+  {
+   "symbol": "ENAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 82,
+   "r": -1.06551999457228,
+   "entryTime": 1791194400000
+  },
+  {
+   "symbol": "ENAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": -1.0553149294521673,
+   "entryTime": 1791208800000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": -1.0542084908000044,
+   "entryTime": 1790517600000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": -1.0446711648164189,
+   "entryTime": 1790521200000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 80,
+   "r": -1.0412554294095642,
+   "entryTime": 1790528400000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": 0.1398762634097817,
+   "entryTime": 1790589600000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 80,
+   "r": -0.6812851219154661,
+   "entryTime": 1790773200000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": -1.0690453341511663,
+   "entryTime": 1790874000000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": -1.057687899399207,
+   "entryTime": 1790877600000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 88,
+   "r": 1.9461405193840993,
+   "entryTime": 1790884800000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": 1.9481511022389844,
+   "entryTime": 1790928000000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 88,
+   "r": -1.032282311332389,
+   "entryTime": 1790953200000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": 1.9361007952428138,
+   "entryTime": 1791039600000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": -1.0700560323456694,
+   "entryTime": 1791118800000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": -1.061440123908991,
+   "entryTime": 1791122400000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 88,
+   "r": -1.056474455186101,
+   "entryTime": 1791126000000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 70,
+   "r": 0.9121614701191593,
+   "entryTime": 1791133200000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 96,
+   "r": -1.0871900566764776,
+   "entryTime": 1791219600000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 78,
+   "r": 1.9072866581591332,
+   "entryTime": 1791237600000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 88,
+   "r": 1.9212364940876858,
+   "entryTime": 1791291600000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": 1.933728570420147,
+   "entryTime": 1791295200000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": -1.0576183539209882,
+   "entryTime": 1791320400000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 70,
+   "r": -1.0427431353554932,
+   "entryTime": 1791342000000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": -0.23246430428410372,
+   "entryTime": 1791374400000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": -1.0427382660833155,
+   "entryTime": 1791529200000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 88,
+   "r": 1.961464568969301,
+   "entryTime": 1791532800000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": 1.9654976599678262,
+   "entryTime": 1791554400000
+  },
+  {
+   "symbol": "MAGICUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": 1.9677875264850628,
+   "entryTime": 1791561600000
+  },
+  {
+   "symbol": "KAIAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": -1.1007886580190052,
+   "entryTime": 1790528400000
+  },
+  {
+   "symbol": "KAIAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 60,
+   "r": -1.0810388725796314,
+   "entryTime": 1790596800000
+  },
+  {
+   "symbol": "KAIAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 66,
+   "r": -1.0749600561819728,
+   "entryTime": 1790614800000
+  },
+  {
+   "symbol": "KAIAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 66,
+   "r": 0.0372405647621535,
+   "entryTime": 1790658000000
+  },
+  {
+   "symbol": "KAIAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": -1.0718155518816683,
+   "entryTime": 1790823600000
+  },
+  {
+   "symbol": "KAIAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 96,
+   "r": 0.2669096212563201,
+   "entryTime": 1790827200000
+  },
+  {
+   "symbol": "KAIAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 78,
+   "r": -1.075309680030337,
+   "entryTime": 1790913600000
+  },
+  {
+   "symbol": "KAIAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 78,
+   "r": -1.08281422605261,
+   "entryTime": 1790942400000
+  },
+  {
+   "symbol": "KAIAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 78,
+   "r": 0.7541761256864199,
+   "entryTime": 1790985600000
+  },
+  {
+   "symbol": "KAIAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 96,
+   "r": -1.153215028128072,
+   "entryTime": 1791097200000
+  },
+  {
+   "symbol": "KAIAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 78,
+   "r": 1.8211863912431814,
+   "entryTime": 1791140400000
+  },
+  {
+   "symbol": "KAIAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": 1.8494198682789276,
+   "entryTime": 1791180000000
+  },
+  {
+   "symbol": "KAIAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": 1.8684042761393915,
+   "entryTime": 1791190800000
+  },
+  {
+   "symbol": "KAIAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": -1.1128186717744382,
+   "entryTime": 1791201600000
+  },
+  {
+   "symbol": "KAIAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 76,
+   "r": 1.8926089473225747,
+   "entryTime": 1791208800000
+  },
+  {
+   "symbol": "KAIAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": -1.0767354607969917,
+   "entryTime": 1791255600000
+  },
+  {
+   "symbol": "KAIAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": -1.0966895394747207,
+   "entryTime": 1791316800000
+  },
+  {
+   "symbol": "KAIAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 60,
+   "r": -1.0856093316985411,
+   "entryTime": 1791385200000
+  },
+  {
+   "symbol": "KAIAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": 1.962769796603903,
+   "entryTime": 1791536400000
+  },
+  {
+   "symbol": "KAIAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": -1.0269169042759352,
+   "entryTime": 1791540000000
+  },
+  {
+   "symbol": "KAIAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 76,
+   "r": -1.0221509263491513,
+   "entryTime": 1791547200000
+  },
+  {
+   "symbol": "ADAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 86,
+   "r": -1.0824039679770694,
+   "entryTime": 1790596800000
+  },
+  {
+   "symbol": "ADAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 60,
+   "r": -1.0699042054513361,
+   "entryTime": 1790611200000
+  },
+  {
+   "symbol": "ADAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 88,
+   "r": -1.0950099828033297,
+   "entryTime": 1790942400000
+  },
+  {
+   "symbol": "ADAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 78,
+   "r": -1.0888649922961517,
+   "entryTime": 1790949600000
+  },
+  {
+   "symbol": "ADAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 66,
+   "r": -0.7701548634497434,
+   "entryTime": 1790989200000
+  },
+  {
+   "symbol": "ADAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 70,
+   "r": 1.8514813659834712,
+   "entryTime": 1791140400000
+  },
+  {
+   "symbol": "ADAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": 1.8949973726538532,
+   "entryTime": 1791151200000
+  },
+  {
+   "symbol": "ADAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": -1.0848901524644565,
+   "entryTime": 1791169200000
+  },
+  {
+   "symbol": "ADAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 78,
+   "r": 1.9088520733617294,
+   "entryTime": 1791226800000
+  },
+  {
+   "symbol": "ADAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 96,
+   "r": -1.089153579638127,
+   "entryTime": 1791277200000
+  },
+  {
+   "symbol": "ADAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 78,
+   "r": -1.0925540818184603,
+   "entryTime": 1791302400000
+  },
+  {
+   "symbol": "ADAUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 66,
+   "r": -1.1173849006123473,
+   "entryTime": 1791417600000
+  },
+  {
+   "symbol": "AVAXUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 80,
+   "r": 1.9247079216659118,
+   "entryTime": 1790636400000
+  },
+  {
+   "symbol": "AVAXUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": -1.0615986137322844,
+   "entryTime": 1790665200000
+  },
+  {
+   "symbol": "AVAXUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 78,
+   "r": -0.3603116164202887,
+   "entryTime": 1790697600000
+  },
+  {
+   "symbol": "AVAXUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 90,
+   "r": -1.108495580544841,
+   "entryTime": 1790895600000
+  },
+  {
+   "symbol": "AVAXUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 66,
+   "r": 0.6459089226892107,
+   "entryTime": 1790985600000
+  },
+  {
+   "symbol": "AVAXUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 80,
+   "r": -0.7273319276503776,
+   "entryTime": 1791072000000
+  },
+  {
+   "symbol": "AVAXUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 66,
+   "r": 1.8321229006170436,
+   "entryTime": 1791230400000
+  },
+  {
+   "symbol": "AVAXUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 96,
+   "r": 1.8401483778112695,
+   "entryTime": 1791248400000
+  },
+  {
+   "symbol": "AVAXUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": -1.1250110113122922,
+   "entryTime": 1791284400000
+  },
+  {
+   "symbol": "AVAXUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 78,
+   "r": -1.0950360216439994,
+   "entryTime": 1791356400000
+  },
+  {
+   "symbol": "AVAXUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 86,
+   "r": -1.0888535542905058,
+   "entryTime": 1791378000000
+  },
+  {
+   "symbol": "SPCXBUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": -1.5735977876819152,
+   "entryTime": 1790586000000
+  },
+  {
+   "symbol": "SPCXBUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 68,
+   "r": 1.7975747220633074,
+   "entryTime": 1790690400000
+  },
+  {
+   "symbol": "SPCXBUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 82,
+   "r": 0.8138574443820568,
+   "entryTime": 1790773200000
+  },
+  {
+   "symbol": "SPCXBUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 86,
+   "r": -1.312159448503995,
+   "entryTime": 1790859600000
+  },
+  {
+   "symbol": "SPCXBUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": -1.216290240694139,
+   "entryTime": 1790866800000
+  },
+  {
+   "symbol": "SPCXBUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": 1.04397845774313,
+   "entryTime": 1790949600000
+  },
+  {
+   "symbol": "SPCXBUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 62,
+   "r": -0.6793193185207493,
+   "entryTime": 1791043200000
+  },
+  {
+   "symbol": "SPCXBUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": 0.6604507262593721,
+   "entryTime": 1791129600000
+  },
+  {
+   "symbol": "SPCXBUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": -1.884090882764673,
+   "entryTime": 1791158400000
+  },
+  {
+   "symbol": "SPCXBUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 80,
+   "r": -1.8046339743283988,
+   "entryTime": 1791169200000
+  },
+  {
+   "symbol": "SPCXBUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": -1.6527113283298336,
+   "entryTime": 1791194400000
+  },
+  {
+   "symbol": "SPCXBUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 98,
+   "r": 1.7215423799277456,
+   "entryTime": 1791205200000
+  },
+  {
+   "symbol": "SPCXBUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": -1.2297201876711366,
+   "entryTime": 1791208800000
+  },
+  {
+   "symbol": "SPCXBUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": 1.7907671962227734,
+   "entryTime": 1791212400000
+  },
+  {
+   "symbol": "SPCXBUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": 1.8173480290442412,
+   "entryTime": 1791226800000
+  },
+  {
+   "symbol": "SPCXBUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 60,
+   "r": -1.1864029034883499,
+   "entryTime": 1791291600000
+  },
+  {
+   "symbol": "SPCXBUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 70,
+   "r": -1.176727553252598,
+   "entryTime": 1791320400000
+  },
+  {
+   "symbol": "SPCXBUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 60,
+   "r": -1.1797815735362809,
+   "entryTime": 1791378000000
+  },
+  {
+   "symbol": "SPCXBUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 60,
+   "r": -1.1485128566963203,
+   "entryTime": 1791399600000
+  },
+  {
+   "symbol": "SPCXBUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 60,
+   "r": -1.1574378801515266,
+   "entryTime": 1791493200000
+  },
+  {
    "symbol": "OGNUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 78,
-   "r": -1.107348434092534,
-   "entryTime": 1790499600000
+   "r": -1.1244511549986074,
+   "entryTime": 1790517600000
   },
   {
    "symbol": "OGNUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 62,
-   "r": 1.8908808448861696,
+   "r": 1.8908808452730175,
    "entryTime": 1790661600000
   },
   {
@@ -52330,7 +53192,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 96,
-   "r": -1.1226170440767338,
+   "r": -1.1226170437811314,
    "entryTime": 1790686800000
   },
   {
@@ -52338,7 +53200,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 78,
-   "r": 1.887897177001196,
+   "r": 1.8878971772080355,
    "entryTime": 1790694000000
   },
   {
@@ -52346,7 +53208,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 80,
-   "r": -0.2611657247924559,
+   "r": -0.26116572471010435,
    "entryTime": 1790773200000
   },
   {
@@ -52354,7 +53216,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 64,
-   "r": 1.870258705119458,
+   "r": 1.8702587051284818,
    "entryTime": 1790859600000
   },
   {
@@ -52362,7 +53224,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 96,
-   "r": -1.118450589687023,
+   "r": -1.1184505896838965,
    "entryTime": 1790902800000
   },
   {
@@ -52370,7 +53232,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 70,
-   "r": -1.1210351088348873,
+   "r": -1.1210351088324138,
    "entryTime": 1790917200000
   },
   {
@@ -52378,7 +53240,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 60,
-   "r": 0.057003212678982826,
+   "r": 0.057003212678664456,
    "entryTime": 1790982000000
   },
   {
@@ -52386,7 +53248,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": 1.9016842490484844,
+   "r": 1.9016842490484955,
    "entryTime": 1791205200000
   },
   {
@@ -52394,7 +53256,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": -1.054052206337663,
+   "r": -1.0540522063376618,
    "entryTime": 1791208800000
   },
   {
@@ -52402,7 +53264,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 88,
-   "r": 1.9554657736536758,
+   "r": 1.9554657736536798,
    "entryTime": 1791212400000
   },
   {
@@ -52410,7 +53272,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 96,
-   "r": -1.0330392144072618,
+   "r": -1.0330392144072615,
    "entryTime": 1791280800000
   },
   {
@@ -52502,107 +53364,11 @@
    "entryTime": 1791478800000
   },
   {
-   "symbol": "AVAXUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 96,
-   "r": -1.0848881044613623,
-   "entryTime": 1790499600000
-  },
-  {
-   "symbol": "AVAXUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 80,
-   "r": 1.9247079213540716,
-   "entryTime": 1790636400000
-  },
-  {
-   "symbol": "AVAXUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": -1.0615986138488007,
-   "entryTime": 1790665200000
-  },
-  {
-   "symbol": "AVAXUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 78,
-   "r": -0.36031161673951156,
-   "entryTime": 1790697600000
-  },
-  {
-   "symbol": "AVAXUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 90,
-   "r": -1.108495580548082,
-   "entryTime": 1790895600000
-  },
-  {
-   "symbol": "AVAXUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 66,
-   "r": 0.6459089226916999,
-   "entryTime": 1790985600000
-  },
-  {
-   "symbol": "AVAXUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 80,
-   "r": -0.7273319276511967,
-   "entryTime": 1791072000000
-  },
-  {
-   "symbol": "AVAXUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 66,
-   "r": 1.8321229006170237,
-   "entryTime": 1791230400000
-  },
-  {
-   "symbol": "AVAXUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 96,
-   "r": 1.8401483778112528,
-   "entryTime": 1791248400000
-  },
-  {
-   "symbol": "AVAXUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": -1.1250110113122933,
-   "entryTime": 1791284400000
-  },
-  {
-   "symbol": "AVAXUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 78,
-   "r": -1.0950360216439994,
-   "entryTime": 1791356400000
-  },
-  {
-   "symbol": "AVAXUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 86,
-   "r": -1.0888535542905058,
-   "entryTime": 1791378000000
-  },
-  {
    "symbol": "ONDOUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 88,
-   "r": 1.9134838302833597,
+   "r": 1.9134838342870077,
    "entryTime": 1790528400000
   },
   {
@@ -52610,7 +53376,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": -1.0695139258624413,
+   "r": -1.0695139241935856,
    "entryTime": 1790550000000
   },
   {
@@ -52618,7 +53384,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 88,
-   "r": 1.9384659090008391,
+   "r": 1.938465910152349,
    "entryTime": 1790553600000
   },
   {
@@ -52626,7 +53392,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 96,
-   "r": -1.0490032476665059,
+   "r": -1.0490032470939754,
    "entryTime": 1790568000000
   },
   {
@@ -52634,7 +53400,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 88,
-   "r": -1.0450260831901095,
+   "r": -1.0450260827293003,
    "entryTime": 1790571600000
   },
   {
@@ -52642,7 +53408,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 72,
-   "r": -1.0364520174603804,
+   "r": -1.0364520172622997,
    "entryTime": 1790596800000
   },
   {
@@ -52650,7 +53416,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 74,
-   "r": -1.1187503672239192,
+   "r": -1.1187503672237975,
    "entryTime": 1791072000000
   },
   {
@@ -52658,7 +53424,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 96,
-   "r": -1.1184925489157584,
+   "r": -1.1184925489157462,
    "entryTime": 1791183600000
   },
   {
@@ -52666,7 +53432,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 88,
-   "r": -1.1142408682579452,
+   "r": -1.1142408682579374,
    "entryTime": 1791201600000
   },
   {
@@ -52674,7 +53440,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 78,
-   "r": -1.1109797461180624,
+   "r": -1.1109797461180584,
    "entryTime": 1791230400000
   },
   {
@@ -52694,323 +53460,19 @@
    "entryTime": 1791486000000
   },
   {
-   "symbol": "TAOUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 96,
-   "r": -1.0728865891159178,
-   "entryTime": 1790499600000
-  },
-  {
-   "symbol": "TAOUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 64,
-   "r": -1.076902116610952,
-   "entryTime": 1790528400000
-  },
-  {
-   "symbol": "TAOUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 66,
-   "r": -1.066990474922942,
-   "entryTime": 1790618400000
-  },
-  {
-   "symbol": "TAOUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 66,
-   "r": 0.08632497705095751,
-   "entryTime": 1790658000000
-  },
-  {
-   "symbol": "TAOUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 82,
-   "r": 0.10641634031243423,
-   "entryTime": 1791064800000
-  },
-  {
-   "symbol": "TAOUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 96,
-   "r": -1.1417286144585608,
-   "entryTime": 1791151200000
-  },
-  {
-   "symbol": "TAOUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 74,
-   "r": -1.1267778278800504,
-   "entryTime": 1791180000000
-  },
-  {
-   "symbol": "PUMPUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 64,
-   "r": 1.9209986331268225,
-   "entryTime": 1790499600000
-  },
-  {
-   "symbol": "PUMPUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": 1.9289591650259312,
-   "entryTime": 1790517600000
-  },
-  {
-   "symbol": "PUMPUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": -1.0600831975091443,
-   "entryTime": 1790532000000
-  },
-  {
-   "symbol": "PUMPUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 78,
-   "r": 1.9580689681379475,
-   "entryTime": 1790593200000
-  },
-  {
-   "symbol": "PUMPUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 86,
-   "r": -1.0316137946992143,
-   "entryTime": 1790611200000
-  },
-  {
-   "symbol": "PUMPUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": 0.004641852084287965,
-   "entryTime": 1790683200000
-  },
-  {
-   "symbol": "PUMPUSDT",
+   "symbol": "QNTUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 72,
-   "r": -1.0474986214829516,
-   "entryTime": 1790769600000
-  },
-  {
-   "symbol": "PUMPUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 66,
-   "r": -1.043628146312968,
-   "entryTime": 1790780400000
-  },
-  {
-   "symbol": "PUMPUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": 0.3243472939852423,
-   "entryTime": 1791050400000
-  },
-  {
-   "symbol": "PUMPUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 78,
-   "r": -1.0541749574555677,
-   "entryTime": 1791136800000
-  },
-  {
-   "symbol": "PUMPUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 96,
-   "r": -1.0640552231166867,
-   "entryTime": 1791234000000
-  },
-  {
-   "symbol": "SPCXBUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 64,
-   "r": -1.573597783698819,
-   "entryTime": 1790586000000
-  },
-  {
-   "symbol": "SPCXBUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 68,
-   "r": 1.7975747221204614,
-   "entryTime": 1790690400000
-  },
-  {
-   "symbol": "SPCXBUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 82,
-   "r": 0.8138574443280221,
-   "entryTime": 1790773200000
-  },
-  {
-   "symbol": "SPCXBUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 86,
-   "r": -1.3121594484997963,
-   "entryTime": 1790859600000
-  },
-  {
-   "symbol": "SPCXBUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 64,
-   "r": -1.2162902406923979,
-   "entryTime": 1790866800000
-  },
-  {
-   "symbol": "SPCXBUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": 1.0439784577418318,
-   "entryTime": 1790949600000
-  },
-  {
-   "symbol": "SPCXBUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 62,
-   "r": -0.6793193185203831,
-   "entryTime": 1791043200000
-  },
-  {
-   "symbol": "SPCXBUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 64,
-   "r": 0.660450726259692,
-   "entryTime": 1791129600000
-  },
-  {
-   "symbol": "SPCXBUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": -1.8840908827646035,
-   "entryTime": 1791158400000
-  },
-  {
-   "symbol": "SPCXBUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 80,
-   "r": -1.8046339743283988,
-   "entryTime": 1791169200000
-  },
-  {
-   "symbol": "SPCXBUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 64,
-   "r": -1.6527113283297954,
-   "entryTime": 1791194400000
-  },
-  {
-   "symbol": "SPCXBUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 98,
-   "r": 1.7215423799277696,
-   "entryTime": 1791205200000
-  },
-  {
-   "symbol": "SPCXBUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": -1.2297201876711317,
-   "entryTime": 1791208800000
-  },
-  {
-   "symbol": "SPCXBUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": 1.7907671962227416,
-   "entryTime": 1791212400000
-  },
-  {
-   "symbol": "SPCXBUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": 1.817348029044256,
-   "entryTime": 1791226800000
-  },
-  {
-   "symbol": "SPCXBUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 60,
-   "r": -1.1864029034883499,
-   "entryTime": 1791291600000
-  },
-  {
-   "symbol": "SPCXBUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 70,
-   "r": -1.176727553252598,
-   "entryTime": 1791320400000
-  },
-  {
-   "symbol": "SPCXBUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 60,
-   "r": -1.1797815735362809,
-   "entryTime": 1791378000000
-  },
-  {
-   "symbol": "SPCXBUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 60,
-   "r": -1.1485128566963203,
-   "entryTime": 1791399600000
-  },
-  {
-   "symbol": "SPCXBUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 60,
-   "r": -1.1574378801515266,
-   "entryTime": 1791493200000
-  },
-  {
-   "symbol": "QNTUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 80,
-   "r": 1.9790954888532302,
-   "entryTime": 1790499600000
+   "r": 1.9774924928742352,
+   "entryTime": 1790521200000
   },
   {
    "symbol": "QNTUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": 1.9756802765075931,
+   "r": 1.9756802765293386,
    "entryTime": 1790542800000
   },
   {
@@ -53018,7 +53480,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": -1.018537279337184,
+   "r": -1.0185372793269174,
    "entryTime": 1790546400000
   },
   {
@@ -53026,7 +53488,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": -1.0121880961225986,
+   "r": -1.0121880961173713,
    "entryTime": 1790550000000
   },
   {
@@ -53034,7 +53496,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 78,
-   "r": -1.0102042858758862,
+   "r": -1.0102042858722673,
    "entryTime": 1790557200000
   },
   {
@@ -53042,7 +53504,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 64,
-   "r": 1.0356561250025886,
+   "r": 1.03565612481343,
    "entryTime": 1790586000000
   },
   {
@@ -53050,7 +53512,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 88,
-   "r": 0.6651900807339034,
+   "r": 0.665190080705477,
    "entryTime": 1790672400000
   },
   {
@@ -53058,7 +53520,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 80,
-   "r": 0.15551551251030726,
+   "r": 0.15551551250880577,
    "entryTime": 1790758800000
   },
   {
@@ -53066,7 +53528,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 74,
-   "r": -1.0278273525283155,
+   "r": -1.027827352528306,
    "entryTime": 1790938800000
   },
   {
@@ -53094,275 +53556,11 @@
    "entryTime": 1791388800000
   },
   {
-   "symbol": "PEPEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 82,
-   "r": -1.081826152552569,
-   "entryTime": 1790686800000
-  },
-  {
-   "symbol": "PEPEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 82,
-   "r": -1.087995801700734,
-   "entryTime": 1790766000000
-  },
-  {
-   "symbol": "PEPEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 64,
-   "r": 0.8761453780200832,
-   "entryTime": 1790820000000
-  },
-  {
-   "symbol": "PEPEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 80,
-   "r": -1.071196074215343,
-   "entryTime": 1790920800000
-  },
-  {
-   "symbol": "PEPEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 64,
-   "r": -1.069719979023895,
-   "entryTime": 1790938800000
-  },
-  {
-   "symbol": "PEPEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 70,
-   "r": -1.1351113142071174,
-   "entryTime": 1791154800000
-  },
-  {
-   "symbol": "PEPEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 64,
-   "r": 1.8813107092828798,
-   "entryTime": 1791172800000
-  },
-  {
-   "symbol": "PEPEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": -1.1074251535462847,
-   "entryTime": 1791187200000
-  },
-  {
-   "symbol": "PEPEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 64,
-   "r": -1.0946556738657662,
-   "entryTime": 1791208800000
-  },
-  {
-   "symbol": "WLDUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": -1.0548227287913898,
-   "entryTime": 1790499600000
-  },
-  {
-   "symbol": "WLDUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 80,
-   "r": 0.09258979655927106,
-   "entryTime": 1790661600000
-  },
-  {
-   "symbol": "WLDUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 96,
-   "r": 1.9409758378466049,
-   "entryTime": 1790762400000
-  },
-  {
-   "symbol": "WLDUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": -1.049823216969479,
-   "entryTime": 1790769600000
-  },
-  {
-   "symbol": "WLDUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 70,
-   "r": -1.0453142180923671,
-   "entryTime": 1790791200000
-  },
-  {
-   "symbol": "WLDUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 66,
-   "r": 1.9349335146151663,
-   "entryTime": 1790899200000
-  },
-  {
-   "symbol": "WLDUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 96,
-   "r": 1.9357313395286055,
-   "entryTime": 1790920800000
-  },
-  {
-   "symbol": "WLDUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": -1.0595695124120277,
-   "entryTime": 1790942400000
-  },
-  {
-   "symbol": "WLDUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 78,
-   "r": 1.9543519939382075,
-   "entryTime": 1790964000000
-  },
-  {
-   "symbol": "WLDUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": -0.6766069639748088,
-   "entryTime": 1791021600000
-  },
-  {
-   "symbol": "WLDUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 66,
-   "r": -1.0896324165284554,
-   "entryTime": 1791230400000
-  },
-  {
-   "symbol": "LINKUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 78,
-   "r": -1.1118156235162193,
-   "entryTime": 1790499600000
-  },
-  {
-   "symbol": "LINKUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 62,
-   "r": -1.1279961848950741,
-   "entryTime": 1790550000000
-  },
-  {
-   "symbol": "LINKUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 60,
-   "r": 1.90653622390427,
-   "entryTime": 1790589600000
-  },
-  {
-   "symbol": "LINKUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 96,
-   "r": -1.075338076777925,
-   "entryTime": 1790596800000
-  },
-  {
-   "symbol": "LINKUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 78,
-   "r": 1.9343197568614994,
-   "entryTime": 1790604000000
-  },
-  {
-   "symbol": "LINKUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 96,
-   "r": -1.0577312344989636,
-   "entryTime": 1790611200000
-  },
-  {
-   "symbol": "LINKUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 70,
-   "r": -1.0605230631611744,
-   "entryTime": 1790658000000
-  },
-  {
-   "symbol": "LINKUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 100,
-   "r": -1.0994765563375748,
-   "entryTime": 1790769600000
-  },
-  {
-   "symbol": "LINKUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 86,
-   "r": -1.0911275864280103,
-   "entryTime": 1790773200000
-  },
-  {
-   "symbol": "LINKUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 62,
-   "r": -1.117903276707389,
-   "entryTime": 1791003600000
-  },
-  {
-   "symbol": "LINKUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 62,
-   "r": 0.7923185009869961,
-   "entryTime": 1791054000000
-  },
-  {
-   "symbol": "LINKUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 88,
-   "r": -1.1991848142669337,
-   "entryTime": 1791140400000
-  },
-  {
-   "symbol": "LINKUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 64,
-   "r": -1.1964427467297118,
-   "entryTime": 1791284400000
-  },
-  {
    "symbol": "CRCLBUSDT",
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 80,
-   "r": -1.171714027771396,
+   "r": -1.171714027808165,
    "entryTime": 1790737200000
   },
   {
@@ -53370,7 +53568,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 74,
-   "r": 1.8799871439979097,
+   "r": 1.8799871439890057,
    "entryTime": 1790773200000
   },
   {
@@ -53378,7 +53576,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 62,
-   "r": -1.1280670324052529,
+   "r": -1.1280670324061746,
    "entryTime": 1790888400000
   },
   {
@@ -53386,7 +53584,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 98,
-   "r": 1.891424421621656,
+   "r": 1.891424421621453,
    "entryTime": 1790949600000
   },
   {
@@ -53394,7 +53592,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 78,
-   "r": -1.1011307120156864,
+   "r": -1.101130712015811,
    "entryTime": 1790964000000
   },
   {
@@ -53402,7 +53600,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 100,
-   "r": -1.3178349731582262,
+   "r": -1.317834973158252,
    "entryTime": 1791165600000
   },
   {
@@ -53410,7 +53608,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 66,
-   "r": -1.2820126518525843,
+   "r": -1.2820126518525978,
    "entryTime": 1791187200000
   },
   {
@@ -53418,7 +53616,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 100,
-   "r": -1.2169718390303008,
+   "r": -1.216971839030305,
    "entryTime": 1791205200000
   },
   {
@@ -53426,7 +53624,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 60,
-   "r": -1.1647179480866456,
+   "r": -1.1647179480866479,
    "entryTime": 1791212400000
   },
   {
@@ -53478,395 +53676,195 @@
    "entryTime": 1791550800000
   },
   {
-   "symbol": "KAIAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 66,
-   "r": -1.091632258784065,
-   "entryTime": 1790499600000
-  },
-  {
-   "symbol": "KAIAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 64,
-   "r": -1.1007886600611207,
-   "entryTime": 1790528400000
-  },
-  {
-   "symbol": "KAIAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 60,
-   "r": -1.0810388729183606,
-   "entryTime": 1790596800000
-  },
-  {
-   "symbol": "KAIAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 66,
-   "r": -1.0749600563842203,
-   "entryTime": 1790614800000
-  },
-  {
-   "symbol": "KAIAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 66,
-   "r": 0.037240564803797074,
-   "entryTime": 1790658000000
-  },
-  {
-   "symbol": "KAIAUSDT",
+   "symbol": "PUMPUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": -1.0718155518838912,
-   "entryTime": 1790823600000
+   "r": 1.9289591637892554,
+   "entryTime": 1790517600000
   },
   {
-   "symbol": "KAIAUSDT",
+   "symbol": "PUMPUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 96,
-   "r": 0.2669096212628815,
-   "entryTime": 1790827200000
+   "score": 84,
+   "r": -1.0600831981994423,
+   "entryTime": 1790532000000
   },
   {
-   "symbol": "KAIAUSDT",
+   "symbol": "PUMPUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 78,
-   "r": -1.075309680030736,
-   "entryTime": 1790913600000
+   "r": 1.9580689680553114,
+   "entryTime": 1790593200000
   },
   {
-   "symbol": "KAIAUSDT",
+   "symbol": "PUMPUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 78,
-   "r": -1.0828142260528744,
-   "entryTime": 1790942400000
+   "score": 86,
+   "r": -1.0316137947348587,
+   "entryTime": 1790611200000
   },
   {
-   "symbol": "KAIAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 78,
-   "r": 0.7541761256873221,
-   "entryTime": 1790985600000
-  },
-  {
-   "symbol": "KAIAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 96,
-   "r": -1.153215028128107,
-   "entryTime": 1791097200000
-  },
-  {
-   "symbol": "KAIAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 78,
-   "r": 1.821186391243161,
-   "entryTime": 1791140400000
-  },
-  {
-   "symbol": "KAIAUSDT",
+   "symbol": "PUMPUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": 1.8494198682789216,
-   "entryTime": 1791180000000
-  },
-  {
-   "symbol": "KAIAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": 1.8684042761393773,
-   "entryTime": 1791190800000
-  },
-  {
-   "symbol": "KAIAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": -1.1128186717744404,
-   "entryTime": 1791201600000
-  },
-  {
-   "symbol": "KAIAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 76,
-   "r": 1.8926089473225731,
-   "entryTime": 1791208800000
-  },
-  {
-   "symbol": "KAIAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 64,
-   "r": -1.0767354607969917,
-   "entryTime": 1791255600000
-  },
-  {
-   "symbol": "KAIAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 64,
-   "r": -1.0966895394747207,
-   "entryTime": 1791316800000
-  },
-  {
-   "symbol": "KAIAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 60,
-   "r": -1.0856093316985411,
-   "entryTime": 1791385200000
-  },
-  {
-   "symbol": "KAIAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": 1.962769796603903,
-   "entryTime": 1791536400000
-  },
-  {
-   "symbol": "KAIAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": -1.0269169042759352,
-   "entryTime": 1791540000000
-  },
-  {
-   "symbol": "KAIAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 76,
-   "r": -1.0221509263491513,
-   "entryTime": 1791547200000
-  },
-  {
-   "symbol": "BCHUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 88,
-   "r": -1.1129490893508993,
-   "entryTime": 1790499600000
-  },
-  {
-   "symbol": "BCHUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 62,
-   "r": -1.0900640488722657,
-   "entryTime": 1790600400000
-  },
-  {
-   "symbol": "BCHUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 64,
-   "r": -0.4269916191931183,
-   "entryTime": 1790607600000
-  },
-  {
-   "symbol": "BCHUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 62,
-   "r": 1.861164035875005,
-   "entryTime": 1790751600000
-  },
-  {
-   "symbol": "BCHUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 80,
-   "r": -1.117711572430181,
-   "entryTime": 1790881200000
-  },
-  {
-   "symbol": "BCHUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 66,
-   "r": 1.885731851253597,
-   "entryTime": 1790982000000
-  },
-  {
-   "symbol": "BCHUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": -1.1655206693592015,
-   "entryTime": 1791068400000
-  },
-  {
-   "symbol": "BCHUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 96,
-   "r": -1.2324452676341286,
-   "entryTime": 1791151200000
-  },
-  {
-   "symbol": "BCHUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 78,
-   "r": -1.2011492140418634,
-   "entryTime": 1791172800000
-  },
-  {
-   "symbol": "BCHUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 60,
-   "r": -1.1995372008115204,
-   "entryTime": 1791205200000
-  },
-  {
-   "symbol": "BCHUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 66,
-   "r": -1.213835895075948,
-   "entryTime": 1791234000000
-  },
-  {
-   "symbol": "AAVEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 60,
-   "r": -1.0986077982372353,
-   "entryTime": 1790596800000
-  },
-  {
-   "symbol": "AAVEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 66,
-   "r": -1.0812408504989404,
-   "entryTime": 1790618400000
-  },
-  {
-   "symbol": "AAVEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 80,
-   "r": 1.916173541252099,
-   "entryTime": 1790636400000
-  },
-  {
-   "symbol": "AAVEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 96,
-   "r": 1.9236080395133042,
-   "entryTime": 1790661600000
-  },
-  {
-   "symbol": "AAVEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": 1.933096398177621,
-   "entryTime": 1790665200000
-  },
-  {
-   "symbol": "AAVEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": -1.0612338252577913,
+   "r": 0.004641852085472069,
    "entryTime": 1790683200000
   },
   {
-   "symbol": "AAVEUSDT",
+   "symbol": "PUMPUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 70,
-   "r": -1.0578844519431707,
-   "entryTime": 1790697600000
+   "score": 72,
+   "r": -1.047498621485774,
+   "entryTime": 1790769600000
   },
   {
-   "symbol": "AAVEUSDT",
+   "symbol": "PUMPUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 78,
-   "r": -1.071648649921167,
-   "entryTime": 1790744400000
+   "score": 66,
+   "r": -1.043628146314899,
+   "entryTime": 1790780400000
   },
   {
-   "symbol": "AAVEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 96,
-   "r": 1.930915083933083,
-   "entryTime": 1790874000000
-  },
-  {
-   "symbol": "AAVEUSDT",
+   "symbol": "PUMPUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": -1.0632144481016437,
-   "entryTime": 1790913600000
+   "r": 0.3243472939852899,
+   "entryTime": 1791050400000
   },
   {
-   "symbol": "AAVEUSDT",
+   "symbol": "PUMPUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 64,
-   "r": -0.34426343953926336,
-   "entryTime": 1790964000000
+   "score": 78,
+   "r": -1.0541749574555694,
+   "entryTime": 1791136800000
   },
   {
-   "symbol": "AAVEUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 88,
-   "r": -1.1120377833688542,
-   "entryTime": 1791216000000
-  },
-  {
-   "symbol": "AAVEUSDT",
+   "symbol": "PUMPUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 96,
-   "r": -1.1163437098525089,
-   "entryTime": 1791288000000
+   "r": -1.0640552231166869,
+   "entryTime": 1791234000000
   },
   {
-   "symbol": "AAVEUSDT",
+   "symbol": "ATOMUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 100,
-   "r": -1.110637648055148,
-   "entryTime": 1791295200000
+   "score": 70,
+   "r": -1.1040015586337006,
+   "entryTime": 1790521200000
   },
   {
-   "symbol": "AAVEUSDT",
+   "symbol": "ATOMUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 80,
-   "r": -1.1244976536094666,
-   "entryTime": 1791403200000
+   "score": 68,
+   "r": -1.0736655540296065,
+   "entryTime": 1790665200000
+  },
+  {
+   "symbol": "ATOMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 68,
+   "r": -1.1142627185629144,
+   "entryTime": 1790913600000
+  },
+  {
+   "symbol": "ATOMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": 1.8809608247558964,
+   "entryTime": 1791039600000
+  },
+  {
+   "symbol": "ATOMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 62,
+   "r": -1.1236051011843948,
+   "entryTime": 1791118800000
+  },
+  {
+   "symbol": "ATOMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": 1.8640559991560428,
+   "entryTime": 1791158400000
+  },
+  {
+   "symbol": "ATOMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 76,
+   "r": -1.127240780381785,
+   "entryTime": 1791223200000
+  },
+  {
+   "symbol": "ATOMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 70,
+   "r": -1.1368089435800597,
+   "entryTime": 1791255600000
+  },
+  {
+   "symbol": "ATOMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": -1.126189508968104,
+   "entryTime": 1791428400000
+  },
+  {
+   "symbol": "ATOMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 74,
+   "r": 1.889058723245103,
+   "entryTime": 1791439200000
+  },
+  {
+   "symbol": "ATOMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 82,
+   "r": -1.0997066385682424,
+   "entryTime": 1791450000000
+  },
+  {
+   "symbol": "ATOMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": 1.9271590550960926,
+   "entryTime": 1791500400000
+  },
+  {
+   "symbol": "ATOMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 96,
+   "r": 1.9294102643518878,
+   "entryTime": 1791518400000
   },
   {
    "symbol": "PAXGUSDT",
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 80,
-   "r": -0.6271547800737962,
+   "r": -0.6271550339900221,
    "entryTime": 1790535600000
   },
   {
@@ -53874,7 +53872,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 84,
-   "r": -2.637500372026508,
+   "r": -2.6375004511532403,
    "entryTime": 1790546400000
   },
   {
@@ -53882,7 +53880,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 84,
-   "r": 0.49622793702151585,
+   "r": 0.4962278748318313,
    "entryTime": 1790550000000
   },
   {
@@ -53890,7 +53888,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 84,
-   "r": 0.9831225461736847,
+   "r": 0.983122519571679,
    "entryTime": 1790553600000
   },
   {
@@ -53898,7 +53896,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 84,
-   "r": 1.1774710346775108,
+   "r": 1.177471018449244,
    "entryTime": 1790557200000
   },
   {
@@ -53906,7 +53904,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 84,
-   "r": 1.2928318040222866,
+   "r": 1.2928317936301539,
    "entryTime": 1790564400000
   },
   {
@@ -53914,7 +53912,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 84,
-   "r": 1.3931468121698785,
+   "r": 1.3931468059900076,
    "entryTime": 1790575200000
   },
   {
@@ -53922,7 +53920,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 84,
-   "r": -1.3784482149322783,
+   "r": -1.3784482162583678,
    "entryTime": 1790604000000
   },
   {
@@ -53930,7 +53928,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 64,
-   "r": -1.4257078068845688,
+   "r": -1.42570780747801,
    "entryTime": 1790654400000
   },
   {
@@ -53938,7 +53936,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 64,
-   "r": -1.4209592527097161,
+   "r": -1.4209592531727173,
    "entryTime": 1790665200000
   },
   {
@@ -53946,7 +53944,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 60,
-   "r": -1.4502865587256288,
+   "r": -1.450286559090718,
    "entryTime": 1790683200000
   },
   {
@@ -53954,7 +53952,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 66,
-   "r": -1.4176757383326066,
+   "r": -1.4176757385665046,
    "entryTime": 1790697600000
   },
   {
@@ -53962,7 +53960,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 98,
-   "r": 0.20398117594300386,
+   "r": 0.20398117596399803,
    "entryTime": 1790773200000
   },
   {
@@ -53970,7 +53968,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 74,
-   "r": -0.546280277665231,
+   "r": -0.546280277665818,
    "entryTime": 1791046800000
   },
   {
@@ -53978,7 +53976,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 74,
-   "r": -3.7697294333974467,
+   "r": -3.769729433399129,
    "entryTime": 1791133200000
   },
   {
@@ -53986,7 +53984,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 60,
-   "r": -2.6873565385080336,
+   "r": -2.6873565385083453,
    "entryTime": 1791154800000
   },
   {
@@ -53994,7 +53992,7 @@
    "timeframe": "1h",
    "direction": "SHORT",
    "score": 78,
-   "r": -1.81574609180981,
+   "r": -1.815746091809883,
    "entryTime": 1791172800000
   },
   {
@@ -54038,195 +54036,747 @@
    "entryTime": 1791435600000
   },
   {
-   "symbol": "TIAUSDT",
+   "symbol": "BCHUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 62,
+   "r": -1.0900640499908543,
+   "entryTime": 1790600400000
+  },
+  {
+   "symbol": "BCHUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 64,
-   "r": -1.0662511043550158,
-   "entryTime": 1790679600000
+   "r": -0.42699162360231585,
+   "entryTime": 1790607600000
   },
   {
-   "symbol": "TIAUSDT",
+   "symbol": "BCHUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 82,
-   "r": 1.9181549334342034,
-   "entryTime": 1790913600000
+   "score": 62,
+   "r": 1.8611640357606203,
+   "entryTime": 1790751600000
   },
   {
-   "symbol": "TIAUSDT",
+   "symbol": "BCHUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 70,
-   "r": -1.0683412006913944,
-   "entryTime": 1790942400000
+   "score": 66,
+   "r": -1.1177115724361546,
+   "entryTime": 1790881200000
   },
   {
-   "symbol": "TIAUSDT",
+   "symbol": "BCHUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 74,
-   "r": -1.0607129372669104,
-   "entryTime": 1790949600000
+   "score": 66,
+   "r": 1.8857318512529482,
+   "entryTime": 1790982000000
   },
   {
-   "symbol": "TIAUSDT",
+   "symbol": "BCHUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 64,
-   "r": -1.0558663633887557,
-   "entryTime": 1790953200000
+   "score": 84,
+   "r": -1.1655206693594427,
+   "entryTime": 1791068400000
   },
   {
-   "symbol": "TIAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 82,
-   "r": -0.9121546221810534,
-   "entryTime": 1791039600000
-  },
-  {
-   "symbol": "TIAUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 64,
-   "r": 1.896142897292219,
-   "entryTime": 1791129600000
-  },
-  {
-   "symbol": "TIAUSDT",
+   "symbol": "BCHUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 96,
-   "r": -1.103579116196966,
-   "entryTime": 1791165600000
+   "r": -1.2324452676342157,
+   "entryTime": 1791151200000
   },
   {
-   "symbol": "TIAUSDT",
+   "symbol": "BCHUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 64,
-   "r": -1.0914289595294346,
+   "score": 78,
+   "r": -1.2011492140419031,
    "entryTime": 1791172800000
   },
   {
-   "symbol": "TIAUSDT",
+   "symbol": "BCHUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 86,
-   "r": 1.926550863976261,
-   "entryTime": 1791410400000
+   "score": 60,
+   "r": -1.1995372008115421,
+   "entryTime": 1791205200000
   },
   {
-   "symbol": "TIAUSDT",
+   "symbol": "BCHUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 96,
-   "r": -1.0606279836647554,
-   "entryTime": 1791464400000
+   "score": 66,
+   "r": -1.2138358950759645,
+   "entryTime": 1791234000000
   },
   {
-   "symbol": "TIAUSDT",
+   "symbol": "WLDUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 86,
-   "r": -1.037235870674947,
-   "entryTime": 1791482400000
+   "score": 78,
+   "r": -1.0474367575087005,
+   "entryTime": 1790517600000
   },
   {
-   "symbol": "FETUSDT",
+   "symbol": "WLDUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 88,
-   "r": -1.0592227257194633,
+   "score": 80,
+   "r": 0.0925897966452013,
    "entryTime": 1790661600000
   },
   {
-   "symbol": "FETUSDT",
+   "symbol": "WLDUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 96,
+   "r": 1.9409758378397832,
+   "entryTime": 1790762400000
+  },
+  {
+   "symbol": "WLDUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": -1.0631305555521526,
-   "entryTime": 1790834400000
+   "r": -1.049823216973883,
+   "entryTime": 1790769600000
   },
   {
-   "symbol": "FETUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 88,
-   "r": -1.0574590841757567,
-   "entryTime": 1790841600000
-  },
-  {
-   "symbol": "FETUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 62,
-   "r": 1.6546368668276341,
-   "entryTime": 1791018000000
-  },
-  {
-   "symbol": "FETUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": 1.910661719606284,
-   "entryTime": 1791115200000
-  },
-  {
-   "symbol": "FETUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": 1.9305908219308878,
-   "entryTime": 1791136800000
-  },
-  {
-   "symbol": "FETUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": -1.0579579465663478,
-   "entryTime": 1791158400000
-  },
-  {
-   "symbol": "FETUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 64,
-   "r": -0.009570014868299281,
-   "entryTime": 1791208800000
-  },
-  {
-   "symbol": "FETUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 62,
-   "r": -1.0848406259729464,
-   "entryTime": 1791417600000
-  },
-  {
-   "symbol": "FETUSDT",
+   "symbol": "WLDUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 70,
-   "r": -1.076316492278968,
-   "entryTime": 1791435600000
+   "r": -1.0453142180947774,
+   "entryTime": 1790791200000
+  },
+  {
+   "symbol": "WLDUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 66,
+   "r": 1.9349335146146585,
+   "entryTime": 1790899200000
+  },
+  {
+   "symbol": "WLDUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 96,
+   "r": 1.9357313395283076,
+   "entryTime": 1790920800000
+  },
+  {
+   "symbol": "WLDUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": -1.059569512412197,
+   "entryTime": 1790942400000
+  },
+  {
+   "symbol": "WLDUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 78,
+   "r": 1.9543519939381375,
+   "entryTime": 1790964000000
+  },
+  {
+   "symbol": "WLDUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": -0.6766069639751027,
+   "entryTime": 1791021600000
+  },
+  {
+   "symbol": "WLDUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 66,
+   "r": -1.0896324165284563,
+   "entryTime": 1791230400000
+  },
+  {
+   "symbol": "AAVEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 60,
+   "r": -1.0986077986000249,
+   "entryTime": 1790596800000
+  },
+  {
+   "symbol": "AAVEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 66,
+   "r": -1.081240850658868,
+   "entryTime": 1790618400000
+  },
+  {
+   "symbol": "AAVEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 80,
+   "r": 1.9161735411429839,
+   "entryTime": 1790636400000
+  },
+  {
+   "symbol": "AAVEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 96,
+   "r": 1.9236080394619521,
+   "entryTime": 1790661600000
+  },
+  {
+   "symbol": "AAVEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": 1.9330963981430016,
+   "entryTime": 1790665200000
+  },
+  {
+   "symbol": "AAVEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": -1.0612338252785007,
+   "entryTime": 1790683200000
+  },
+  {
+   "symbol": "AAVEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 70,
+   "r": -1.0578844519574293,
+   "entryTime": 1790697600000
+  },
+  {
+   "symbol": "AAVEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 78,
+   "r": -1.071648649929705,
+   "entryTime": 1790744400000
+  },
+  {
+   "symbol": "AAVEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 96,
+   "r": 1.9309150839326001,
+   "entryTime": 1790874000000
+  },
+  {
+   "symbol": "AAVEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": -1.0632144481018262,
+   "entryTime": 1790913600000
+  },
+  {
+   "symbol": "AAVEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": -0.3442634395396274,
+   "entryTime": 1790964000000
+  },
+  {
+   "symbol": "AAVEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 88,
+   "r": -1.112037783368855,
+   "entryTime": 1791216000000
+  },
+  {
+   "symbol": "AAVEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 96,
+   "r": -1.11634370985251,
+   "entryTime": 1791288000000
+  },
+  {
+   "symbol": "AAVEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 100,
+   "r": -1.110637648055148,
+   "entryTime": 1791295200000
+  },
+  {
+   "symbol": "AAVEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 80,
+   "r": -1.1244976536094666,
+   "entryTime": 1791403200000
+  },
+  {
+   "symbol": "PEPEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 82,
+   "r": -1.081826152648586,
+   "entryTime": 1790686800000
+  },
+  {
+   "symbol": "PEPEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 82,
+   "r": -1.0879958017225533,
+   "entryTime": 1790766000000
+  },
+  {
+   "symbol": "PEPEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": 0.8761453780863998,
+   "entryTime": 1790820000000
+  },
+  {
+   "symbol": "PEPEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 80,
+   "r": -1.0711960742159132,
+   "entryTime": 1790920800000
+  },
+  {
+   "symbol": "PEPEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": -1.069719979024277,
+   "entryTime": 1790938800000
+  },
+  {
+   "symbol": "PEPEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 70,
+   "r": -1.1351113142071334,
+   "entryTime": 1791154800000
+  },
+  {
+   "symbol": "PEPEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": 1.8813107092828818,
+   "entryTime": 1791172800000
+  },
+  {
+   "symbol": "PEPEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 84,
+   "r": -1.1074251535462902,
+   "entryTime": 1791187200000
+  },
+  {
+   "symbol": "PEPEUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": -1.094655673865769,
+   "entryTime": 1791208800000
+  },
+  {
+   "symbol": "TAOUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": -1.0769021122823421,
+   "entryTime": 1790528400000
+  },
+  {
+   "symbol": "TAOUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 66,
+   "r": -1.0669904743771628,
+   "entryTime": 1790618400000
+  },
+  {
+   "symbol": "TAOUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 66,
+   "r": 0.08632497674838613,
+   "entryTime": 1790658000000
+  },
+  {
+   "symbol": "TAOUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 82,
+   "r": 0.10641634031229173,
+   "entryTime": 1791064800000
+  },
+  {
+   "symbol": "TAOUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 96,
+   "r": -1.1417286144585193,
+   "entryTime": 1791151200000
+  },
+  {
+   "symbol": "TAOUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 74,
+   "r": -1.1267778278800318,
+   "entryTime": 1791180000000
+  },
+  {
+   "symbol": "GRAMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 72,
+   "r": -1.0617358902223764,
+   "entryTime": 1790521200000
+  },
+  {
+   "symbol": "GRAMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": 1.9380582442171055,
+   "entryTime": 1790560800000
+  },
+  {
+   "symbol": "GRAMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 96,
+   "r": -1.049693540400251,
+   "entryTime": 1790589600000
+  },
+  {
+   "symbol": "GRAMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": -1.0453411346403187,
+   "entryTime": 1790604000000
+  },
+  {
+   "symbol": "GRAMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 80,
+   "r": -1.0720840654377393,
+   "entryTime": 1790740800000
+  },
+  {
+   "symbol": "GRAMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 92,
+   "r": -0.13010603040656613,
+   "entryTime": 1790766000000
+  },
+  {
+   "symbol": "GRAMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 96,
+   "r": -1.0894614970090273,
+   "entryTime": 1790888400000
+  },
+  {
+   "symbol": "GRAMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 60,
+   "r": -1.1079673801097116,
+   "entryTime": 1790942400000
+  },
+  {
+   "symbol": "GRAMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 70,
+   "r": 0.43628413564202534,
+   "entryTime": 1791032400000
+  },
+  {
+   "symbol": "GRAMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": 0.6556825827939863,
+   "entryTime": 1791118800000
+  },
+  {
+   "symbol": "GRAMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 70,
+   "r": -1.189201579749949,
+   "entryTime": 1791205200000
+  },
+  {
+   "symbol": "GRAMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 66,
+   "r": 1.8348236234127209,
+   "entryTime": 1791234000000
+  },
+  {
+   "symbol": "GRAMUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 88,
+   "r": -1.146582137692244,
+   "entryTime": 1791277200000
+  },
+  {
+   "symbol": "DOTUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 100,
+   "r": -1.0695718271879717,
+   "entryTime": 1790665200000
+  },
+  {
+   "symbol": "DOTUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 96,
+   "r": -1.076250794748392,
+   "entryTime": 1790758800000
+  },
+  {
+   "symbol": "DOTUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 70,
+   "r": -1.069762104038312,
+   "entryTime": 1790780400000
+  },
+  {
+   "symbol": "DOTUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 88,
+   "r": -1.0952737637123178,
+   "entryTime": 1790906400000
+  },
+  {
+   "symbol": "DOTUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 68,
+   "r": 0.34167960692360044,
+   "entryTime": 1791021600000
+  },
+  {
+   "symbol": "DOTUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 66,
+   "r": 1.8655709562012193,
+   "entryTime": 1791133200000
+  },
+  {
+   "symbol": "DOTUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 82,
+   "r": -1.1162687764922419,
+   "entryTime": 1791140400000
+  },
+  {
+   "symbol": "DOTUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 74,
+   "r": 1.8883736667322517,
+   "entryTime": 1791147600000
+  },
+  {
+   "symbol": "DOTUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 96,
+   "r": -1.1046779519393892,
+   "entryTime": 1791183600000
+  },
+  {
+   "symbol": "DOTUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 70,
+   "r": -1.10029433630232,
+   "entryTime": 1791190800000
+  },
+  {
+   "symbol": "DOTUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 78,
+   "r": 0.10450605710718823,
+   "entryTime": 1791223200000
+  },
+  {
+   "symbol": "LINKUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 62,
+   "r": -1.1279961861690277,
+   "entryTime": 1790550000000
+  },
+  {
+   "symbol": "LINKUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 60,
+   "r": 1.9065362236186447,
+   "entryTime": 1790589600000
+  },
+  {
+   "symbol": "LINKUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 96,
+   "r": -1.075338076939663,
+   "entryTime": 1790596800000
+  },
+  {
+   "symbol": "LINKUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 78,
+   "r": 1.93431975676058,
+   "entryTime": 1790604000000
+  },
+  {
+   "symbol": "LINKUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 96,
+   "r": -1.0577312345677852,
+   "entryTime": 1790611200000
+  },
+  {
+   "symbol": "LINKUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 70,
+   "r": -1.0605230631907634,
+   "entryTime": 1790658000000
+  },
+  {
+   "symbol": "LINKUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 100,
+   "r": -1.0994765563455777,
+   "entryTime": 1790769600000
+  },
+  {
+   "symbol": "LINKUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 86,
+   "r": -1.0911275864343355,
+   "entryTime": 1790773200000
+  },
+  {
+   "symbol": "LINKUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 62,
+   "r": -1.1179032767074848,
+   "entryTime": 1791003600000
+  },
+  {
+   "symbol": "LINKUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 62,
+   "r": 0.7923185009873247,
+   "entryTime": 1791054000000
+  },
+  {
+   "symbol": "LINKUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 88,
+   "r": -1.1991848142669488,
+   "entryTime": 1791140400000
+  },
+  {
+   "symbol": "LINKUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": -1.1964427467297118,
+   "entryTime": 1791284400000
+  },
+  {
+   "symbol": "APTUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 70,
+   "r": -1.0762190068360826,
+   "entryTime": 1790913600000
+  },
+  {
+   "symbol": "APTUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": -0.3330354818283128,
+   "entryTime": 1790985600000
   },
   {
    "symbol": "ZROUSDT",
    "timeframe": "1h",
    "direction": "LONG",
-   "score": 80,
-   "r": -1.0582078697099928,
-   "entryTime": 1790499600000
+   "score": 96,
+   "r": -1.0644073667237148,
+   "entryTime": 1790535600000
+  },
+  {
+   "symbol": "ZROUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 88,
+   "r": -1.0585601262664188,
+   "entryTime": 1790539200000
+  },
+  {
+   "symbol": "ZROUSDT",
+   "timeframe": "1h",
+   "direction": "LONG",
+   "score": 64,
+   "r": -1.0536445502802196,
+   "entryTime": 1790546400000
   },
   {
    "symbol": "ZROUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 60,
-   "r": -1.037734637321034,
+   "r": -1.0377346371275729,
    "entryTime": 1790582400000
   },
   {
@@ -54234,7 +54784,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 88,
-   "r": -1.0419010633560026,
+   "r": -1.041901063333468,
    "entryTime": 1790694000000
   },
   {
@@ -54242,7 +54792,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 66,
-   "r": 1.9621391025314006,
+   "r": 1.9621391025461623,
    "entryTime": 1790701200000
   },
   {
@@ -54250,7 +54800,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 96,
-   "r": -1.0398193976786538,
+   "r": -1.0398193976687027,
    "entryTime": 1790726400000
   },
   {
@@ -54258,7 +54808,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 64,
-   "r": 1.9535068539010747,
+   "r": 1.9535068539038782,
    "entryTime": 1790798400000
   },
   {
@@ -54266,7 +54816,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 80,
-   "r": 1.9525096643069861,
+   "r": 1.9525096643072806,
    "entryTime": 1790906400000
   },
   {
@@ -54274,7 +54824,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 96,
-   "r": -1.0460342058686007,
+   "r": -1.0460342058684828,
    "entryTime": 1790949600000
   },
   {
@@ -54282,7 +54832,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 64,
-   "r": 1.960033459285745,
+   "r": 1.9600334592858142,
    "entryTime": 1790960400000
   },
   {
@@ -54290,7 +54840,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 84,
-   "r": -0.14976559311270277,
+   "r": -0.1497655931126257,
    "entryTime": 1791025200000
   },
   {
@@ -54298,7 +54848,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 78,
-   "r": -1.0510283768283875,
+   "r": -1.0510283768283828,
    "entryTime": 1791115200000
   },
   {
@@ -54306,7 +54856,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 60,
-   "r": 1.9342356435985661,
+   "r": 1.9342356435985684,
    "entryTime": 1791172800000
   },
   {
@@ -54314,7 +54864,7 @@
    "timeframe": "1h",
    "direction": "LONG",
    "score": 96,
-   "r": 1.940530337405598,
+   "r": 1.940530337405599,
    "entryTime": 1791212400000
   },
   {
@@ -54350,204 +54900,12 @@
    "entryTime": 1791529200000
   },
   {
-   "symbol": "DOTUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 100,
-   "r": -1.0695718272966164,
-   "entryTime": 1790665200000
-  },
-  {
-   "symbol": "DOTUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 96,
-   "r": -1.076250794766692,
-   "entryTime": 1790758800000
-  },
-  {
-   "symbol": "DOTUSDT",
+   "symbol": "ZROUSDT",
    "timeframe": "1h",
    "direction": "LONG",
    "score": 70,
-   "r": -1.0697621040482352,
-   "entryTime": 1790780400000
-  },
-  {
-   "symbol": "DOTUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 88,
-   "r": -1.0952737637137335,
-   "entryTime": 1790906400000
-  },
-  {
-   "symbol": "DOTUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 68,
-   "r": 0.34167960692406013,
-   "entryTime": 1791021600000
-  },
-  {
-   "symbol": "DOTUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 66,
-   "r": 1.8655709562012175,
-   "entryTime": 1791133200000
-  },
-  {
-   "symbol": "DOTUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 82,
-   "r": -1.116268776492258,
-   "entryTime": 1791140400000
-  },
-  {
-   "symbol": "DOTUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 74,
-   "r": 1.8883736667322293,
-   "entryTime": 1791147600000
-  },
-  {
-   "symbol": "DOTUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 96,
-   "r": -1.1046779519393952,
-   "entryTime": 1791183600000
-  },
-  {
-   "symbol": "DOTUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 70,
-   "r": -1.100294336302325,
-   "entryTime": 1791190800000
-  },
-  {
-   "symbol": "DOTUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 78,
-   "r": 0.10450605710719012,
-   "entryTime": 1791223200000
-  },
-  {
-   "symbol": "APTUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 70,
-   "r": -1.0762190068352255,
-   "entryTime": 1790913600000
-  },
-  {
-   "symbol": "APTUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 64,
-   "r": -0.33303548182752907,
-   "entryTime": 1790985600000
-  },
-  {
-   "symbol": "LTCUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 100,
-   "r": -1.1025208743936066,
-   "entryTime": 1790589600000
-  },
-  {
-   "symbol": "LTCUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 62,
-   "r": -1.104919537310866,
-   "entryTime": 1790668800000
-  },
-  {
-   "symbol": "LTCUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 64,
-   "r": -0.3638525322034795,
-   "entryTime": 1790694000000
-  },
-  {
-   "symbol": "LTCUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 88,
-   "r": -1.1202880687257881,
-   "entryTime": 1790784000000
-  },
-  {
-   "symbol": "LTCUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 80,
-   "r": 0.8956078216443647,
-   "entryTime": 1790805600000
-  },
-  {
-   "symbol": "LTCUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 88,
-   "r": 1.8599376264543173,
-   "entryTime": 1790902800000
-  },
-  {
-   "symbol": "LTCUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 84,
-   "r": -1.1350566646736346,
-   "entryTime": 1790946000000
-  },
-  {
-   "symbol": "LTCUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 88,
-   "r": -1.11769962501954,
-   "entryTime": 1790949600000
-  },
-  {
-   "symbol": "LTCUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 74,
-   "r": -0.42760227206790163,
-   "entryTime": 1790974800000
-  },
-  {
-   "symbol": "LTCUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 96,
-   "r": -1.148218000291863,
-   "entryTime": 1791122400000
-  },
-  {
-   "symbol": "LTCUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 88,
-   "r": -1.1460026287484824,
-   "entryTime": 1791129600000
-  },
-  {
-   "symbol": "LTCUSDT",
-   "timeframe": "1h",
-   "direction": "LONG",
-   "score": 60,
-   "r": -1.1666973562419325,
-   "entryTime": 1791180000000
+   "r": -1.0443865866167592,
+   "entryTime": 1791547200000
   }
  ]
 }
