@@ -1,0 +1,100 @@
+name: Знаменатель
+
+# Шестое измерение, и единственное, которое меряет не стратегию.
+#
+# Все пять предыдущих сравнивались со случайными входами. Но случайный вход —
+# не альтернатива: человек с деньгами выбирает между стратегией и «занести те
+# же $100 и держать». Это сравнение не делалось ни разу, хотя оно знаменатель
+# для всех остальных: стратегия, проигрывающая бездействию, — отрицательный
+# результат, даже если сама по себе она в плюсе.
+#
+# Считаются ВСЕ даты старта, а не одна: разброс между лучшей и худшей больше,
+# чем разница между любыми двумя стратегиями, которые здесь мерились.
+on:
+  schedule:
+    # Пятница, 07:40 UTC — в день, свободный от остальных измерений.
+    - cron: '40 7 * * 5'
+  workflow_dispatch:
+    inputs:
+      monthly:
+        description: 'Ежемесячный взнос в долларах'
+        required: false
+        default: '100'
+      bars:
+        description: 'Дневных свечей истории на монету (2000 ≈ 5.5 лет)'
+        required: false
+        default: '2000'
+      universe:
+        description: 'Сколько монет брать по обороту'
+        required: false
+        default: '20'
+      min_years:
+        description: 'Минимальный горизонт сценария, лет'
+        required: false
+        default: '1'
+      income:
+        description: 'Целевой годовой доход в долларах'
+        required: false
+        default: '50000'
+
+concurrency:
+  group: coinscope-dca
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Посчитать знаменатель
+        env:
+          # Живые данные. На офлайн-генераторе усреднение выигрывает по
+          # построению — он строит монеты с устойчивым дрейфом, — и прогон с
+          # таким выводом был бы потраченной работой.
+          COINSCOPE_SOURCE: binance
+          COINSCOPE_DCA_MONTHLY: ${{ github.event.inputs.monthly || '100' }}
+          COINSCOPE_DCA_BARS: ${{ github.event.inputs.bars || '2000' }}
+          COINSCOPE_DCA_UNIVERSE: ${{ github.event.inputs.universe || '20' }}
+          COINSCOPE_DCA_MIN_YEARS: ${{ github.event.inputs.min_years || '1' }}
+          COINSCOPE_DCA_INCOME: ${{ github.event.inputs.income || '50000' }}
+          # Порог оборота намеренно НЕ закреплён: он живёт в config.js рядом с
+          # моделью издержек, с которой составляет одно решение.
+        shell: bash
+        run: node server/cli-dca.js | tee dca.log
+
+      - name: Закоммитить отчёт
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/dca.json
+          if git diff --cached --quiet; then
+            echo "Отчёт не изменился."
+            exit 0
+          fi
+          git commit -m "Знаменатель: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          for i in 1 2 3; do
+            git pull --rebase --autostash origin main && git push origin HEAD:main && exit 0
+            sleep 5
+          done
+          echo "::error::Не удалось запушить отчёт после трёх попыток"
+          exit 1
+
+      - name: Сохранить лог
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dca-log
+          path: dca.log
+          if-no-files-found: ignore

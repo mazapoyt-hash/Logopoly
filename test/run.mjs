@@ -26,6 +26,7 @@ const suites = [
   { file: 'liquidity.test.mjs', server: false },
   { file: 'selectivity.test.mjs', server: false },
   { file: 'dislocation.test.mjs', server: false },
+  { file: 'dca.test.mjs', server: false },
   { file: 'static.test.mjs', server: false },
   { file: 'api.e2e.mjs', server: true },
 ];
